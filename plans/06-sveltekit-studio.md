@@ -1,0 +1,49 @@
+# 06 — SvelteKit Character Studio
+
+## Purpose
+Provide a child-friendly authoring and review interface plus the single server API.
+
+## Scope
+Library, creation/editing, uploads, creative choices, generation progress, original/generated/animation previews, selective regeneration, version history, approval and publication. API supports studio and development Godot consumption.
+
+## Technical approach
+SvelteKit/Svelte 5 with runes for local reactive UI, typed server load functions/form actions, Tailwind CSS and adapter-node. Business operations live in services, not `.svelte` files or route handlers. Browser bundles must not import database or provider SDKs; keep server modules in server-only boundaries. Use optimistic revision tokens on editing requests.
+
+## Architecture and responsibilities
+Routes/views: `/characters` library; `/characters/new` upload/name/description wizard; `/characters/[id]` creative choices and side-by-side preview; `/characters/[id]/versions/[version]` read-only snapshot/history/approval; job detail panel with step status, retry/cancel and clear errors. Use body types from contract, curated fighting styles and power catalog, not raw arbitrary combat code.
+
+Planned API (same-origin mutation requests):
+- `POST /api/characters`, `GET/PATCH /api/characters/:id`: validate authoring DTO and expected edit revision.
+- `POST /api/characters/:id/originals`: bounded multipart upload; immutable asset reference.
+- `POST /api/characters/:id/generations`: enqueue snapshot, style and requested targets; 202 + job ID; idempotency key.
+- `GET /api/jobs/:id`, `POST /api/jobs/:id/{retry,cancel}`: persisted progress, safe transitions.
+- `POST /api/characters/:id/versions/:version/approvals`: exact manifest hash + approve/reject.
+- `POST /api/characters/:id/versions/:version/publish`: explicit matching approval, 202 publication job; idempotency key.
+- Private preview routes address authorized asset IDs, not disk paths.
+- Public game API is `/api/content/index`, `/api/content/releases/:releaseId/index`, `/api/content/characters/:id/versions/:version/manifest` and `/api/content/characters/:id/versions/:version/assets/:hash.png`; only published revisions served (plan 09).
+
+Return structured `{error:{code,message,fieldErrors?,requestId}}`; use 400 validation, 404 missing, 409 stale revision/transition, 413 size, 415 type, 422 invalid assets, 503 transient unavailable. Do not leak paths, stack traces or provider keys. Job poll starts at 1 second, backs off to 5 seconds, pauses when hidden; SSE can be added later.
+
+## Key design decisions
+Upload policy: JPEG/PNG/WebP only, 10 MiB compressed max, 20 megapixels decoded max, one original per request. Enforce request size at adapter/proxy and streaming boundary before buffering. Verify magic bytes and decode with Sharp's pixel limit; MIME/extension alone insufficient. Reject SVG, animated/multipage files, truncated images and decompression bombs. Store original bytes unmodified with hash and generated filename; derive EXIF-oriented, metadata-stripped preview separately. Never expose originals publicly or put child descriptions in logs. Names/descriptions are plain text; server validates length and renders escaped text.
+
+Keep original visible beside generated art; labels distinguish original/draft/review/approved/published and generation costs. Approval and publication are separate deliberate actions with adult-oriented confirmation when external provider use/cost is involved. Regeneration lists impacted descendants and creates a new version, never changes a published one. Keyboard navigation, labeled inputs, visible focus, large touch targets, reduced motion, non-color status indicators and ARIA progress are required. Failed jobs retain work and offer targeted retry, not a forced restart.
+
+## Dependencies
+Foundation and database; contract previews; Phase 4 published fixture API. Phase 5 UI uses existing seeded content for review/publish tests and an explicit unavailable/enqueue state until Phase 6 worker exists—do not fake successful generation. Mock-worker integration completes workflow UI acceptance in Phase 6.
+
+## Implementation tasks
+- [ ] Implement validated services/routes and private asset streaming.
+- [ ] Build responsive library/wizard/editor/history and animation preview component.
+- [ ] Add stale-edit protection, error recovery, progress and selective actions.
+- [ ] Add upload limits, origin/CSRF safeguards and accessibility tests.
+- [ ] Connect full mock flow once Phase 6 stages are implemented.
+
+## Acceptance criteria
+A keyboard-only user can create, attach art, choose options, review and publish a validated fixture version; invalid/oversized uploads never become assets. Drafts cannot appear in game. After Phase 6, progress/retry/cancel/preview operate on real persisted jobs, and original art remains retrievable unchanged.
+
+## Risks and limitations
+Large multipart buffering can exhaust memory unless limits are enforced before decode. Child usability requires observation beyond automated a11y tests. Local identity is not multi-user authorization; public deployment is blocked until authentication/ownership rules exist.
+
+## Future considerations
+Localization, guardian accounts, camera capture/cropping, guided power descriptions and offline studio authoring.
