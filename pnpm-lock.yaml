@@ -109,7 +109,15 @@ importers:
 
   packages/content-publisher: {}
 
-  packages/contracts: {}
+  packages/contracts:
+    dependencies:
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@types/node':
+        specifier: 22.20.5
+        version: 22.20.5
 
   packages/database:
     dependencies:
@@ -139,6 +147,9 @@ importers:
 
   tools/content-cli:
     dependencies:
+      '@doodleforge/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@doodleforge/database':
         specifier: workspace:*
         version: link:../../packages/database

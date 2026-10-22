@@ -6,6 +6,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@doodleforge/contracts": "workspace:*",
     "@doodleforge/database": "workspace:*",
     "@doodleforge/shared": "workspace:*"
   }

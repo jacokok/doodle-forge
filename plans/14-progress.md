@@ -18,8 +18,9 @@ Implementing agent maintains this file and records architectural changes in plan
 - Node 22.23.3 maintenance LTS/pnpm 10.34.7/TypeScript 6.0.3 and exact dependency pins verified together (ADR-014). SvelteKit 3 configuration/API conventions are used, not Kit 2 scaffolding.
 - Godot 4.7.2-stable binary and actual official Linux x86_64 debug/release templates verified before project creation; no version change (ADR-007 addendum).
 - Baseline persistence is intentionally incremental: four tables now, contract/asset/publication/workflow additions through new migrations in consuming phases (ADR-015).
-- Seed is deterministic synthetic authoring metadata only. It cannot produce game-visible/approved content. Ability catalog and approved fixtures remain Phase 2/4 work.
-- Hash-bound approval, immutable revisions, filesystem-first publication/transactional active release, API development and offline bundle release designs are unchanged and not implemented by this foundation.
+- Seed is deterministic synthetic authoring metadata only. It cannot produce game-visible/approved content. Phase 2 now defines the contract and authored fixture packages; approval/publication remain Phase 4 work.
+- Phase 2 uses strict Zod 4 schemas as the source of truth, generated draft-2020-12 JSON Schema, semantic validators, deterministic canonical JSON/hash helpers, and package-relative asset verification (ADR-016).
+- Hash-bound approval, immutable revisions, filesystem-first publication/transactional active release, API development and offline bundle release designs remain unchanged and unimplemented.
 - Deterministic mock workflow still precedes real provider selection and paid calls.
 
 ## Dependencies
@@ -27,7 +28,7 @@ Phase 0 review and explicit Phase 1 authorization were supplied by the user. Too
 
 ## Implementation tasks
 ### Current phase
-**Phase 1 — Foundation complete and locally verified (2026-10-22).** Stopped at the phase boundary. Remote CI is configured but has not run; no Phase 2 implementation has started.
+**Phase 2 — Character contract complete locally (2026-10-22).** Contract schemas, semantic/package validation, reproducible JSON Schema, CLI validation, and two synthetic packages are implemented and tested. Godot parity is intentionally deferred to Phase 4 loader work; no Phase 3 gameplay has started.
 
 ### Completed tasks
 #### Phase 0 (retained history)
@@ -44,17 +45,17 @@ Phase 0 review and explicit Phase 1 authorization were supplied by the user. Too
 - [x] **Verification/docs:** Vitest, built-process/restart/signal smoke, Chromium keyboard/shell test; CI split into TS/browser/Godot jobs; `docs/setup.md`, README, agent navigation and ADR-014/015 updated. All nine Phase 1 roadmap items synchronized with executed local evidence below.
 
 ### Tasks in progress
-None. Awaiting foundation review/next-phase authorization; do not silently start contract/gameplay/factory implementation.
+None. Phase 2 contract boundary is complete. Phase 3 is explicitly not started.
 
 ### Blocked tasks
-No local Phase 1 acceptance blocker remains. The mise pnpm binary download timed out; exact pnpm was successfully obtained via the npm-registry fallback documented below. Template download initially timed out, then resumed successfully and passed official checksum verification. Remote CI execution is unverified, not counted as a pass.
+No Phase 2 local acceptance blocker remains. Godot contract parity awaits the Phase 4 runtime loader. The mise pnpm binary download timed out; exact pnpm was obtained via the npm-registry fallback documented below. Remote CI execution remains unverified.
 
 ### Phase status
 | Phase | Status | Evidence |
 |---|---|---|
 | 0 planning | Complete and reviewed | Original 19 Markdown files; structure/link/manual consistency review |
 | 1 foundation | Complete, locally verified | Frozen clean-snapshot install, strict checks/build, 18 tests, process smoke, 1 Chromium test, 3 Godot assertions; setup/CI definitions added |
-| 2 contract | Not started | Empty package boundary only; no executable public schemas/fixtures/catalog |
+| 2 contract | Complete locally | `packages/contracts`: v1 character/release Zod schemas, semantic/path/hash/PNG validation, draft-2020-12 JSON Schema, CLI validator, two five-animation synthetic fixture packages. Godot parity remains Phase 4. |
 | 3 game prototype | Not started | Native engine skeleton only; no movement/combat |
 | 4 dynamic loading | Not started | Publisher package boundary only; no approval/content API/repository |
 | 5 studio | Not started | Foundation shell only; no authoring/uploads/review |
@@ -112,12 +113,20 @@ Phase 0 evidence retained: initial inventory confirmed README-only application s
 - Real provider terms/cost/privacy/animation quality remain unevaluated. Initial operation is loopback-only, not secure public multi-user hosting.
 
 ### Next actions
-1. Review the foundation, ADR-014/015 and local test evidence; execute configured CI when pushed.
-2. On Phase 2 authorization, read plan 04 and relevant game/content plans; implement the Zod v1 contract, semantic validators, generated JSON Schema, canonical hashes and two real synthetic fixture packages.
-3. Add contract/catalog constraints through a new migration and real validation CLI; do not rewrite the baseline or treat the metadata seed as an approved character.
+1. Keep Phase 3 stopped as requested; no gameplay implementation was started.
+2. On future Phase 3 authorization, read plan 03 and inspect the v1 fixture content boundary.
+3. Phase 4 must add Godot parity/runtime loading and publication services; fixtures are not approved releases.
+
+## Phase 2 implementation evidence (2026-10-22)
+- `packages/contracts/src/index.ts`: strict v1 character/release contracts, bounds, semantic reference/animation/window/path checks, safe package file resolution, byte/hash/PNG IHDR checks, canonical JSON and SHA-256 helpers; unsupported schema versions and unknown fields fail closed.
+- `packages/contracts/schema/*.schema.json`: generated through Zod 4 `toJSONSchema` for draft 2020-12. `content:schema` formats output deterministically; two consecutive generations produced identical SHA-256 inventories.
+- `packages/contracts/fixtures/{sprout,comet}/v1/`: two visually distinct, small authored transparent PNG character packages; each contains real hash/byte/dimension metadata and all five required animations.
+- `tools/content-cli`: `content:validate <manifest>` now validates package bytes; `content:schema` emits committed schemas. No Phase 2 DB migration was needed; contract source/fixtures are package-owned and Phase 1 baseline history remains untouched.
+- Exact local commands (Node 22.23.3, pnpm 10.34.7 via npm-registry fallback): `pnpm content:schema` twice + SHA-256 `diff` PASS; `pnpm content:validate packages/contracts/fixtures/comet/v1/character.json` PASS; `pnpm check` PASS (0 Svelte errors/warnings); `pnpm test` PASS (4 files, 26 tests); `pnpm format:check` PASS; `git diff --check` PASS.
+- Not run: remote CI; Godot parity/runtime loading, deliberately deferred until Phase 4. Phase 2 fixture validation does not establish approval/publication or gameplay.
 
 ## Acceptance criteria
-Progress reflects only completed and verified work, links to plan decisions, explicitly names unrun tests and leaves a clear next task. Phase boundaries require review; foundation completion does not imply application completion.
+Progress reflects only completed and verified work, links to plan decisions, explicitly names unrun tests and leaves a clear next task. Phase boundaries require review; foundation/contract completion does not imply application completion.
 
 ## Risks and limitations
 Checkbox drift can mislead future agents; synchronize roadmap at each milestone. A researched version is not a tested toolchain and a fixture/shell test is not full generation E2E.

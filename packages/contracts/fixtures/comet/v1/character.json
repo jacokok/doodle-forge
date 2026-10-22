@@ -1,0 +1,151 @@
+{
+  "abilities": [
+    {
+      "attackId": "light",
+      "effectIds": [],
+      "id": "basic_melee",
+      "kind": "melee",
+      "parameters": {}
+    }
+  ],
+  "anchors": {
+    "center": { "x": 128, "y": 128 },
+    "effect": { "x": 128, "y": 96 },
+    "feet": { "x": 128, "y": 224 },
+    "hand": { "x": 192, "y": 128 }
+  },
+  "animations": {
+    "attack_light": {
+      "assetId": "attack_light_sheet",
+      "columns": 1,
+      "footAnchor": { "x": 128, "y": 224 },
+      "fps": 10,
+      "frameCount": 1,
+      "frameHeight": 256,
+      "frameWidth": 256,
+      "loop": false
+    },
+    "hurt": {
+      "assetId": "hurt_sheet",
+      "columns": 1,
+      "footAnchor": { "x": 128, "y": 224 },
+      "fps": 10,
+      "frameCount": 1,
+      "frameHeight": 256,
+      "frameWidth": 256,
+      "loop": false
+    },
+    "idle": {
+      "assetId": "idle_sheet",
+      "columns": 1,
+      "footAnchor": { "x": 128, "y": 224 },
+      "fps": 8,
+      "frameCount": 1,
+      "frameHeight": 256,
+      "frameWidth": 256,
+      "loop": true
+    },
+    "knockout": {
+      "assetId": "knockout_sheet",
+      "columns": 1,
+      "footAnchor": { "x": 128, "y": 224 },
+      "fps": 10,
+      "frameCount": 1,
+      "frameHeight": 256,
+      "frameWidth": 256,
+      "loop": false
+    },
+    "walk": {
+      "assetId": "walk_sheet",
+      "columns": 1,
+      "footAnchor": { "x": 128, "y": 224 },
+      "fps": 10,
+      "frameCount": 1,
+      "frameHeight": 256,
+      "frameWidth": 256,
+      "loop": true
+    }
+  },
+  "artStyle": "cartoon",
+  "assets": {
+    "attack_light_sheet": {
+      "bytes": 174013,
+      "height": 256,
+      "mediaType": "image/png",
+      "path": "assets/db061ac349376d65ef413dbf86627cc70e692922ab59b9087cbd11eb73bb423d.png",
+      "sha256": "db061ac349376d65ef413dbf86627cc70e692922ab59b9087cbd11eb73bb423d",
+      "width": 256
+    },
+    "hurt_sheet": {
+      "bytes": 173896,
+      "height": 256,
+      "mediaType": "image/png",
+      "path": "assets/7c5a2337ae17ed6e073149b171a03f0c0f6871588436d85a4a93f210c40913b0.png",
+      "sha256": "7c5a2337ae17ed6e073149b171a03f0c0f6871588436d85a4a93f210c40913b0",
+      "width": 256
+    },
+    "idle_sheet": {
+      "bytes": 173968,
+      "height": 256,
+      "mediaType": "image/png",
+      "path": "assets/5ebd22b7c7aab19e801191d003a3ae2e5ec597d2cc3c7a276c157c9c3f7bae85.png",
+      "sha256": "5ebd22b7c7aab19e801191d003a3ae2e5ec597d2cc3c7a276c157c9c3f7bae85",
+      "width": 256
+    },
+    "knockout_sheet": {
+      "bytes": 173960,
+      "height": 256,
+      "mediaType": "image/png",
+      "path": "assets/eaa4b5d568c2cf27cbfebee1b703705206ea24885bc693f4914253a87535b6dc.png",
+      "sha256": "eaa4b5d568c2cf27cbfebee1b703705206ea24885bc693f4914253a87535b6dc",
+      "width": 256
+    },
+    "walk_sheet": {
+      "bytes": 173960,
+      "height": 256,
+      "mediaType": "image/png",
+      "path": "assets/4b6ace8c371d5642468b341ecf4b5d296619af434eef8cdefa09fb6be8cf8fec.png",
+      "sha256": "4b6ace8c371d5642468b341ecf4b5d296619af434eef8cdefa09fb6be8cf8fec",
+      "width": 256
+    }
+  },
+  "attacks": [
+    {
+      "activeSeconds": 0.15,
+      "animation": "attack_light",
+      "cooldownSeconds": 0.5,
+      "damage": 10,
+      "hitboxIds": ["light_hit"],
+      "id": "light",
+      "kind": "melee",
+      "knockback": { "depthSpeed": 30, "durationSeconds": 0.2, "xSpeed": 180 },
+      "recoverySeconds": 0.2,
+      "startupSeconds": 0.1
+    }
+  ],
+  "bodyType": "humanoid",
+  "characterId": "22222222-2222-4222-8222-222222222222",
+  "characterVersion": 1,
+  "description": "Synthetic fixture character comet.",
+  "effects": [],
+  "facing": "right",
+  "hitboxes": [
+    {
+      "id": "light_hit",
+      "maxElevation": 40,
+      "minElevation": 0,
+      "rect": { "height": 80, "width": 80, "x": 0, "y": -180 }
+    }
+  ],
+  "hurtboxes": [
+    {
+      "id": "body",
+      "maxElevation": 40,
+      "minElevation": 0,
+      "rect": { "height": 160, "width": 80, "x": -40, "y": -160 }
+    }
+  ],
+  "name": "Comet",
+  "schemaVersion": 1,
+  "stats": { "health": 100, "moveSpeed": 180 }
+}

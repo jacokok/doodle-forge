@@ -1,7 +1,7 @@
 # Plans and project navigation
 
 ## Purpose
-This directory is the implementation specification and project memory for DoodleForge. **Phase 0 planning is complete and reviewed; Phase 1 implementation is authorized.** See progress for the foundation evidence and remaining phase gates.
+This directory is the implementation specification and project memory for DoodleForge. **Phase 0 planning is complete and reviewed; Phases 1 and 2 are locally verified.** See progress for evidence and remaining phase gates.
 
 ## Scope
 The plans define system boundaries, content contract, persistence, workflow, UI, game, testing, risks, and ordered delivery. They are normative; resolve discrepancies here and in the decision record before coding.

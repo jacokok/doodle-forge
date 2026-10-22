@@ -4,7 +4,7 @@
 Provide ordered, verifiable increments from documentation to playable, generated, offline content.
 
 ## Scope
-Phases 0–8 in the requested order. Checkboxes mean implemented and verified, not merely planned. Phase 0 review is accepted; Phase 1 foundation implementation is authorized.
+Phases 0–8 in the requested order. Checkboxes mean implemented and verified, not merely planned. Phase 0 review is accepted; Phases 1 and 2 are locally verified as recorded in plan 14.
 
 ## Technical approach
 At each phase: read relevant plans/progress, inspect existing code, describe a small increment, implement, run tests, fix failures, update progress and record decisions. Keep previous slices runnable. Commands below are target commands until foundation supplies them.
@@ -65,13 +65,13 @@ Contract precedes game and factory. API integration precedes authoring UI. To re
 **Dependencies:** foundation, plan 04.
 
 **Checklist:**
-- [ ] Implement v1 character/release schemas and semantic cross-reference/limits checks.
-- [ ] Generate JSON Schema reproducibly; document unsupported version behavior.
-- [ ] Create small synthetic transparent sheets for all five required animations.
-- [ ] Package fixture manifests with real hashes/byte sizes/anchors and distinct second character.
-- [ ] Add invalid path/hash/dimension/animation/ability test vectors.
-- [ ] Add CLI validation and any contract-specific DB migration (do not rewrite history).
-- [ ] Record tests and finalized field decisions.
+- [x] Implement v1 character/release schemas and semantic cross-reference/limits checks.
+- [x] Generate JSON Schema reproducibly; document unsupported version behavior.
+- [x] Create small synthetic transparent sheets for all five required animations.
+- [x] Package fixture manifests with real hashes/byte sizes/anchors and distinct second character.
+- [x] Add invalid path/hash/dimension/animation/ability test vectors.
+- [x] Add CLI validation; no Phase 2 DB migration was required because contract validation and fixture assets remain package-owned (do not rewrite history).
+- [x] Record tests and finalized field decisions.
 
 **Acceptance criteria:** Complete fixture packages validate and corruption is rejected. **Test requirements:** Vitest schema/semantic/image/hash cases and JSON Schema generation diff; Godot parity follows Phase 4 loader implementation.
 

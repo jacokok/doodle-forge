@@ -23,6 +23,8 @@
     "db:migrate": "tsx tools/content-cli/src/index.ts migrate",
     "db:seed": "tsx tools/content-cli/src/index.ts seed",
     "content:validate": "tsx tools/content-cli/src/index.ts validate",
+    "content:schema": "tsx tools/content-cli/src/index.ts schema",
+    "content:fixtures": "tsx packages/contracts/src/create-fixtures.ts",
     "content:bundle": "tsx tools/content-cli/src/index.ts bundle"
   },
   "devDependencies": {

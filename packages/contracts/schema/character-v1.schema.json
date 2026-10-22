@@ -1,0 +1,333 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": { "type": "number", "const": 1 },
+    "characterId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "characterVersion": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+    },
+    "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "description": { "type": "string", "maxLength": 2000 },
+    "bodyType": {
+      "type": "string",
+      "enum": ["humanoid", "quadruped", "floating", "other"]
+    },
+    "artStyle": { "type": "string", "enum": ["original", "cartoon", "pixel"] },
+    "stats": {
+      "type": "object",
+      "properties": {
+        "health": { "type": "integer", "minimum": 1, "maximum": 10000 },
+        "moveSpeed": { "type": "number", "minimum": 1, "maximum": 1000 }
+      },
+      "required": ["health", "moveSpeed"],
+      "additionalProperties": false
+    },
+    "facing": { "type": "string", "const": "right" },
+    "anchors": {
+      "type": "object",
+      "properties": {
+        "feet": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number", "minimum": 0, "maximum": 256 },
+            "y": { "type": "number", "minimum": 0, "maximum": 256 }
+          },
+          "required": ["x", "y"],
+          "additionalProperties": false
+        },
+        "center": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number", "minimum": 0, "maximum": 256 },
+            "y": { "type": "number", "minimum": 0, "maximum": 256 }
+          },
+          "required": ["x", "y"],
+          "additionalProperties": false
+        },
+        "hand": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number", "minimum": 0, "maximum": 256 },
+            "y": { "type": "number", "minimum": 0, "maximum": 256 }
+          },
+          "required": ["x", "y"],
+          "additionalProperties": false
+        },
+        "effect": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number", "minimum": 0, "maximum": 256 },
+            "y": { "type": "number", "minimum": 0, "maximum": 256 }
+          },
+          "required": ["x", "y"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["feet", "center", "hand", "effect"],
+      "additionalProperties": false
+    },
+    "animations": {
+      "type": "object",
+      "propertyNames": { "type": "string" },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "assetId": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "frameWidth": { "type": "number", "const": 256 },
+          "frameHeight": { "type": "number", "const": 256 },
+          "columns": { "type": "integer", "minimum": 1, "maximum": 16 },
+          "frameCount": { "type": "integer", "minimum": 1, "maximum": 64 },
+          "fps": { "type": "number", "minimum": 1, "maximum": 60 },
+          "loop": { "type": "boolean" },
+          "footAnchor": {
+            "type": "object",
+            "properties": {
+              "x": { "type": "number", "const": 128 },
+              "y": { "type": "number", "const": 224 }
+            },
+            "required": ["x", "y"],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "assetId",
+          "frameWidth",
+          "frameHeight",
+          "columns",
+          "frameCount",
+          "fps",
+          "loop",
+          "footAnchor"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "attacks": {
+      "maxItems": 32,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "kind": { "type": "string", "const": "melee" },
+          "animation": { "type": "string", "minLength": 1 },
+          "damage": { "type": "integer", "minimum": 1, "maximum": 10000 },
+          "cooldownSeconds": { "type": "number", "minimum": 0, "maximum": 60 },
+          "startupSeconds": { "type": "number", "minimum": 0, "maximum": 60 },
+          "activeSeconds": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 60
+          },
+          "recoverySeconds": { "type": "number", "minimum": 0, "maximum": 60 },
+          "knockback": {
+            "type": "object",
+            "properties": {
+              "xSpeed": { "type": "number", "minimum": 0, "maximum": 5000 },
+              "depthSpeed": { "type": "number", "minimum": 0, "maximum": 5000 },
+              "durationSeconds": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 60
+              }
+            },
+            "required": ["xSpeed", "depthSpeed", "durationSeconds"],
+            "additionalProperties": false
+          },
+          "hitboxIds": {
+            "maxItems": 32,
+            "type": "array",
+            "items": { "type": "string", "minLength": 1, "maxLength": 64 }
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "animation",
+          "damage",
+          "cooldownSeconds",
+          "startupSeconds",
+          "activeSeconds",
+          "recoverySeconds",
+          "knockback",
+          "hitboxIds"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "hitboxes": {
+      "maxItems": 32,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "rect": {
+            "type": "object",
+            "properties": {
+              "x": { "type": "number" },
+              "y": { "type": "number" },
+              "width": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1024
+              },
+              "height": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1024
+              }
+            },
+            "required": ["x", "y", "width", "height"],
+            "additionalProperties": false
+          },
+          "minElevation": { "type": "number", "minimum": 0, "maximum": 1024 },
+          "maxElevation": { "type": "number", "minimum": 0, "maximum": 1024 }
+        },
+        "required": ["id", "rect", "minElevation", "maxElevation"],
+        "additionalProperties": false
+      }
+    },
+    "hurtboxes": {
+      "maxItems": 32,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "rect": {
+            "type": "object",
+            "properties": {
+              "x": { "type": "number" },
+              "y": { "type": "number" },
+              "width": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1024
+              },
+              "height": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1024
+              }
+            },
+            "required": ["x", "y", "width", "height"],
+            "additionalProperties": false
+          },
+          "minElevation": { "type": "number", "minimum": 0, "maximum": 1024 },
+          "maxElevation": { "type": "number", "minimum": 0, "maximum": 1024 }
+        },
+        "required": ["id", "rect", "minElevation", "maxElevation"],
+        "additionalProperties": false
+      }
+    },
+    "abilities": {
+      "maxItems": 32,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "kind": { "type": "string", "const": "melee" },
+          "attackId": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "effectIds": {
+            "maxItems": 32,
+            "type": "array",
+            "items": { "type": "string", "minLength": 1, "maxLength": 64 }
+          },
+          "parameters": {
+            "type": "object",
+            "propertyNames": { "type": "string" },
+            "additionalProperties": {
+              "anyOf": [
+                { "type": "string", "maxLength": 128 },
+                { "type": "number" },
+                { "type": "boolean" }
+              ]
+            }
+          }
+        },
+        "required": ["id", "kind", "attackId", "effectIds", "parameters"],
+        "additionalProperties": false
+      }
+    },
+    "effects": {
+      "maxItems": 32,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "assetId": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "anchor": {
+            "type": "string",
+            "enum": ["feet", "center", "hand", "effect"]
+          },
+          "durationSeconds": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 60
+          }
+        },
+        "required": ["id", "assetId", "anchor", "durationSeconds"],
+        "additionalProperties": false
+      }
+    },
+    "assets": {
+      "type": "object",
+      "propertyNames": { "type": "string" },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string", "minLength": 1, "maxLength": 256 },
+          "mediaType": { "type": "string", "const": "image/png" },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "bytes": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 16777216
+          },
+          "width": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 4096
+          },
+          "height": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 4096
+          }
+        },
+        "required": ["path", "mediaType", "sha256", "bytes", "width", "height"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "characterId",
+    "characterVersion",
+    "name",
+    "description",
+    "bodyType",
+    "artStyle",
+    "stats",
+    "facing",
+    "anchors",
+    "animations",
+    "attacks",
+    "hitboxes",
+    "hurtboxes",
+    "abilities",
+    "effects",
+    "assets"
+  ],
+  "additionalProperties": false
+}
