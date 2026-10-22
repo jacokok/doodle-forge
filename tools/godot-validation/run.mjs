@@ -63,13 +63,13 @@ try {
         '--path',
         resolve(root, 'apps/game'),
       ],
-      [
+      ...['startup.gd', 'gameplay.gd'].map((test) => [
         '--headless',
         '--path',
         resolve(root, 'apps/game'),
         '--script',
-        'res://tests/startup.gd',
-      ],
+        `res://tests/${test}`,
+      ]),
     ]) {
       const result = spawnSync(binary, args, {
         encoding: 'utf8',

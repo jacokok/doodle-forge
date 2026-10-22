@@ -36,7 +36,7 @@ Implementers propose changes, update this log and relevant plans, and report eff
 **Decision:** **Godot 4.7.2-stable**, standard GDScript build, Compatibility renderer, matching export templates. **Evidence:** [official archive](https://godotengine.org/download/archive/) consulted during Phase 0 lists 4.7.2-stable (18 August 2026), while 4.8 is beta. **Rationale:** use stable Godot 4, lightweight 2D pipeline and no C# dependency. **Consequence:** Phase 1 verifies actual binary/template versions and host support; version changes require an ADR update, not a floating latest download. Planning-time web verification is not a successful local Godot test.
 
 ### ADR-008 — Reusable 2D fighter and sprite convention (accepted)
-**Decision:** CharacterBody2D ground-plane root, separate visual jump elevation, AnimatedSprite2D runtime frames, data-driven timing/combat. 256×256 transparent PNG frames with (128,224) foot anchor are v1 project conventions. **Rationale:** consistent automated pipeline and reusable scenes. **Alternatives:** 3D or skeletal rigging adds art/tool complexity. **Consequence:** unusual drawings may need manual correction; dimensions are not engine restrictions. Initial executable ability is light melee; other families are extension designs, not untested placeholders.
+**Decision:** CharacterBody2D ground-plane root, separate visual jump elevation, AnimatedSprite2D runtime frames, data-driven timing/combat. 256×256 transparent PNG frames with (128,224) foot anchor are v1 project conventions. **Rationale:** consistent automated pipeline and reusable scene. **Alternatives:** 3D or skeletal rigging adds art/tool complexity. **Consequence:** unusual drawings may need manual correction; dimensions are not engine restrictions. Initial executable ability is light melee; other families are extension designs, not untested placeholders.
 
 ### ADR-009 — Zod source plus cross-language validation (accepted)
 **Decision:** Zod -> reproducible JSON Schema; Godot validates supported v1 fields/semantics via shared test vectors. **Rationale:** single public contract without embedding JS in game or mandating schema plugin. **Consequence:** parity tests are mandatory; JSON Schema alone cannot guarantee hashes, file layout or cross-reference semantics.
@@ -64,6 +64,9 @@ Implementers propose changes, update this log and relevant plans, and report eff
 
 ### ADR-007 verification addendum — Phase 1
 Installed engine `4.7.2.stable.arch_linux.ed1daf0bf` matches official Linux debug/release templates `4.7.2.stable.official.ed1daf0bf`. Official template archive SHA-512 check passed before extraction; SHA-256 is recorded in docs/setup.md. Both actual template executables were version-checked before project creation. Headless Compatibility project import and three skeleton assertions passed. No version change; Linux x86_64 only, no export/gameplay acceptance claim.
+
+### ADR-017 — Fixture-fed Phase 3 prototype boundary (accepted, incremental)
+**Decision:** begin Phase 3 with a reusable generic fighter script and a local Phase 2 manifest loader for core movement/jump/melee assertions. Keep fighter configuration data-driven and combat independent of visual assets. **Rationale:** validate ground-plane/elevation separation and attack timing before expanding arena, enemy AI, waves, or sprite rendering. **Consequence:** this increment is not Phase 3 acceptance: active-wave progression, animation rendering, controls, HUD health binding, and manual visual playtest remain outstanding. No Phase 4/API/release behavior is introduced.
 
 ## Dependencies
 Plans 01–11 contain detailed consequences. Roadmap orders implementations; progress records evidence. External source availability affects research, not local test status.

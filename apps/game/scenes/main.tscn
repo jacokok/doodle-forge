@@ -1,8 +1,31 @@
-[gd_scene format=3]
+[gd_scene load_steps=2 format=3]
 
-[node name="Foundation" type="Node2D"]
+[ext_resource type="Script" path="res://scripts/fighter.gd" id="1"]
 
-[node name="Message" type="Label" parent="."]
-offset_left = 32.0
-offset_top = 32.0
-text = "DoodleForge foundation\nGameplay arrives in Phase 3."
+[node name="Arena" type="Node2D"]
+y_sort_enabled = true
+
+[node name="Actors" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="Player" type="CharacterBody2D" parent="Actors"]
+script = ExtResource("1")
+position = Vector2(360, 330)
+
+[node name="Enemy" type="CharacterBody2D" parent="Actors"]
+script = ExtResource("1")
+position = Vector2(450, 330)
+team = 1
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(480, 270)
+position_smoothing_enabled = true
+position_smoothing_speed = 5.0
+current = true
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="Status" type="Label" parent="HUD"]
+position = Vector2(20, 20)
+theme_override_font_sizes/font_size = 18
+text = "DoodleForge — WASD/arrows move · Space jump · J attack"

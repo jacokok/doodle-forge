@@ -7,7 +7,7 @@ func _initialize() -> void:
 		return
 	var instance := scene.instantiate()
 	root.add_child(instance)
-	if not instance is Node2D or not instance.get_node_or_null("Message") is Label:
+	if not instance is Node2D or not instance.get_node_or_null("Actors/Player") is CharacterBody2D:
 		fail("main_scene_structure")
 		return
 	if ProjectSettings.get_setting("rendering/renderer/rendering_method") != "gl_compatibility":
