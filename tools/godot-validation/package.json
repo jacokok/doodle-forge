@@ -1,0 +1,8 @@
+{
+  "name": "@doodleforge/godot-validation",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./run.mjs"
+  }
+}

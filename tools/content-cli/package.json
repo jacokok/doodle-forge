@@ -1,0 +1,12 @@
+{
+  "name": "@doodleforge/content-cli",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@doodleforge/database": "workspace:*",
+    "@doodleforge/shared": "workspace:*"
+  }
+}

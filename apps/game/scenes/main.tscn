@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[node name="Foundation" type="Node2D"]
+
+[node name="Message" type="Label" parent="."]
+offset_left = 32.0
+offset_top = 32.0
+text = "DoodleForge foundation\nGameplay arrives in Phase 3."

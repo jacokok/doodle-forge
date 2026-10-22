@@ -1,0 +1,12 @@
+pnpm-lock.yaml
+node_modules
+.svelte-kit
+build
+dist
+storage
+.godot
+plans
+AGENTS.md
+README.md
+docs
+packages/database/migrations

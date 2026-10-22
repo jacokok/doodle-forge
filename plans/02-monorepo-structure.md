@@ -40,11 +40,11 @@ Ignore `node_modules`, build caches, `.svelte-kit`, `.godot`, `.env*` except exa
 Foundation precedes executable features; migrations can establish structure in Phase 1, with contract-dependent checks finalized Phase 2. Select native Sharp/SQLite driver builds compatible with the pinned Node version.
 
 ## Implementation tasks
-- [ ] Scaffold apps/packages and explicit package exports; add TypeScript project configs.
-- [ ] Add lint/format/check/test scripts, environment validation and ignore rules.
-- [ ] Pin toolchains and Godot export templates; document installation.
-- [ ] Create base migration and deterministic dev seed; no unreviewed schema push.
-- [ ] Add CI installation, typecheck and initial smoke tests.
+- [x] Scaffold apps/packages and explicit package exports; add TypeScript project configs.
+- [x] Add lint/format/check/test scripts, environment validation and ignore rules.
+- [x] Pin toolchains and Linux x86_64 Godot export templates; document installation.
+- [x] Create base migration and deterministic synthetic authoring seed; no unreviewed schema push (ADR-015).
+- [x] Add CI installation, typecheck and initial smoke tests (remote CI execution not claimed).
 
 ## Acceptance criteria
 Fresh checkout can install with frozen lockfile, migrate an empty DB, launch studio/worker and open game skeleton. All root commands have documented behavior and return meaningful exit codes. `git status` remains clean after generation except intended source changes.

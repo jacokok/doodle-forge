@@ -1,0 +1,8 @@
+{
+  "name": "@doodleforge/content-publisher",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

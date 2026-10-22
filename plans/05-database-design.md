@@ -36,7 +36,7 @@ Generation outputs create a frozen review snapshot. Regeneration creates a new c
 DB transaction cannot atomically include file rename. Publisher stages/verifies/renames complete revisions first, then activates a release in one DB transaction (plan 09). Unreferenced files after crashes are recoverable orphans, not visible releases.
 
 ## Dependencies
-Contract fields plan 04; workflow plan 08; publication plan 09. Phase 1 creates baseline migration, Phase 2 adds contract-specific guards via new migrations; never rewrite already-applied migrations.
+Contract fields plan 04; workflow plan 08; publication plan 09. Phase 1 creates the four-table authoring/catalog baseline (characters, character_versions, abilities, character_abilities; ADR-015). Phase 2 adds contract-specific guards/catalog; assets/original links, publication/release and workflow persistence arrive through new migrations in their consuming phases. Never rewrite already-applied migrations. Current baseline alone does not enforce publication approval/immutability.
 
 ## Implementation tasks
 - [ ] Define Drizzle schema, constraints/indexes/triggers and migration runner.

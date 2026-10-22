@@ -1,7 +1,7 @@
 # Coding-agent instructions
 
 ## Project overview
-DoodleForge turns children's paper drawings into approved, versioned game characters. It comprises a SvelteKit studio/API, SQLite content store, independent TypeScript workflow worker, asset tooling, and a Godot 4 2D-rendered 2.5D beat-'em-up. Current status is Phase 0 planning; do not start application implementation until Phase 0 review is complete.
+DoodleForge turns children's paper drawings into approved, versioned game characters. It comprises a SvelteKit studio/API, SQLite content store, independent TypeScript workflow worker, asset tooling, and a Godot 4 2D-rendered 2.5D beat-'em-up. Phase 0 is complete and reviewed; Phase 1 foundation is authorized. Read live progress for the current verified milestone and do not advance phases silently.
 
 ## Required reading and workflow
 Before implementation, read `plans/README.md`, `plans/12-implementation-roadmap.md`, and `plans/14-progress.md`, then the relevant architecture plans. Identify current phase and tasks. Inspect existing files, state a small implementation approach, implement an increment, run tests, update progress, and record any architectural change in `plans/13-decisions-and-tradeoffs.md`. Never mark unverified work complete or claim unrun tests passed.

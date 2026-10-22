@@ -1,0 +1,44 @@
+{
+  "name": "doodleforge",
+  "type": "module",
+  "private": true,
+  "packageManager": "pnpm@10.34.7",
+  "engines": {
+    "node": "22.23.3",
+    "pnpm": "10.34.7"
+  },
+  "scripts": {
+    "dev": "node tools/dev.mjs",
+    "dev:game": "node tools/godot-validation/run.mjs --editor",
+    "build": "pnpm --filter @doodleforge/studio build && pnpm --filter @doodleforge/worker build",
+    "check": "tsc --noEmit && pnpm --filter @doodleforge/studio check",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:smoke": "node tools/smoke.mjs",
+    "test:e2e": "playwright test",
+    "test:godot": "node tools/godot-validation/run.mjs",
+    "db:generate": "pnpm --filter @doodleforge/database generate",
+    "db:migrate": "tsx tools/content-cli/src/index.ts migrate",
+    "db:seed": "tsx tools/content-cli/src/index.ts seed",
+    "content:validate": "tsx tools/content-cli/src/index.ts validate",
+    "content:bundle": "tsx tools/content-cli/src/index.ts bundle"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.64.1",
+    "@types/better-sqlite3": "9.6.0",
+    "@types/node": "22.20.5",
+    "esbuild": "0.28.2",
+    "eslint": "10.13.0",
+    "eslint-plugin-svelte": "3.23.1",
+    "globals": "17.4.0",
+    "prettier": "3.9.10",
+    "prettier-plugin-svelte": "4.1.1",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.0",
+    "vitest": "5.0.5"
+  }
+}

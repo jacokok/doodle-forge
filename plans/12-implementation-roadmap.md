@@ -4,7 +4,7 @@
 Provide ordered, verifiable increments from documentation to playable, generated, offline content.
 
 ## Scope
-Phases 0–8 in the requested order. Checkboxes mean implemented and verified, not merely planned. Phase 0 is the only authorized work in this planning delivery.
+Phases 0–8 in the requested order. Checkboxes mean implemented and verified, not merely planned. Phase 0 review is accepted; Phase 1 foundation implementation is authorized.
 
 ## Technical approach
 At each phase: read relevant plans/progress, inspect existing code, describe a small increment, implement, run tests, fix failures, update progress and record decisions. Keep previous slices runnable. Commands below are target commands until foundation supplies them.
@@ -45,15 +45,15 @@ Contract precedes game and factory. API integration precedes authoring UI. To re
 **Dependencies:** accepted Phase 0 plans, compatible Node/pnpm/Godot tools.
 
 **Checklist:**
-- [ ] Pin Node LTS/pnpm/TS/SvelteKit dependencies after compatibility checks; install and lock.
-- [ ] Create all apps/packages/tools directories from plan 02 with explicit private exports.
-- [ ] Configure Svelte 5/Tailwind/adapter-node and strict TS/lint/format.
-- [ ] Create Godot 4.7.2-stable Compatibility project, pin templates and version check.
-- [ ] Implement environment validation, storage roots, ignore rules and `.env.example`.
-- [ ] Add Drizzle baseline migration, repositories, seeds and migration lock/commands.
-- [ ] Add worker health/shutdown smoke lifecycle without pretending generation exists.
-- [ ] Add root dev/build/check/test commands and CI with frozen lockfile.
-- [ ] Document setup and record executed checks/progress.
+- [x] Pin Node LTS/pnpm/TS/SvelteKit dependencies after compatibility checks; install and lock.
+- [x] Create all apps/packages/tools directories from plan 02 with explicit private exports (Godot remains native).
+- [x] Configure Svelte 5/Tailwind/adapter-node and strict TS/lint/format.
+- [x] Create Godot 4.7.2-stable Compatibility project, pin Linux x86_64 templates and version check.
+- [x] Implement environment validation, storage roots, ignore rules and `.env.example`.
+- [x] Add Drizzle baseline migration, repositories, synthetic authoring seed and migration lock/commands (ADR-015).
+- [x] Add worker health/shutdown smoke lifecycle without pretending generation exists.
+- [x] Add root dev/build/check/test commands and CI with frozen lockfile (local checks executed; remote CI not run).
+- [x] Document setup and record executed checks/progress.
 
 **Acceptance criteria:** Clean install, empty DB migration, studio/worker boot, Godot headless project startup and clean artifact ignores. **Test requirements:** root typecheck/build, migration/FK tests, health smoke and exact Godot version/headless startup evidence.
 

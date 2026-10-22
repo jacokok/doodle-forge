@@ -1,7 +1,7 @@
 # Plans and project navigation
 
 ## Purpose
-This directory is the implementation specification and project memory for DoodleForge. **Phase 0 is planning only.** No application source, workspace manifests, or game implementation should be added until the Phase 0 review is accepted.
+This directory is the implementation specification and project memory for DoodleForge. **Phase 0 planning is complete and reviewed; Phase 1 implementation is authorized.** See progress for the foundation evidence and remaining phase gates.
 
 ## Scope
 The plans define system boundaries, content contract, persistence, workflow, UI, game, testing, risks, and ordered delivery. They are normative; resolve discrepancies here and in the decision record before coding.
@@ -16,7 +16,7 @@ Read overview and architecture first, then the roadmap and progress. Implement o
 Use pnpm, SvelteKit as UI and API, TypeScript/Node worker, SQLite/Drizzle, Zod plus generated JSON Schema, filesystem blobs, deterministic mock AI, and Godot 4 2D renderer. No external infrastructure is mandatory. Published revisions are immutable and approval-gated.
 
 ## Dependencies
-Phase order and cross-plan dependencies are explicit in `12-implementation-roadmap.md`. Key dependency chain: contract -> game runtime/repository -> studio and workflow -> publishing -> offline bundles. Godot **4.7.2-stable** was selected from the official archive in Phase 0 (plans 03/13); verify the installed binary and matching export templates in Phase 1 before project setup.
+Phase order and cross-plan dependencies are explicit in `12-implementation-roadmap.md`. Key dependency chain: contract -> game runtime/repository -> studio and workflow -> publishing -> offline bundles. Godot **4.7.2-stable** was selected in Phase 0; Phase 1 verified the installed binary and matching Linux x86_64 export templates before project setup (plans 13/14).
 
 ## Implementation tasks
 - [ ] Read all plans relevant to the next task.

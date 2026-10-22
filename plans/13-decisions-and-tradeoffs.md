@@ -32,7 +32,7 @@ Implementers propose changes, update this log and relevant plans, and report eff
 ### ADR-006 — API in development, bundle in release (accepted)
 **Decision:** Godot repository abstraction with API and local bundle implementations; SQLite plugin optional future only. **Evidence:** [godot-sqlite](https://github.com/2shady4u/godot-sqlite) offers a Godot 4 GDExtension requiring native integration. **Rationale:** avoid platform dependencies, live DB schema coupling and exposure of authoring data. **Consequence:** runtime PNG decode remains necessary for all repositories; plugin compatibility is not yet tested.
 
-### ADR-007 — Godot version and renderer (accepted selection, installation unverified)
+### ADR-007 — Godot version and renderer (accepted; Phase 1 verification addendum below)
 **Decision:** **Godot 4.7.2-stable**, standard GDScript build, Compatibility renderer, matching export templates. **Evidence:** [official archive](https://godotengine.org/download/archive/) consulted during Phase 0 lists 4.7.2-stable (18 August 2026), while 4.8 is beta. **Rationale:** use stable Godot 4, lightweight 2D pipeline and no C# dependency. **Consequence:** Phase 1 verifies actual binary/template versions and host support; version changes require an ADR update, not a floating latest download. Planning-time web verification is not a successful local Godot test.
 
 ### ADR-008 — Reusable 2D fighter and sprite convention (accepted)
@@ -53,12 +53,21 @@ Implementers propose changes, update this log and relevant plans, and report eff
 ### ADR-013 — Existing repository root and toolchain selection (accepted)
 **Decision:** use existing `/home/doink/projects/doodle-forge` Git root for the DoodleForge product; do not create nested `doodleforge/.git`. Only Markdown delivered in Phase 0. Node LTS/pnpm/dependency exact versions are selected and pinned after Phase 1 compatibility checks. **Rationale:** preserve existing repository and avoid claiming untested dependency combinations. **Consequence:** no executable development commands exist yet.
 
+### ADR-014 — Verified foundation toolchain (accepted, Phase 1)
+**Decision:** pin Node 22.23.3 maintenance LTS, pnpm 10.34.7, TypeScript 6.0.3, Svelte 5.57.2, SvelteKit 3.1.0, Vite 8.3.5, adapter-node 6.0.0, Tailwind 4.3.3, Drizzle ORM 0.45.4 / kit 0.31.11, better-sqlite3 13.0.3 and Zod 4.6.7. All direct dependencies use exact versions and the workspace lockfile. **Rationale:** installed Node 22 satisfies checked engine ranges; global Node 26 is not the LTS pin. Kit 3 requires TypeScript ^6 and uses Vite-plugin configuration, `$app/tsconfig` and `$app/env`; use its actual interfaces rather than legacy Kit 2 scaffolding. **Alternatives:** floating latest or upgrading the machine's global runtime; rejected for reproducibility. **Consequences:** Python/C++ may be required solely for native SQLite build tooling. Internal TS source exports are bundled by Vite/esbuild; better-sqlite3 remains an explicit external native runtime dependency in both apps. Built outputs currently run from the checkout, not standalone deployment directories. Registry-based pnpm invocation was used because the mise GitHub binary download timed out. See docs/setup.md and progress for executed compatibility evidence.
+
+### ADR-015 — Incremental persistence and honest foundation seed (accepted, Phase 1)
+**Decision:** baseline migration creates characters, character_versions, abilities and character_abilities plus fundamental FK/JSON/status/version checks. Add assets/original links, contract validation, publication immutability, approvals/releases and durable workflow tables through new migrations in their consuming phases (2/4/5/6); never rewrite the baseline. The deterministic foundation seed creates only one synthetic authoring identity, without artwork, versions, catalog abilities, approval or release. **Rationale:** avoid duplicating not-yet-executable contracts or fabricating approved content to make a foundation look feature-complete. **Consequences:** Phase 1 DB readiness does not establish publication/workflow acceptance. Repository optimistic updates, rollback, FK checks, migration exclusion and real two-connection writer contention are independently testable now. Game fixtures/ability catalog remain contract-owned and approval-gated in the planned phases.
+
+### ADR-007 verification addendum — Phase 1
+Installed engine `4.7.2.stable.arch_linux.ed1daf0bf` matches official Linux debug/release templates `4.7.2.stable.official.ed1daf0bf`. Official template archive SHA-512 check passed before extraction; SHA-256 is recorded in docs/setup.md. Both actual template executables were version-checked before project creation. Headless Compatibility project import and three skeleton assertions passed. No version change; Linux x86_64 only, no export/gameplay acceptance claim.
+
 ## Dependencies
 Plans 01–11 contain detailed consequences. Roadmap orders implementations; progress records evidence. External source availability affects research, not local test status.
 
 ## Implementation tasks
-- [ ] Verify selected Godot binary and export templates in Phase 1.
-- [ ] Pin and record Node/pnpm/library versions after compatibility tests.
+- [x] Verify selected Godot binary and Linux x86_64 export templates in Phase 1 (ADR-007 addendum).
+- [x] Pin and record Node/pnpm/library versions after compatibility tests (ADR-014).
 - [ ] Record chosen real providers and consent/cost terms in Phase 7.
 - [ ] Add superseding ADR for any major deviation before implementation.
 

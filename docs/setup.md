@@ -1,0 +1,70 @@
+# Local foundation setup
+
+Phase 1 provides process/storage/database skeletons, not character creation, generation, publication or gameplay. See [progress](../plans/14-progress.md) for executed evidence and [roadmap](../plans/12-implementation-roadmap.md) for subsequent phases.
+
+## Prerequisites and installation
+
+Linux x86_64 is the verified foundation host. Pins are in `mise.toml`, `package.json` and `pnpm-lock.yaml`: Node **22.23.3** (maintenance LTS), pnpm **10.34.7**, TypeScript **6.0.3**, Svelte **5.57.2**, SvelteKit **3.1.0**, Vite **8.3.5**, adapter-node **6.0.0**, Tailwind **4.3.3**, Drizzle ORM **0.45.4**, better-sqlite3 **13.0.3**. Pins satisfy registry engine/peer ranges and were locally built/tested together. Node 26 is not the selected runtime even if globally installed.
+
+```sh
+mise install
+mise exec -- pnpm install --frozen-lockfile
+cp .env.example .env
+mise exec -- pnpm db:migrate
+mise exec -- pnpm db:seed
+mise exec -- pnpm dev
+```
+
+Alternatively install the exact Node/pnpm pins yourself. When the mise pnpm binary download is unavailable, commands can be run with `mise exec node@22.23.3 -- npm exec --yes --package=pnpm@10.34.7 -- pnpm <command>`; this registry-based fallback was used locally. better-sqlite3 may require a C++ compiler, make, Python for node-gyp and Node headers; Python is build tooling, not an application runtime. Only better-sqlite3/esbuild install scripts are permitted by workspace policy.
+
+Root configuration loads `.env`; inherited environment variables take precedence. Relative storage/DB paths resolve from the workspace checkout, even when started inside an app directory or from a built entrypoint. Defaults create `storage/{originals,generated,approved,published,db}` and `storage/db/doodleforge.sqlite`. Do not place the DB on network storage. Originals are not served. Never commit `.env`, mutable DBs, generated art or secrets. Config currently rejects non-loopback service hosts/origins; hosted deployments are unsupported. Set `HOST`, `PORT`, `ORIGIN` and distinct `WORKER_PORT` consistently when changing ports.
+
+Studio: `http://127.0.0.1:5173`, health: `/api/health`. Worker health: `http://127.0.0.1:5174/health`. Health explicitly reports `generation: unavailable`. Ctrl-C stops both dev children; failure of either child stops the other. Migrations are explicit; neither app migrates during startup. Unmigrated DBs fail startup rather than pretending to be ready.
+
+## Database baseline and recovery
+
+The baseline has `characters`, `character_versions`, `abilities`, and `character_abilities`, with real FKs, unique versions, checked JSON/status/revisions and WAL/5-second busy timeout. `CharacterRepository` supplies persistence and optimistic rename. Asset/original references, contract validations, publication immutability/approval guards, release and workflow tables arrive through **new migrations in their consuming phases**; this foundation is not a publication service.
+
+`pnpm db:seed` creates one deterministic synthetic authoring identity, without art, versions, abilities, approvals or releases. Repeating it does not overwrite edits. The validated ability catalog belongs to Phase 2 and approved game fixtures to Phase 4.
+
+- `pnpm db:generate`: generate a new committed Drizzle migration after a schema change. Never edit an applied baseline or use schema push.
+- `pnpm db:migrate`: apply committed migrations under exclusive `<database path>.migrate.lock`. Start only one migrator. On failure the owned lock is released. After a killed process, inspect its PID in the lock, confirm no migration process remains, back up the DB, then manually remove that stale lock and rerun. Never blindly delete a live lock.
+- Backups: stop studio/worker/migrators before copying the DB and matching storage tree. Do not copy a live SQLite main file alone while WAL is active. Automated backup/restore and orphan tooling are not implemented yet.
+
+## Build and checks
+
+Run these with the pinned toolchain:
+
+```sh
+pnpm check
+pnpm lint
+pnpm format:check
+pnpm test
+pnpm build
+pnpm test:smoke
+pnpm exec playwright install chromium
+pnpm test:e2e
+pnpm test:godot
+```
+
+`check` checks strict TS plus Svelte; `test` uses isolated temporary SQLite/filesystems. `build` emits adapter-node output and a bundled worker (native SQLite remains external). `test:smoke` migrates temporary storage, launches **built** processes, checks health/private-file refusal, restarts worker, tests SIGTERM, then starts the actual dev supervisor and checks SIGINT child cleanup. `test:e2e` checks the built shell/keyboard navigation with Chromium and a separate ignored DB. It is not a character factory E2E. CI has separate TS, browser and Godot jobs with frozen installation; remote CI has not been executed by the local agent.
+
+Run built processes from the checkout after migrating:
+
+```sh
+node apps/studio/build/index.js
+# separate terminal
+node apps/worker/dist/index.js
+```
+
+Packages are private/source-exported. Vite and esbuild bundle internal server packages; server-side SQLite stays external. Built outputs currently require the checkout, its installed dependencies and workspace marker; standalone deployment packaging is deferred. Empty exported modules mark later phase ownership and implement no fake features. `content:validate` / `content:bundle` currently exit nonzero with an explicit not-implemented usage message.
+
+## Godot pin and templates
+
+Required engine: **4.7.2-stable**, standard GDScript, Compatibility renderer. Verified locally: Arch binary `4.7.2.stable.arch_linux.ed1daf0bf` and official Linux debug/release templates `4.7.2.stable.official.ed1daf0bf`.
+
+Download the Linux x86_64 engine, `Godot_v4.7.2-stable_export_templates.tpz`, and `SHA512-SUMS.txt` from the [official release](https://github.com/godotengine/godot/releases/tag/4.7.2-stable). Verify archive checksums before extracting (the CI workflow shows exact commands). Locally the template archive's official SHA-512 check passed; its SHA-256 is `f298490b8d44d934be425a5a65a51bf15f422428b229a06a6e11d9ffea248011`.
+
+Place `version.txt`, `linux_debug.x86_64`, and `linux_release.x86_64` in `${XDG_DATA_HOME:-$HOME/.local/share}/godot/export_templates/4.7.2.stable/` and make the executables executable. Full templates may also be installed through the editor. `GODOT_TEMPLATE_DIR` overrides that directory; `GODOT_BIN` overrides the executable. The harness verifies **both actual template executables**, not just a version label, before importing/testing the project. This Linux-specific template verification does not claim macOS/Windows export support.
+
+`pnpm dev:game` opens the editor after version/template checks. `pnpm test:godot` runs bounded headless import and three scene/renderer assertions with a JSON report. It tests the skeleton only; combat, textures and export acceptance remain later phases. Runtime imports/caches live in ignored `.godot`; commit GDScript `.uid` identity files.

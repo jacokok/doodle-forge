@@ -1,0 +1,15 @@
+node_modules/
+.svelte-kit/
+.godot/
+build/
+dist/
+coverage/
+test-results/
+playwright-report/
+.env*
+!.env.example
+/storage/
+/exports/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm

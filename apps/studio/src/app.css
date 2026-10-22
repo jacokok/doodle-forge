@@ -1,0 +1,10 @@
+@import 'tailwindcss';
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900;
+  }
+  a:focus-visible {
+    @apply outline-2 outline-offset-4 outline-indigo-700;
+  }
+}
