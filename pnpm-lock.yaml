@@ -107,7 +107,14 @@ importers:
 
   packages/animation: {}
 
-  packages/content-publisher: {}
+  packages/content-publisher:
+    dependencies:
+      '@doodleforge/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@doodleforge/database':
+        specifier: workspace:*
+        version: link:../database
 
   packages/contracts:
     dependencies:
@@ -147,6 +154,9 @@ importers:
 
   tools/content-cli:
     dependencies:
+      '@doodleforge/content-publisher':
+        specifier: workspace:*
+        version: link:../../packages/content-publisher
       '@doodleforge/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts

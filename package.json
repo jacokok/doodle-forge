@@ -22,6 +22,7 @@
     "db:generate": "pnpm --filter @doodleforge/database generate",
     "db:migrate": "tsx tools/content-cli/src/index.ts migrate",
     "db:seed": "tsx tools/content-cli/src/index.ts seed",
+    "content:seed": "tsx tools/content-cli/src/index.ts seed-fixtures",
     "content:validate": "tsx tools/content-cli/src/index.ts validate",
     "content:schema": "tsx tools/content-cli/src/index.ts schema",
     "content:fixtures": "tsx packages/contracts/src/create-fixtures.ts",

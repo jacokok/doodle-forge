@@ -31,7 +31,7 @@ export const characters = sqliteTable(
   ],
 );
 
-// Snapshot/publication constraints are added by later, additive migrations.
+// Frozen review fields and guards arrive through additive Phase 4 migrations.
 export const characterVersions = sqliteTable(
   'character_versions',
   {
@@ -46,6 +46,8 @@ export const characterVersions = sqliteTable(
       .notNull()
       .default('draft'),
     sourceSnapshotJson: text('source_snapshot_json').notNull(),
+    manifestJson: text('manifest_json'),
+    manifestSha256: text('manifest_sha256'),
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull(),
   },
@@ -60,6 +62,44 @@ export const characterVersions = sqliteTable(
       sql`${table.status} IN ('draft','review','approved','published','superseded')`,
     ),
     check('snapshot_json_valid', sql`json_valid(${table.sourceSnapshotJson})`),
+  ],
+);
+
+export const approvals = sqliteTable(
+  'approvals',
+  {
+    id: text('id').primaryKey(),
+    decisionOrder: integer('decision_order').notNull(),
+    characterVersionId: text('character_version_id')
+      .notNull()
+      .references(() => characterVersions.id),
+    manifestSha256: text('manifest_sha256').notNull(),
+    decision: text('decision', {
+      enum: ['approved', 'rejected', 'revoked'],
+    }).notNull(),
+    actorLabel: text('actor_label').notNull(),
+    note: text('note').notNull(),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('approvals_version_order').on(
+      table.characterVersionId,
+      table.decisionOrder,
+    ),
+    check('approval_order_positive', sql`${table.decisionOrder} > 0`),
+    check(
+      'approval_decision',
+      sql`${table.decision} IN ('approved','rejected','revoked')`,
+    ),
+    check(
+      'approval_actor',
+      sql`length(trim(${table.actorLabel})) BETWEEN 1 AND 120`,
+    ),
+    check('approval_note', sql`length(${table.note}) <= 2000`),
+    check(
+      'approval_hash',
+      sql`length(${table.manifestSha256}) = 64 AND ${table.manifestSha256} NOT GLOB '*[^a-f0-9]*'`,
+    ),
   ],
 );
 

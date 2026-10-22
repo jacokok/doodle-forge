@@ -1,6 +1,9 @@
 extends SceneTree
 
 func _initialize() -> void:
+	call_deferred("run")
+
+func run() -> void:
 	var scene := load("res://scenes/main.tscn") as PackedScene
 	if scene == null:
 		fail("main_scene_missing")
@@ -13,6 +16,7 @@ func _initialize() -> void:
 	if ProjectSettings.get_setting("rendering/renderer/rendering_method") != "gl_compatibility":
 		fail("renderer_mismatch")
 		return
+	instance.free()
 	print('{"suite":"foundation","status":"passed","assertions":3}')
 	quit(0)
 

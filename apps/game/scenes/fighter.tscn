@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3]
+[ext_resource type="Script" path="res://scripts/fighter.gd" id="1"]
+[sub_resource type="CircleShape2D" id="Ground"]
+radius = 14.0
+[node name="Fighter" type="CharacterBody2D"]
+script = ExtResource("1")
+collision_layer = 2
+collision_mask = 0
+[node name="GroundCollision" type="CollisionShape2D" parent="."]
+shape = SubResource("Ground")
+[node name="Shadow" type="Polygon2D" parent="."]
+polygon = PackedVector2Array(-28, 0, -20, -9, 20, -9, 28, 0, 20, 9, -20, 9)
+color = Color(0, 0, 0, 0.35)
+[node name="VisualPivot" type="Node2D" parent="."]
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="VisualPivot"]
+centered = false
+texture_filter = 1

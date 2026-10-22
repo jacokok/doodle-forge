@@ -83,12 +83,12 @@ Contract precedes game and factory. API integration precedes authoring UI. To re
 **Dependencies:** contract fixture; plan 03.
 
 **Checklist:**
-- [ ] Create ground-plane fighter hierarchy, input actions, movement and jump separation.
-- [ ] Implement state transitions and SpriteFrames animation controller using fixture data.
-- [ ] Add timed hit/hurt boxes, damage/deduplication, knockback and KO.
-- [ ] Add enemy approach/attack AI and bounded wave spawner.
-- [ ] Build arena, camera, health HUD and fixture character selection.
-- [ ] Add deterministic headless gameplay tests and manual playtest notes.
+- [x] Create ground-plane fighter hierarchy, input actions, movement and jump separation.
+- [x] Implement state transitions and SpriteFrames animation controller using fixture data.
+- [x] Add timed hit/hurt boxes, damage/deduplication, knockback and KO.
+- [x] Add enemy approach/attack AI and bounded wave spawner.
+- [x] Build arena, camera, health HUD and fixture character selection.
+- [ ] Add deterministic headless gameplay tests and manual playtest notes. Headless assertions pass; manual visual/feel review remains pending (plan 14; docs/phase-3-playtest.md).
 
 **Acceptance criteria:** Player moves, jumps, fights and completes an enemy wave; art is independent of combat and no per-character script exists. **Test requirements:** headless movement/timing/depth/team/elevation/HP/KO assertions plus manual shadow/Y-sort feel review.
 
@@ -97,10 +97,10 @@ Contract precedes game and factory. API integration precedes authoring UI. To re
 
 **Deliverables:** minimal validated publication service, seeded approval records, immutable API/index, Godot repository abstraction/API implementation, decoder/cache/refresh.
 
-**Dependencies:** Phases 1–3, plans 05/09; seed path supplies explicit approval before UI exists.
+**Dependencies:** Phases 1–3, plans 03/04/05/09/11; seed path supplies explicit approval before UI exists. **Explicit user phase-gate exception:** Phase 4 may proceed while Phase 3 manual shadow/Y-sort/feel review and human active-AI playthrough remain deferred, not accepted (plan 14; docs/phase-3-playtest.md). No authorization to start Phase 5.
 
 **Checklist:**
-- [ ] Implement frozen snapshots and hash-bound approval service used by fixture seed.
+- [x] Implement frozen snapshots and hash-bound approval service used by fixture seed. Verified through additive migration/immutability/gate/seed tests and isolated CLI rerun (plan 14); approval alone is not publication.
 - [ ] Implement staging/hash validation/release activation and crash reconciliation.
 - [ ] Expose only published index/manifests/assets with ETags and bounded reads.
 - [ ] Implement repository interface and API adapter with supported-version checks.

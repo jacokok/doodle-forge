@@ -1,3 +1,4 @@
+import { ReviewService } from '@doodleforge/content-publisher';
 import { ensureStorage, loadConfig } from '@doodleforge/shared/server';
 import {
   validatePackage,
@@ -12,6 +13,7 @@ import {
   migrateDatabase,
   openDatabase,
   seedDevelopment,
+  SnapshotRepository,
 } from '@doodleforge/database';
 
 try {
@@ -47,9 +49,13 @@ try {
     console.log(
       JSON.stringify({ event: 'contracts.schema.generated', directory }),
     );
-  } else if (command !== 'migrate' && command !== 'seed') {
+  } else if (
+    command !== 'migrate' &&
+    command !== 'seed' &&
+    command !== 'seed-fixtures'
+  ) {
     throw new Error(
-      'Usage: content-cli <migrate|seed|validate <character.json>|schema [directory]>',
+      'Usage: content-cli <migrate|seed|seed-fixtures|validate <character.json>|schema [directory]>',
     );
   }
   if (command === 'validate' || command === 'schema') process.exit(0);
@@ -62,7 +68,13 @@ try {
     const connection = openDatabase(config.databasePath);
     try {
       assertDatabaseReady(connection);
-      console.log(JSON.stringify(seedDevelopment(connection)));
+      if (command === 'seed-fixtures') {
+        const review = new ReviewService(new SnapshotRepository(connection));
+        for (const fixture of ['sprout', 'comet'] as const)
+          console.log(JSON.stringify(await review.seedFixture(fixture)));
+      } else {
+        console.log(JSON.stringify(seedDevelopment(connection)));
+      }
     } finally {
       connection.close();
     }

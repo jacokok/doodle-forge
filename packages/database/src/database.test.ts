@@ -5,7 +5,13 @@ import {
   closeSync,
   rmSync,
   unlinkSync,
+  mkdirSync,
+  copyFileSync,
+  writeFileSync,
+  readFileSync,
 } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -55,6 +61,60 @@ describe('SQLite foundation', () => {
       expect(connection.sqlite.pragma('foreign_key_check')).toEqual([]);
     });
     expect(existsSync(`${path}.migrate.lock`)).toBe(false);
+  });
+  it('adds review/approval persistence to a baseline database without losing authoring history', () => {
+    const baseline = join(root, 'baseline');
+    mkdirSync(join(baseline, 'meta'), { recursive: true });
+    const migrations = fileURLToPath(
+      new URL('../migrations/', import.meta.url),
+    );
+    copyFileSync(
+      join(migrations, '0000_zippy_lord_hawal.sql'),
+      join(baseline, '0000_zippy_lord_hawal.sql'),
+    );
+    const journal = JSON.parse(
+      readFileSync(join(migrations, 'meta/_journal.json'), 'utf8'),
+    ) as { entries: unknown[] };
+    journal.entries = journal.entries.slice(0, 1);
+    writeFileSync(
+      join(baseline, 'meta/_journal.json'),
+      JSON.stringify(journal),
+    );
+    const old = openDatabase(path);
+    try {
+      migrate(old.db, { migrationsFolder: baseline });
+      seedDevelopment(old);
+      old.sqlite
+        .prepare(
+          "INSERT INTO character_versions(id,character_id,version,source_snapshot_json,created_at,updated_at) VALUES ('legacy',?,1,'{}',0,0)",
+        )
+        .run(new CharacterRepository(old).list()[0]!.id);
+    } finally {
+      old.close();
+    }
+    migrateDatabase(path);
+    migrateDatabase(path);
+    const upgraded = openDatabase(path);
+    try {
+      expect(new CharacterRepository(upgraded).list()[0]?.name).toBe(
+        'Foundation example',
+      );
+      expect(
+        upgraded.sqlite
+          .prepare(
+            'SELECT id,manifest_json,manifest_sha256 FROM character_versions',
+          )
+          .get(),
+      ).toEqual({ id: 'legacy', manifest_json: null, manifest_sha256: null });
+      expect(
+        upgraded.sqlite
+          .prepare('SELECT count(*) AS count FROM approvals')
+          .get(),
+      ).toEqual({ count: 0 });
+      expect(upgraded.sqlite.pragma('foreign_key_check')).toEqual([]);
+    } finally {
+      upgraded.close();
+    }
   });
   it('refuses a concurrent migration without stealing its lock', () => {
     const lock = openSync(`${path}.migrate.lock`, 'wx');

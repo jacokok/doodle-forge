@@ -7,6 +7,7 @@
   },
   "dependencies": {
     "@doodleforge/contracts": "workspace:*",
+    "@doodleforge/content-publisher": "workspace:*",
     "@doodleforge/database": "workspace:*",
     "@doodleforge/shared": "workspace:*"
   }

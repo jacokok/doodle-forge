@@ -1,6 +1,6 @@
 # Local foundation setup
 
-Phase 1 provides process/storage/database skeletons, not character creation, generation, publication or gameplay. See [progress](../plans/14-progress.md) for executed evidence and [roadmap](../plans/12-implementation-roadmap.md) for subsequent phases.
+The foundation provides process/storage/database skeletons. Phase 3 adds fixture gameplay; the first Phase 4 increment adds [frozen fixture review and explicit approvals](phase-4-review.md), not publication or API loading. Character creation/generation remain future work. See [progress](../plans/14-progress.md) for evidence, phase-gate exceptions and remaining acceptance work.
 
 ## Prerequisites and installation
 
@@ -23,9 +23,9 @@ Studio: `http://127.0.0.1:5173`, health: `/api/health`. Worker health: `http://1
 
 ## Database baseline and recovery
 
-The baseline has `characters`, `character_versions`, `abilities`, and `character_abilities`, with real FKs, unique versions, checked JSON/status/revisions and WAL/5-second busy timeout. `CharacterRepository` supplies persistence and optimistic rename. Asset/original references, contract validations, publication immutability/approval guards, release and workflow tables arrive through **new migrations in their consuming phases**; this foundation is not a publication service.
+The baseline has `characters`, `character_versions`, `abilities`, and `character_abilities`, with real FKs, unique versions, checked JSON/status/revisions and WAL/5-second busy timeout. `CharacterRepository` supplies persistence and optimistic rename. Phase 4 migration 0001 adds frozen manifest bytes/hashes, append-only approvals and immutability guards; see [fixture review](phase-4-review.md). Asset/original references, releases and workflow tables still await **new migrations in their consuming phases**. This is not yet a publication service.
 
-`pnpm db:seed` creates one deterministic synthetic authoring identity, without art, versions, abilities, approvals or releases. Repeating it does not overwrite edits. The validated ability catalog belongs to Phase 2 and approved game fixtures to Phase 4.
+`pnpm db:seed` creates one deterministic synthetic authoring identity, without art, versions, abilities, approvals or releases. Repeating it does not overwrite edits. `content:seed` is a separate explicit Phase 4 fixture-review/approval command; it does not publish game content.
 
 - `pnpm db:generate`: generate a new committed Drizzle migration after a schema change. Never edit an applied baseline or use schema push.
 - `pnpm db:migrate`: apply committed migrations under exclusive `<database path>.migrate.lock`. Start only one migrator. On failure the owned lock is released. After a killed process, inspect its PID in the lock, confirm no migration process remains, back up the DB, then manually remove that stale lock and rerun. Never blindly delete a live lock.
@@ -57,7 +57,7 @@ node apps/studio/build/index.js
 node apps/worker/dist/index.js
 ```
 
-Packages are private/source-exported. Vite and esbuild bundle internal server packages; server-side SQLite stays external. Built outputs currently require the checkout, its installed dependencies and workspace marker; standalone deployment packaging is deferred. Empty exported modules mark later phase ownership and implement no fake features. `content:validate` / `content:bundle` currently exit nonzero with an explicit not-implemented usage message.
+Packages are private/source-exported. Vite and esbuild bundle internal server packages; server-side SQLite stays external. Built outputs currently require the checkout, its installed dependencies and workspace marker; standalone deployment packaging is deferred. Empty exported modules mark later phase ownership and implement no fake features. `content:validate <character.json>` validates Phase 2 package files; `content:bundle` remains unimplemented and exits nonzero.
 
 ## Godot pin and templates
 
@@ -67,4 +67,4 @@ Download the Linux x86_64 engine, `Godot_v4.7.2-stable_export_templates.tpz`, an
 
 Place `version.txt`, `linux_debug.x86_64`, and `linux_release.x86_64` in `${XDG_DATA_HOME:-$HOME/.local/share}/godot/export_templates/4.7.2.stable/` and make the executables executable. Full templates may also be installed through the editor. `GODOT_TEMPLATE_DIR` overrides that directory; `GODOT_BIN` overrides the executable. The harness verifies **both actual template executables**, not just a version label, before importing/testing the project. This Linux-specific template verification does not claim macOS/Windows export support.
 
-`pnpm dev:game` opens the editor after version/template checks. `pnpm test:godot` runs bounded headless import and three scene/renderer assertions with a JSON report. It tests the skeleton only; combat, textures and export acceptance remain later phases. Runtime imports/caches live in ignored `.godot`; commit GDScript `.uid` identity files.
+`pnpm dev:game` opens the editor after version/template checks. `pnpm test:godot` runs bounded headless import, three startup assertions and 57 Phase 3 gameplay assertions, including fixture PNG resources. This does not establish manual visual acceptance or Phase 4 HTTP loading; desktop export remains later work. Runtime imports/caches live in ignored `.godot`; commit GDScript `.uid` identity files.

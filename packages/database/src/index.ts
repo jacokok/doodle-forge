@@ -59,3 +59,4 @@ export function assertDatabaseReady(connection: DatabaseConnection) {
 }
 export { CharacterRepository } from './repositories.js';
 export { seedDevelopment } from './seed.js';
+export { SnapshotRepository, type ApprovalDecision } from './snapshots.js';
