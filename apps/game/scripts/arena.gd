@@ -39,6 +39,8 @@ func _ready() -> void:
 				InputMap.action_add_event(definition[0], event)
 	selection.item_selected.connect(select_character)
 	$HUD/Start.pressed.connect(start_run)
+	$HUD/Refresh.pressed.connect(refresh_catalog)
+	$HUD/Refresh.visible = false
 	for argument in OS.get_cmdline_user_args():
 		if argument == "--content-cache":
 			content_cache = true
@@ -50,6 +52,7 @@ func _ready() -> void:
 				api_url = argument.trim_prefix("--content-api=")
 	if api_mode:
 		selected = 0
+		$HUD/Refresh.visible = true
 		_repository = ApiRepository.new(self, api_url, DiskCache.new() if content_cache else null)
 		_factory = Factory.new(_repository)
 		_discover_api()
@@ -110,6 +113,7 @@ func maintain_waves() -> void:
 		if wave == WAVES.size():
 			running = false
 			completed = true
+			$HUD/Refresh.disabled = false
 			status.text = "All waves complete! Select a character or restart."
 			return
 	if api_mode:
@@ -135,6 +139,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if player.state == "knockout":
 		running = false
+		$HUD/Refresh.disabled = false
 		status.text = "Knocked out — restart to try again."
 		return
 	for enemy in enemies:
@@ -147,12 +152,14 @@ func _set_loading(message: String) -> void:
 	content_error = ""
 	selection.disabled = true
 	$HUD/Start.disabled = true
+	$HUD/Refresh.disabled = true
 	status.text = message
 
 func _finish_loading() -> void:
 	_loading = false
 	selection.disabled = _entries.is_empty()
 	$HUD/Start.disabled = false
+	$HUD/Refresh.disabled = not api_mode or running
 
 func _clear_match() -> void:
 	running = false
@@ -171,6 +178,78 @@ func _api_failure(code: String) -> void:
 	content_error = code
 	_finish_loading()
 	status.text = "Content error: %s · Start to retry (same release; no fixture fallback)" % code
+
+func refresh_catalog() -> void:
+	# Only a deliberate user action at an idle, completed, or lost-match boundary.
+	# The old pinned repository and player stay authoritative until candidate readiness.
+	if not api_mode or _loading or running:
+		return
+	_set_loading("Refreshing published catalog…")
+	var candidate_repository: RefCounted = ApiRepository.new(self, api_url, DiskCache.new() if content_cache else null)
+	var candidate_factory: RefCounted = Factory.new(candidate_repository)
+	var candidate: Dictionary = await candidate_repository.list_characters()
+	if not candidate.ok:
+		_finish_loading()
+		content_state = "ready" if not _entries.is_empty() else "error"
+		content_error = candidate.error
+		status.text = "Refresh failed: %s · previous catalog retained" % candidate.error
+		return
+	var candidate_entries: Array = candidate.value.characters.duplicate(true)
+	if candidate_entries.is_empty():
+		_finish_loading()
+		content_error = "empty_catalog"
+		content_state = "ready" if not _entries.is_empty() else "error"
+		status.text = "Refresh failed: empty_catalog · previous catalog retained"
+		return
+	var previous_id := ""
+	if selected >= 0 and selected < _entries.size():
+		previous_id = _entries[selected].characterId
+	var replacement_index := 0
+	for index in candidate_entries.size():
+		if candidate_entries[index].characterId == previous_id:
+			replacement_index = index
+			break
+	var replacement_entry: Dictionary = candidate_entries[replacement_index]
+	var staging := Node2D.new()
+	staging.visible = false
+	$Actors.add_child(staging)
+	var replacement: Dictionary = await candidate_factory.create(replacement_entry.characterId, int(replacement_entry.characterVersion), staging)
+	if not replacement.ok:
+		staging.free()
+		_finish_loading()
+		content_state = "ready" if not _entries.is_empty() else "error"
+		content_error = replacement.error
+		status.text = "Refresh failed: %s · previous catalog retained" % replacement.error
+		return
+	# Candidate fighter is complete but remains hidden until the single activation boundary.
+	var new_player: Node = replacement.value
+	staging.remove_child(new_player)
+	staging.free()
+	$Actors.add_child(new_player)
+	_repository = candidate_repository
+	_factory = candidate_factory
+	_entries = candidate_entries
+	release_id = candidate.value.releaseId
+	selected = replacement_index
+	selection.clear()
+	for entry in _entries:
+		selection.add_item("%s · v%d" % [entry.characterId.left(8), int(entry.characterVersion)])
+	selection.select(selected)
+	new_player.name = "Player"
+	new_player.position = Vector2(360, 360)
+	new_player.visible = true
+	new_player.health_changed.connect(update_health)
+	var old_player: Node = player
+	player = new_player
+	if is_instance_valid(old_player):
+		old_player.free()
+	update_health(player.health, player.maximum_health)
+	completed = false
+	content_state = "ready"
+	content_error = ""
+	_finish_loading()
+	selection.set_item_text(selected, "%s · v%d" % [player.get_meta("character_name"), int(player.get_meta("character_version"))])
+	status.text = "%s · refreshed · Start to fight" % player.get_meta("character_name")
 
 func _discover_api() -> void:
 	if _loading:

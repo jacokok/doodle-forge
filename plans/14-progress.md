@@ -1,5 +1,30 @@
 # 14 — Persistent implementation progress
 
+## Latest Phase 4 increment — coordinated manual catalog refresh (2026-10-23)
+
+### Policy and implementation
+
+- Initial `git status --short --branch` was clean on `main`; preserved repository contents and made no commits/resets. Read project instructions, roadmap/progress, plans 03/04/09/11, requested Phase 4 guides and ADR-019–023; inspected API repository pinning/cache, factory/resource lifecycle, arena gates/match lifetime, hostile-peer suite and built-studio publication harness. Stated the approach before editing.
+- Added API-mode-only Refresh control. Permitted in idle practice, after loss, or after completion; rejected while active combat or any arena load is in progress. Start/reset/retry and errors do not refresh. No polling.
+- Refresh uses an independent candidate repository/factory and candidate catalog. It reconciles selection by character ID (otherwise first entry), then fully creates the replacement player in a hidden staging node so candidate PNGs pass all admission, network/cache integrity and native decoding checks before activation. Empty candidate catalogs and catalog/resource errors retain the prior repository, release, catalog, selection, and fighter; status reports explicit failure. A successful synchronous boundary installs candidate references/catalog/release/player together and then frees the prior fighter. Existing repository snapshots are never mutated. ADR-024 records safe-boundary, lifetime and failure policy.
+- Updated arena/repository/API docs and roadmap. Default fixture mode, opt-in cache policy, generic fighter/combat implementation unchanged. This proves replacement of an active catalog after publication but does **not** claim the separately scoped data-only second-character live-addition acceptance: harness publication modifies Sprout revision with both characters already present.
+
+### Actual validation
+
+| Executed command | Actual result |
+|---|---|
+| `mise exec -- node tools/godot-validation/run.mjs --published-api` | PASS: 3 startup + 57 fixture gameplay + 26 resources + 102 hostile-peer content + 69 cache + 47 built-studio published factory + **86 published arena assertions**. Real built studio/SQLite/publication; verifies refresh rejection during loading and active match, selection reconciliation, successful resource-ready replacement, previous-state retention and explicit error on corrupted candidate index; existing cache/hostile-peer and arena regressions retained. |
+| `mise exec -- pnpm test` | PASS: 143 tests / 9 files |
+| `mise exec -- pnpm check` | PASS: strict TS and Svelte, 0 errors / 0 warnings |
+| `mise exec -- pnpm format:check` | PASS |
+| `git diff --check` | PASS |
+| `mise exec -- pnpm lint` | NOT RUN in this increment; previous known lint issue remains two explicit-any errors in `packages/contracts/src/create-fixtures.ts:68–69`. |
+
+### Remaining status
+
+- Manual refresh/catalog replacement slice verified. Automatic polling remains a distinct pending follow-up. Broader data-only second-character live-addition proof remains unverified; no second character was added to an already discovered catalog in this harness.
+- Phase 4 remains incomplete; Phase 5 not authorized. Phase 3 graphical/active-AI acceptance remains deferred, not passed. No fallback, offline bundle, authoring UI, or unrelated combat/lint work.
+
 ## Current phase
 **Phase 4 — in progress, review/approval, publication, published-only content API, Godot repository/validation, bounded runtime/factory, explicit API arena and opt-in bounded validated PNG disk cache increments locally verified. Phase 3 is NOT fully accepted.** Phases 0–2 retain their previously recorded local status.
 

@@ -30,3 +30,9 @@ offset_top = 55.0
 offset_right = 600.0
 offset_bottom = 85.0
 text = "Start / restart"
+[node name="Refresh" type="Button" parent="HUD"]
+offset_left = 610.0
+offset_top = 55.0
+offset_right = 730.0
+offset_bottom = 85.0
+text = "Refresh"

@@ -1,6 +1,6 @@
 # Phase 4 — published-only content API
 
-The studio exposes read-only game content after explicit publication. `content:seed` approves fixtures but does **not** publish them. Publication remains a service call ([publication guide](phase-4-publication.md)); there is no publication UI/CLI yet. The [Godot repository](phase-4-godot-repository.md), [runtime factory](phase-4-godot-runtime.md) and [explicit API arena mode](phase-4-godot-arena.md) prove headless published discovery/selection and fighter behavior. An [opt-in validated PNG cache](phase-4-godot-cache.md) now reuses bytes without persisting catalog authority. Refresh and Phase 4 completion remain pending.
+The studio exposes read-only game content after explicit publication. `content:seed` approves fixtures but does **not** publish them. Publication remains a service call ([publication guide](phase-4-publication.md)); there is no publication UI/CLI yet. The [Godot repository](phase-4-godot-repository.md), [runtime factory](phase-4-godot-runtime.md) and [explicit API arena mode](phase-4-godot-arena.md) prove headless published discovery/selection and fighter behavior. An [opt-in validated PNG cache](phase-4-godot-cache.md) now reuses bytes without persisting catalog authority. Arena manual Refresh can atomically replace a candidate catalog at a safe boundary; polling and Phase 4 completion remain pending.
 
 ## Routes and cache behavior
 

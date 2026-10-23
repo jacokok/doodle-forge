@@ -51,6 +51,8 @@ func run() -> void:
 		arena.selection.item_selected.emit(index)
 		check(arena._loading and arena.content_state == "loading" and arena.player == null, "selection_loading_no_partial_player")
 		var held: int = arena.selected
+		arena.refresh_catalog()
+		check(arena.selected == held and arena._loading, "refresh_rejected_during_selection_load")
 		arena.select_character(1 - index)
 		arena.start_run()
 		arena.maintain_waves()
@@ -87,6 +89,9 @@ func run() -> void:
 	await control("advance")
 	await arena.start_run()
 	check(arena.running and arena.spawned == 2 and arena.enemies.size() == 2, "api_initial_wave_cap")
+	var active_player = arena.player
+	arena.refresh_catalog()
+	check(arena._loading == false and arena.player == active_player and arena.release_id == release, "refresh_rejected_during_match")
 	check(arena.player.maximum_health == 100 and arena.player.get_meta("character_version") == 1, "reset_keeps_old_revision_after_publication")
 	assert_release(arena, release)
 	var enemy = arena.enemies[0]
@@ -141,7 +146,19 @@ func run() -> void:
 	await arena.select_character(sprout_index)
 	check(not arena.running and arena.enemies.is_empty() and arena.player.health == 100, "selection_resets_match_after_failure")
 	assert_release(arena, release)
-	# A separate new arena may pin the new release; the existing one never swaps.
+	# Explicit refresh is accepted only at a safe boundary and installs one coherent new release.
+	await arena.refresh_catalog()
+	check(arena.release_id != release and arena.player.get_meta("release_id") == arena.release_id, "manual_refresh_atomic_release_replacement")
+	check(arena.player.get_meta("character_id") == "11111111-1111-4111-8111-111111111111" and arena.player.get_meta("character_version") == 2, "refresh_reconciles_selection_by_id")
+	check(arena.selection.item_count == 2 and arena.content_state == "ready", "refresh_replaces_catalog_after_resources_ready")
+	var retained_player: Node = arena.player
+	var retained_release: String = arena.release_id
+	await control("corrupt-index")
+	await arena.refresh_catalog()
+	check(arena.player == retained_player and arena.release_id == retained_release and arena.selection.item_count == 2, "failed_refresh_retains_coherent_old_state")
+	check(arena.content_error == "http_503" and arena.status.text.contains("previous catalog retained"), "failed_refresh_explicit_error")
+	await control("restore-index")
+	# A separate new arena also sees the current publication.
 	var fresh = Arena.instantiate()
 	root.add_child(fresh)
 	fresh.set_physics_process(false)
@@ -149,7 +166,7 @@ func run() -> void:
 	check(fresh.release_id != release and fresh.selection.item_count == 2, "new_arena_observes_new_publication")
 	await fresh.select_character(sprout_index)
 	check(fresh.player.maximum_health == 137 and fresh.player.get_meta("character_version") == 2, "new_arena_new_revision_only")
-	assert_release(arena, release)
+	assert_release(arena, arena.release_id)
 	await control("corrupt-index")
 	var bad = Arena.instantiate()
 	root.add_child(bad)
