@@ -68,6 +68,9 @@ Installed engine `4.7.2.stable.arch_linux.ed1daf0bf` matches official Linux debu
 ### ADR-017 — Fixture-fed Phase 3 prototype boundary (accepted, incremental)
 **Decision:** begin Phase 3 with a reusable generic fighter script and a local Phase 2 manifest loader for core movement/jump/melee assertions. Keep fighter configuration data-driven and combat independent of visual assets. **Rationale:** validate ground-plane/elevation separation and attack timing before expanding arena, enemy AI, waves, or sprite rendering. **Consequence:** this increment is not Phase 3 acceptance: active-wave progression, animation rendering, controls, HUD health binding, and manual visual playtest remain outstanding. No Phase 4/API/release behavior is introduced.
 
+### ADR-018 — Node 26 and ordinary pnpm commands (accepted, user-requested)
+**Decision:** supersede ADR-014's Node 22 selection with Node 26.12.1 (latest npm `node` release checked on 2026-10-23), installed through mise and selected by CI. Accept `>=26.12.0 <27` in package engines so the installed 26.12.0 runtime also works without an exact-patch rejection. Keep pnpm 10.34.7 and other dependency pins unchanged. **Rationale:** the user requested the latest Node and removal of version-prefixed everyday commands. **Alternatives:** keeping Node 22 or a floating unbounded latest; rejected in favor of a current, reproducible Node 26 baseline. **Consequences:** native SQLite must be rebuilt for the new Node ABI; ordinary `pnpm` commands work with mise shell integration or a compatible system installation. Future major Node upgrades still require validation; historical Node 22 evidence remains unchanged. See plan 14 for actual executed checks.
+
 ## Dependencies
 Plans 01–11 contain detailed consequences. Roadmap orders implementations; progress records evidence. External source availability affects research, not local test status.
 

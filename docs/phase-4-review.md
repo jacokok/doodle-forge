@@ -7,8 +7,8 @@ This document describes review snapshots and approval persistence only. The subs
 From the checkout, use the pinned commands:
 
 ```sh
-mise exec node@22.23.3 -- npm exec --yes --package=pnpm@10.34.7 -- pnpm db:migrate
-mise exec node@22.23.3 -- npm exec --yes --package=pnpm@10.34.7 -- pnpm content:seed
+pnpm db:migrate
+pnpm content:seed
 ```
 
 `content:seed` validates both synthetic contract fixtures (Sprout and Comet), creates missing authoring identities, freezes canonical manifests, and records explicit `development-fixture-seed` approvals bound to those manifest hashes. Each manifest includes all declared asset hashes. It prints version IDs, manifest hashes and latest decisions; no original drawings are used. This command is opt-in, not a server boot action. A repeat preserves existing authoring edits and any later rejected/revoked decision. Different bytes for the same revision fail rather than being overwritten.

@@ -6,6 +6,30 @@
 ## Phase-gate exception — explicit user authorization
 The user explicitly authorized starting **Phase 4 only** while deferring Phase 3 manual graphical playtesting. This supersedes the earlier “Do not begin Phase 4” instructions below, not Phase 3 acceptance requirements. Manual shadow/Y-sort/feel review and a human active-AI playthrough remain unchecked in [docs/phase-3-playtest.md](../docs/phase-3-playtest.md). **Phase 5 is not started.**
 
+## Human prototype feedback — 2026-10-23
+
+User opened the Godot game, reported that it works but combat is very difficult, and then confirmed everything works as expected after clarification that the visible checkerboard fixtures are intentional placeholder art. No missing-texture bug is confirmed. Recorded launch/expected rendering feedback in `docs/phase-3-playtest.md`; difficulty remains a usability concern. This is not evidence of each manual checklist item or human completion of both active-AI waves; those acceptance details remain pending. No code changes or new tests in this feedback-only update; Phase 3 remains not fully accepted and Phase 4 remains in progress.
+
+## Tooling update — user-requested Node 26 (2026-10-23)
+
+- Phase 4 remains in progress; no phase-gate or gameplay changes. Clean working tree at inspection. Read plans README/12/14, setup, CI and ADR-014 before changing tools.
+- Replaced Node 22.23.3 with **26.12.1** in mise and all CI jobs; `npm view node version` returned 26.12.1 and `mise install node@26.12.1` succeeded. Root engines now allow `>=26.12.0 <27`, including the previously installed 26.12.0. pnpm remains **10.34.7**; dependency pins/lockfile unchanged. ADR-018 supersedes the old Node selection without rewriting historical evidence.
+- Setup, fixture approval and playtest instructions now use ordinary `pnpm` commands. Existing terminals may need to re-enter the directory/restart so mise shell integration refreshes PATH; non-integrated shells can use `mise exec -- pnpm <command>` without a hardcoded Node version.
+- The agent shell retained Node 22 in its inherited PATH: an initial plain `pnpm install --frozen-lockfile` correctly failed the new engine check. All successful validation below used `mise exec -- pnpm <command>` to select the updated project toolchain.
+
+| Executed command | Actual result on Node 26.12.1 |
+|---|---|
+| `install --frozen-lockfile` | PASS; lock unchanged; existing ignored Sharp lifecycle-script warning remains, real Sharp tests pass |
+| `rebuild better-sqlite3 esbuild` | PASS; native SQLite loads and all real SQLite tests pass |
+| `test` | PASS: **55 tests / 6 files** |
+| `check` | PASS: strict TypeScript and Svelte, 0 errors/0 warnings |
+| `build`, then `test:smoke` | PASS: studio/worker builds, migrated temporary DB, actual health/private-storage checks, restart/signals/dev cleanup |
+| `test:godot` (default installed engine/templates, no overrides) | PASS: engine 4.7.2.stable.arch_linux.ed1daf0bf and both official matching templates; **3 startup + 57 gameplay assertions** |
+| `format:check` | PASS |
+| `lint` | FAIL: only the existing two explicit-any errors in `packages/contracts/src/create-fixtures.ts:68–69`, left unchanged |
+
+Browser tests, remote CI and manual graphical playtesting were not run. The worker's existing Node 22 build target and Node 22 type definitions remain conservative compatibility baselines; this upgrade adds no Node 26-specific application APIs. Next feature work remains the published-only API described below.
+
 ## Latest Phase 4 increment — immutable publication service (2026-10-22)
 
 ### Inspection and scope

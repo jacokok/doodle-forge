@@ -3,16 +3,20 @@
 Run from the checkout with the pinned engine/templates (see [setup](setup.md)):
 
 ```sh
-mise exec node@22.23.3 -- npm exec --yes --package=pnpm@10.34.7 -- pnpm dev:game
+pnpm dev:game
 ```
 
 Run the main scene in the editor. Or use `godot --path apps/game -- --fixture=comet` to select Comet on launch (Sprout is default). These are fixed development fixtures from `packages/contracts`, not published/API/bundle content. No studio/worker/server is needed. Five required fixture animations currently have **one authored frame each**; state changes are visible, but this is not smooth multi-frame artwork.
 
 Choose Sprout or Comet, then Start / restart. WASD/arrows move, Space jumps, hold J for repeated light attacks subject to cooldown. Two bounded waves contain two then three enemies, with at most two active. Health reaches zero on defeat; restart resets selection, health and waves. Selection changes reset the run. Arena limits constrain ground positions, independently of jumping.
 
-## Manual acceptance checklist — NOT YET EXECUTED
+## Human feedback — 2026-10-23
 
-This session has no DISPLAY/WAYLAND_DISPLAY. Headless resource/state assertions are not visual acceptance.
+User launched the game and confirmed it works as expected after clarifying that the colored checkerboard fixtures are the intended placeholder artwork, not missing textures. User reported combat is very difficult. This confirms launch and expected placeholder rendering, not execution of every checklist item below; engine/platform details and a completed two-wave human run were not explicitly reported. Difficulty remains a usability concern.
+
+## Manual acceptance checklist — full review still pending
+
+The original automated session had no DISPLAY/WAYLAND_DISPLAY. Human feedback above is recorded separately; headless resource/state assertions are not visual acceptance.
 
 - [ ] Play both fixtures; confirm distinct idle art, foot alignment and readable walk/attack/hurt/KO state art.
 - [ ] Walk in all eight directions: diagonal speed consistent; move in front of/behind enemies and confirm ground-point Y-sort, no torso/anchor flicker.

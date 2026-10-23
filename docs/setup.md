@@ -4,18 +4,18 @@ The foundation provides process/storage/database skeletons. Phase 3 adds fixture
 
 ## Prerequisites and installation
 
-Linux x86_64 is the verified foundation host. Pins are in `mise.toml`, `package.json` and `pnpm-lock.yaml`: Node **22.23.3** (maintenance LTS), pnpm **10.34.7**, TypeScript **6.0.3**, Svelte **5.57.2**, SvelteKit **3.1.0**, Vite **8.3.5**, adapter-node **6.0.0**, Tailwind **4.3.3**, Drizzle ORM **0.45.4**, better-sqlite3 **13.0.3**. Pins satisfy registry engine/peer ranges and were locally built/tested together. Node 26 is not the selected runtime even if globally installed.
+Linux x86_64 is the verified foundation host. Toolchain versions are in `mise.toml`, `package.json` and `pnpm-lock.yaml`: Node **26.12.1**, pnpm **10.34.7**, TypeScript **6.0.3**, Svelte **5.57.2**, SvelteKit **3.1.0**, Vite **8.3.5**, adapter-node **6.0.0**, Tailwind **4.3.3**, Drizzle ORM **0.45.4**, better-sqlite3 **13.0.3**. Node 26.12.x is the selected runtime (ADR-018); the engine range accepts Node 26 from 26.12.0, while mise and CI select 26.12.1 for reproducibility.
 
 ```sh
 mise install
-mise exec -- pnpm install --frozen-lockfile
+pnpm install --frozen-lockfile
 cp .env.example .env
-mise exec -- pnpm db:migrate
-mise exec -- pnpm db:seed
-mise exec -- pnpm dev
+pnpm db:migrate
+pnpm db:seed
+pnpm dev
 ```
 
-Alternatively install the exact Node/pnpm pins yourself. When the mise pnpm binary download is unavailable, commands can be run with `mise exec node@22.23.3 -- npm exec --yes --package=pnpm@10.34.7 -- pnpm <command>`; this registry-based fallback was used locally. better-sqlite3 may require a C++ compiler, make, Python for node-gyp and Node headers; Python is build tooling, not an application runtime. Only better-sqlite3/esbuild install scripts are permitted by workspace policy.
+With mise shell integration enabled, entering the checkout selects its tools automatically; no version-prefixed commands are needed. Otherwise use `mise exec -- pnpm <command>` or install compatible Node/pnpm yourself. pnpm remains at 10.34.7; this is not a pnpm upgrade. After switching Node majors, run `pnpm rebuild better-sqlite3 esbuild` to rebuild native dependencies before testing. better-sqlite3 may require a C++ compiler, make, Python for node-gyp and Node headers; Python is build tooling, not an application runtime. Only better-sqlite3/esbuild install scripts are permitted by workspace policy.
 
 Root configuration loads `.env`; inherited environment variables take precedence. Relative storage/DB paths resolve from the workspace checkout, even when started inside an app directory or from a built entrypoint. Defaults create `storage/{originals,generated,approved,published,db}` and `storage/db/doodleforge.sqlite`. Do not place the DB on network storage. Originals are not served. Never commit `.env`, mutable DBs, generated art or secrets. Config currently rejects non-loopback service hosts/origins; hosted deployments are unsupported. Set `HOST`, `PORT`, `ORIGIN` and distinct `WORKER_PORT` consistently when changing ports.
 
