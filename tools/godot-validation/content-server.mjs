@@ -17,6 +17,7 @@ export async function contentServers() {
   const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
   const modes = [
     'good',
+    'cache',
     'hash',
     'identity',
     'unsupported',
@@ -121,6 +122,13 @@ export async function contentServers() {
     return {
       env,
       verify() {
+        const cached = requests.filter((r) => r.mode === 'cache');
+        if (cached.filter((r) => r.url.includes('/assets/')).length !== 2)
+          throw new Error(
+            'Cache did not suppress hits or corruption fetched implicitly',
+          );
+        if (cached.filter((r) => r.url === '/api/content/index').length !== 2)
+          throw new Error('Cache bypassed online catalog authority');
         const good = requests.filter((r) => r.mode === 'good');
         if (good.filter((r) => r.url === '/api/content/index').length !== 1)
           throw new Error('Catalog was fetched more than once');

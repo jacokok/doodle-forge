@@ -109,27 +109,29 @@ try {
     }
     const peers = await contentServers();
     try {
-      const result = await promisify(execFile)(
-        binary,
-        [
-          '--headless',
-          '--path',
-          resolve(root, 'apps/game'),
-          '--script',
-          'res://tests/content.gd',
-        ],
-        {
-          env: { ...process.env, ...peers.env },
-          timeout: 30000,
-        },
-      );
-      process.stdout.write(result.stdout);
-      process.stderr.write(result.stderr);
-      if (
-        /SCRIPT ERROR|ERROR:/.test(result.stderr) ||
-        !result.stdout.includes('"status":"passed"')
-      )
-        throw new Error('Godot content validation failed');
+      for (const test of ['content', 'cache']) {
+        const result = await promisify(execFile)(
+          binary,
+          [
+            '--headless',
+            '--path',
+            resolve(root, 'apps/game'),
+            '--script',
+            `res://tests/${test}.gd`,
+          ],
+          {
+            env: { ...process.env, ...peers.env },
+            timeout: 30000,
+          },
+        );
+        process.stdout.write(result.stdout);
+        process.stderr.write(result.stderr);
+        if (
+          /SCRIPT ERROR|ERROR:/.test(result.stderr) ||
+          !result.stdout.includes('"status":"passed"')
+        )
+          throw new Error('Godot content validation failed');
+      }
       peers.verify();
     } finally {
       await peers.close();

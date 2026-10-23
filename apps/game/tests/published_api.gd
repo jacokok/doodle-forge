@@ -1,6 +1,7 @@
 extends SceneTree
 const ApiRepository = preload("res://scripts/content/api_character_repository.gd")
 const Factory = preload("res://scripts/content/character_factory.gd")
+const Cache = preload("res://scripts/content/asset_disk_cache.gd")
 var assertions := 0
 
 func _initialize() -> void:
@@ -38,6 +39,19 @@ func run() -> void:
 			check(texture.atlas is ImageTexture and texture.get_image().get_size() == Vector2i(256, 256), "runtime_texture_" + animation)
 		check(fighter.sprite.position == Vector2(-128, -224), "published_anchor")
 	check(fighters[0].sprite.sprite_frames.get_frame_texture("idle", 0).atlas.get_image().get_data() != fighters[1].sprite.sprite_frames.get_frame_texture("idle", 0).atlas.get_image().get_data(), "distinct_published_art")
+	var cache_name := "published-test-" + str(OS.get_process_id())
+	var cached_repository = ApiRepository.new(root, base, Cache.new(cache_name))
+	var cached_factory := Factory.new(cached_repository)
+	var entry: Dictionary = listing.value.characters[0]
+	for attempt in 2:
+		var made := await cached_factory.create(entry.characterId, int(entry.characterVersion), root)
+		check(made.ok, "real_published_cache_factory_%d" % attempt)
+		check(made.value.get_meta("release_id") == release_id and made.value.sprite.sprite_frames.get_frame_texture("idle", 0).atlas.get_image().get_data() == fighters[0].sprite.sprite_frames.get_frame_texture("idle", 0).atlas.get_image().get_data(), "cached_factory_pinned_pixels")
+		made.value.free()
+	var cache_directory := "user://content-cache/" + cache_name
+	for filename in DirAccess.get_files_at(cache_directory):
+		DirAccess.remove_absolute(cache_directory + "/" + filename)
+	DirAccess.remove_absolute(cache_directory)
 	await physics_frame
 	for i in 2:
 		var player = fighters[i]

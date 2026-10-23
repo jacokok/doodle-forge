@@ -106,7 +106,8 @@ Contract precedes game and factory. API integration precedes authoring UI. To re
 - [x] Implement repository interface and API adapter with supported-version checks. Headless HTTP boundary/shared-v1 validation verified (plan 14, ADR-020); gameplay remains fixture-fed, decoder/cache/refresh are separate tasks.
 - [x] Decode PNG runtime bytes, build atlas/SpriteFrames and instantiate existing fighter. Per-load admission/native decode/multirow resource tests and real built-published-API fighter movement/combat verified (plan 14, ADR-021); normal arena remains fixture-fed.
 - [x] Wire explicit API arena discovery/selection, loading/errors and match release retention. Real built-studio arena integration verifies both prepublished fixtures, resets/waves and mid-match publication pinning (plan 14, ADR-022); default fixture mode preserved.
-- [ ] Add validated bounded disk cache, coordinated catalog replacement, polling and manual refresh. Repository/arena pinning and basic fail-closed error/retry UI are verified separately above; no fallback is implemented.
+- [x] Add opt-in validated bounded PNG disk cache. Fixed-slot bounds, pinned-manifest revalidation, explicit corruption/FS errors and atomic installs (ADR-023); executed evidence in plan 14. Not an offline bundle.
+- [ ] Add coordinated catalog replacement, polling and manual refresh. Repository/arena pinning and basic fail-closed error/retry UI are verified separately above; no fallback is implemented.
 - [ ] Publish second fixture using data only and prove no gameplay source changes.
 
 **Acceptance criteria:** New approved fixture becomes selectable/playable without import, scenes or scripts; corrupt/unpublished data is not playable. **Test requirements:** TS/Godot contract parity, API tests, publisher fault/concurrency tests, headless HTTP texture loading/fighter instantiation and second-character proof.

@@ -1,12 +1,46 @@
 # 14 — Persistent implementation progress
 
 ## Current phase
-**Phase 4 — in progress, review/approval, publication, published-only content API, Godot repository/validation, bounded runtime/factory and explicit API arena discovery/selection increments locally verified. Phase 3 is NOT fully accepted.** Phases 0–2 retain their previously recorded local status.
+**Phase 4 — in progress, review/approval, publication, published-only content API, Godot repository/validation, bounded runtime/factory, explicit API arena and opt-in bounded validated PNG disk cache increments locally verified. Phase 3 is NOT fully accepted.** Phases 0–2 retain their previously recorded local status.
 
 ## Phase-gate exception — explicit user authorization
 The user explicitly authorized starting **Phase 4 only** while deferring Phase 3 manual graphical playtesting. This supersedes the earlier “Do not begin Phase 4” instructions below, not Phase 3 acceptance requirements. Manual shadow/Y-sort/feel review and a human active-AI playthrough remain unchecked in [docs/phase-3-playtest.md](../docs/phase-3-playtest.md). **Phase 5 is not started.**
 
-## Latest Phase 4 increment — pinned published-API arena discovery/selection (2026-10-23)
+## Latest Phase 4 increment — opt-in bounded validated PNG disk cache (2026-10-23)
+
+### Scope and implementation
+
+- First command: `git status --short --untracked-files=all`. Preserved all existing tracked/untracked changes; no reset, discard or agent commit. Read AGENTS, plans README/03/04/09/11/12/13/14, all requested Phase 4 guides and ADR-019–022. Inspected repository/validator/resource builder/factory, arena lifetime/loading/retries and hostile-peer/real built-studio harnesses before stating the bounded approach. No dependencies, schemas, migrations, combat tuning or phase expansion.
+- Added `scripts/content/asset_disk_cache.gd`: opt-in 16-slot direct-mapped PNG byte cache, fixed confined names, 16 MiB maximum payload, 64-byte hash tag, bounded header/payload reads, no runtime directory enumeration, same-directory complete temp/flush/close/rename installs. Exclusive synchronous operation lock, bounded interrupted-temp cleanup, explicit corruption/FS failures, symlink/directory refusal. ADR-023 documents layout/policy tradeoffs and trusted ordinary-local-file limitations; [cache guide](../docs/phase-4-godot-cache.md) specifies disk caps, reads, eviction, manual stale-lock recovery and failure behavior.
+- Repository still fetches/validates online index/manifests and pins its release. Every hit is revalidated against that manifest's length/hash/PNG header/dimensions. Corrupt entries are removed and current load fails; only deliberate retry fetches exactly the same pinned asset. No automatic fallback, cache disablement, revision substitution or resource-validation bypass. Existing resource builder/admission/native decode and generic fighter unchanged. Disk eviction cannot invalidate loaded resources.
+- Arena enables cache only with explicit `--content-cache` in API mode. Default fixture/API behavior and original 74-assertion real published arena regression retained. The cache does not add persistent catalog authority, polling, refresh, active swap, export packaging, offline bundles or Phase 5.
+- Added **69 cache assertions**: unsafe key/name, read/write limits, exact bytes, complete atomic install, failed install preserving old entry, collision eviction, wrong-length/short/oversized/same-length hash corruption, temp interruption, stale/concurrent lock refusal, filesystem obstruction, symlink entry/root confinement, fixed slot count, real HTTP cold/hit/new-instance authority, unlisted revision refusal, deliberate retry, dimensions revalidation and runtime decode. Hostile-peer request counts prove exactly two asset downloads (initial and deliberate retry), with no hidden HTTP repair. Real built-studio factory suite retains its original 43 assertions and adds four for cold/repeated cached generic-fighter creation and pinned pixels/release.
+
+### Actual commands and results
+
+Runner verified Godot **4.7.2.stable.arch_linux.ed1daf0bf** and both actual matching templates **4.7.2.stable.official.ed1daf0bf**; pins unchanged. pnpm/Node commands use the existing `mise exec --` toolchain.
+
+| Executed command | Actual result |
+|---|---|
+| `mise exec -- pnpm test:godot:api` | PASS after test API fixes: studio/worker rebuild and **374 assertions** (3 startup + 57 gameplay + 26 resource + 102 content + 65 cache + 47 published factory + 74 published arena), real publication/pinning/corruption/retry and unchanged source fingerprints across publication/tests |
+| Final `mise exec -- node tools/godot-validation/run.mjs --published-api` | PASS: **378 assertions**, including final expanded **69 cache** assertions and all original real published arena regressions |
+| `mise exec -- pnpm test` | PASS: **143 tests / 9 files** |
+| `mise exec -- pnpm check` | PASS: strict TS, Svelte **0 errors / 0 warnings** |
+| `mise exec -- pnpm test:smoke` | PASS: built published HTTP/security/ETag/history/corruption/operator audit and studio/worker lifecycle regressions |
+| `mise exec -- pnpm lint` | FAIL: only unchanged explicit-any errors at `packages/contracts/src/create-fixtures.ts:68–69` |
+| `mise exec -- pnpm format:check`, `git diff --check` | PASS |
+| Manual graphical/active-AI playtest, offline bundle, export, remote CI, power-cut/other-OS/hostile concurrent filesystem mutation | NOT RUN |
+
+Initial runner caught GDScript's reserved `namespace` parameter; renamed before successful runs. A later run caught calling non-static `DirAccess.create_link` statically in the new symlink test; corrected the test to use a directory instance. No engine diagnostic allowlist relaxed; expected existing corrupt-PNG/Unicode diagnostics remain limited to their original rejection suites.
+
+### Remaining limitations / next actions
+
+1. **Separate next Phase 4 follow-up:** coordinated refresh/catalog replacement; polling/manual refresh only with that explicit ownership/lifetime policy. Current arenas, resets and retries still retain their original release; no automatic refresh.
+2. Data-only second-character **live-addition** proof remains unchecked: both fixtures exist before discovery, and mid-match revision publication proves retention, not active-catalog membership replacement. Phase 4 remains incomplete; Phase 5 is not authorized/started.
+3. This is only encoded asset reuse, not an offline bundle/source or global resident-memory quota. Trusted local ordinary files required; Godot lacks race-free no-follow/nonblocking file opens. No power-loss durability guarantee. Stale lock requires stopping cache users and deliberate inspection; no expiry/takeover. Unknown external files are not scanned/deleted or included in the managed disk bound.
+4. Phase 3 manual graphical/active-AI acceptance remains deferred, **not passed**. Existing two lint errors remain unrelated. Shutdown cancellation, schema export packaging, offline/fallback and aggregate memory enforcement remain separate work.
+
+## Previous Phase 4 increment — pinned published-API arena discovery/selection (2026-10-23)
 
 ### Scope and implementation
 

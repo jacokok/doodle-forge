@@ -4,6 +4,7 @@ const Fixtures = preload("res://scripts/fixtures.gd")
 const Brain = preload("res://scripts/enemy_brain.gd")
 const ApiRepository = preload("res://scripts/content/api_character_repository.gd")
 const Factory = preload("res://scripts/content/character_factory.gd")
+const DiskCache = preload("res://scripts/content/asset_disk_cache.gd")
 const WAVES := [2, 3]
 const ACTIVE_CAP := 2
 var player
@@ -15,6 +16,7 @@ var running := false
 var completed := false
 # Configure before entering the tree, or use --content-api[=loopback-origin].
 var api_mode := false
+var content_cache := false
 var api_url := "http://127.0.0.1:5173"
 var content_state := "fixtures"
 var content_error := ""
@@ -38,6 +40,8 @@ func _ready() -> void:
 	selection.item_selected.connect(select_character)
 	$HUD/Start.pressed.connect(start_run)
 	for argument in OS.get_cmdline_user_args():
+		if argument == "--content-cache":
+			content_cache = true
 		if argument == "--fixture=comet":
 			selected = 1
 		if argument == "--content-api" or argument.begins_with("--content-api="):
@@ -46,7 +50,7 @@ func _ready() -> void:
 				api_url = argument.trim_prefix("--content-api=")
 	if api_mode:
 		selected = 0
-		_repository = ApiRepository.new(self, api_url)
+		_repository = ApiRepository.new(self, api_url, DiskCache.new() if content_cache else null)
 		_factory = Factory.new(_repository)
 		_discover_api()
 		return

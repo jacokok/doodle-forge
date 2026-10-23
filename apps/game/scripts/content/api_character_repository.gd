@@ -6,10 +6,12 @@ var _base_url: String
 var _catalog: Dictionary = {}
 var _manifests: Dictionary = {}
 var _busy := false
+var _cache: RefCounted
 
-func _init(host: Node, base_url: String = "http://127.0.0.1:5173") -> void:
+func _init(host: Node, base_url: String = "http://127.0.0.1:5173", cache: RefCounted = null) -> void:
 	_host = host
 	_base_url = base_url.trim_suffix("/")
+	_cache = cache
 
 func _error(code: String) -> Dictionary:
 	return {"ok": false, "error": code}
@@ -104,18 +106,36 @@ func get_asset_bytes(asset_ref: Dictionary) -> Dictionary:
 	if not manifest.value.assets.has(asset_ref.assetId):
 		return _error("unknown_asset")
 	var asset: Dictionary = manifest.value.assets[asset_ref.assetId]
+	if _cache != null:
+		var cached: Dictionary = _cache.read(asset.sha256, int(asset.bytes))
+		if not cached.ok:
+			return cached
+		if cached.hit:
+			var checked := _validate_asset(cached.value, asset)
+			if not checked.ok:
+				return _cache.invalidate(asset.sha256)
+			return checked
 	var route := "/api/content/characters/%s/versions/%d/assets/%s.png" % [asset_ref.characterId, asset_ref.characterVersion, asset.sha256]
 	var response := await _read(route, int(asset.bytes))
 	if not response.ok:
 		return response
-	var bytes: PackedByteArray = response.value
+	var checked := _validate_asset(response.value, asset)
+	if not checked.ok:
+		return checked
+	if _cache != null:
+		var installed: Dictionary = _cache.install(asset.sha256, response.value)
+		if not installed.ok:
+			return installed
+	return checked
+
+func _validate_asset(bytes: PackedByteArray, asset: Dictionary) -> Dictionary:
 	if bytes.size() != asset.bytes or _sha256(bytes) != asset.sha256:
 		return _error("asset_integrity")
 	if bytes.size() < 24 or bytes.slice(0, 8) != PackedByteArray([137, 80, 78, 71, 13, 10, 26, 10]) or bytes.slice(12, 16).get_string_from_ascii() != "IHDR":
 		return _error("png_header")
-	# PNG dimensions are big endian; decoding/texture construction is a later slice.
+	# PNG dimensions are big endian; resource admission/native decode still follow.
 	var width := bytes[16] * 16777216 + bytes[17] * 65536 + bytes[18] * 256 + bytes[19]
 	var height := bytes[20] * 16777216 + bytes[21] * 65536 + bytes[22] * 256 + bytes[23]
 	if width != asset.width or height != asset.height:
 		return _error("png_dimensions")
-	return response
+	return {"ok": true, "value": bytes}

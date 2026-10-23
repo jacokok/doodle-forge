@@ -1,6 +1,6 @@
 # Phase 4 — published-only content API
 
-The studio exposes read-only game content after explicit publication. `content:seed` approves fixtures but does **not** publish them. Publication remains a service call ([publication guide](phase-4-publication.md)); there is no publication UI/CLI yet. The [Godot repository](phase-4-godot-repository.md), [runtime factory](phase-4-godot-runtime.md) and [explicit API arena mode](phase-4-godot-arena.md) now prove headless published discovery/selection and fighter behavior. Cache/refresh and Phase 4 completion remain pending.
+The studio exposes read-only game content after explicit publication. `content:seed` approves fixtures but does **not** publish them. Publication remains a service call ([publication guide](phase-4-publication.md)); there is no publication UI/CLI yet. The [Godot repository](phase-4-godot-repository.md), [runtime factory](phase-4-godot-runtime.md) and [explicit API arena mode](phase-4-godot-arena.md) prove headless published discovery/selection and fighter behavior. An [opt-in validated PNG cache](phase-4-godot-cache.md) now reuses bytes without persisting catalog authority. Refresh and Phase 4 completion remain pending.
 
 ## Routes and cache behavior
 
@@ -35,4 +35,4 @@ For corrupt ready content, keep affected consumers/publication stopped as necess
 
 ## Verification and limitations
 
-Route-handler tests use real SQLite/files/publication, plus real built-server HTTP smoke for route matching, GET/HEAD/304, method/path/private-storage denial, history, corruption and operator-command exit behavior. Lock tests cover concurrent publishers, maintenance refusal, exceptions and stale markers. OS/power-cut and hostile concurrent filesystem mutation tests are not claimed. Storage remains trusted against external mutation during reads; local loopback operation is not authenticated hosted deployment. Aggregate HTTP rate limits/concurrency quotas and client-side cache/download budgets remain future work.
+Route-handler tests use real SQLite/files/publication, plus real built-server HTTP smoke for route matching, GET/HEAD/304, method/path/private-storage denial, history, corruption and operator-command exit behavior. Lock tests cover concurrent publishers, maintenance refusal, exceptions and stale markers. OS/power-cut and hostile concurrent filesystem mutation tests are not claimed. Storage remains trusted against external mutation during reads; local loopback operation is not authenticated hosted deployment. Aggregate HTTP rate limits/concurrency quotas remain future work; client per-request, per-load and managed disk-cache bounds are not global quotas.
