@@ -24,6 +24,8 @@ Planned API (same-origin mutation requests):
 - Private preview routes address authorized asset IDs, not disk paths.
 - Public game API is `/api/content/index`, `/api/content/releases/:releaseId/index`, `/api/content/characters/:id/versions/:version/manifest` and `/api/content/characters/:id/versions/:version/assets/:hash.png`; only published revisions served (plan 09).
 
+Phase 5 original upload implementation uses multipart fields `image` and `expectedRevision`; it selects an immutable original/preview pair using the shared authoring revision. Replacement retains earlier pairs, and archived identities cannot attach/read authoring images (ADR-028). Private delivery is `/api/characters/:id/originals/:assetId/{original|preview}`; no filesystem keys are exposed. The bounded multipart envelope allows 64 KiB framing beyond the 10 MiB file limit; compressed PNG ancillary metadata is conservatively refused in addition to the base image policy. See [upload guide](../docs/phase-5-uploads.md).
+
 Return structured `{error:{code,message,fieldErrors?,requestId}}`; use 400 validation, 404 missing, 409 stale revision/transition, 413 size, 415 type, 422 invalid assets, 503 transient unavailable. Do not leak paths, stack traces or provider keys. Job poll starts at 1 second, backs off to 5 seconds, pauses when hidden; SSE can be added later.
 
 ## Key design decisions

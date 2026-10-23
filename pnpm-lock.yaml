@@ -62,12 +62,18 @@ importers:
       '@doodleforge/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@doodleforge/image-processing':
+        specifier: workspace:*
+        version: link:../../packages/image-processing
       '@doodleforge/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       better-sqlite3:
         specifier: 13.0.3
         version: 13.0.3
+      sharp:
+        specifier: 0.34.5
+        version: 0.34.5
       zod:
         specifier: 4.6.7
         version: 4.6.7
@@ -154,7 +160,11 @@ importers:
         specifier: 0.31.11
         version: 0.31.11
 
-  packages/image-processing: {}
+  packages/image-processing:
+    dependencies:
+      sharp:
+        specifier: 0.34.5
+        version: 0.34.5
 
   packages/shared:
     dependencies:

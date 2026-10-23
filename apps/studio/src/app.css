@@ -4,7 +4,21 @@
   body {
     @apply bg-slate-50 text-slate-900;
   }
-  a:focus-visible {
+  :is(a, button, input, textarea, select):focus-visible {
     @apply outline-2 outline-offset-4 outline-indigo-700;
+  }
+  button {
+    @apply min-h-11 rounded border border-slate-500 bg-white px-4 py-2 font-semibold;
+  }
+  button:disabled {
+    @apply cursor-not-allowed opacity-60;
+  }
+  label {
+    @apply block font-semibold;
+  }
+  input,
+  textarea,
+  select {
+    @apply block min-h-11 w-full rounded border border-slate-500 bg-white p-2;
   }
 }

@@ -5,10 +5,12 @@ import {
   openDatabase,
   ReleaseRepository,
   CharacterRepository,
+  AssetRepository,
 } from '@doodleforge/database';
 import { PublishedContentService } from '@doodleforge/content-publisher/content';
 import path from 'node:path';
 import { CharacterService } from './characters.js';
+import { OriginalService } from './originals.js';
 
 let connection: ReturnType<typeof openDatabase> | undefined;
 
@@ -44,6 +46,16 @@ export function characterService() {
   initializeRuntime();
   if (!connection) throw new Error('Runtime unavailable during build');
   return new CharacterService(new CharacterRepository(connection));
+}
+
+export function originalService() {
+  initializeRuntime();
+  if (!connection) throw new Error('Runtime unavailable during build');
+  return new OriginalService(
+    characterService(),
+    new AssetRepository(connection),
+    path.join(loadConfig().storageRoot, 'originals'),
+  );
 }
 
 export function publishedContent() {

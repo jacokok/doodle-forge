@@ -30,3 +30,14 @@ export const archiveCharacterSchema = z
   .object({ expectedRevision: editRevisionSchema })
   .strict();
 export type CharacterMetadata = z.infer<typeof characterMetadataSchema>;
+
+export const originalUploadPolicy = {
+  maxBytes: 10 * 1024 * 1024,
+  maxPixels: 20_000_000,
+  maxRequestBytes: 10 * 1024 * 1024 + 64 * 1024,
+  previewEdge: 1024,
+  mediaTypes: ['image/jpeg', 'image/png', 'image/webp'],
+} as const;
+export const attachOriginalSchema = archiveCharacterSchema;
+export const privateImageKindSchema = z.enum(['original', 'preview']);
+export const assetIdSchema = characterIdSchema;

@@ -83,12 +83,17 @@ describe('SQLite foundation', () => {
     const old = openDatabase(path);
     try {
       migrate(old.db, { migrationsFolder: baseline });
-      seedDevelopment(old);
+      // Exercise the historical schema, not today's schema-bound seed/repository.
+      old.sqlite
+        .prepare(
+          "INSERT INTO characters(id,name,description,body_type,fighting_style,special_power,created_at,updated_at) VALUES ('legacy-character','Foundation example','','humanoid','unselected','none',0,0)",
+        )
+        .run();
       old.sqlite
         .prepare(
           "INSERT INTO character_versions(id,character_id,version,source_snapshot_json,created_at,updated_at) VALUES ('legacy',?,1,'{}',0,0)",
         )
-        .run(new CharacterRepository(old).list()[0]!.id);
+        .run('legacy-character');
     } finally {
       old.close();
     }
@@ -110,6 +115,12 @@ describe('SQLite foundation', () => {
         upgraded.sqlite
           .prepare('SELECT count(*) AS count FROM approvals')
           .get(),
+      ).toEqual({ count: 0 });
+      expect(
+        new CharacterRepository(upgraded).list()[0]?.originalAssetId,
+      ).toBeNull();
+      expect(
+        upgraded.sqlite.prepare('SELECT count(*) AS count FROM assets').get(),
       ).toEqual({ count: 0 });
       expect(upgraded.sqlite.pragma('foreign_key_check')).toEqual([]);
     } finally {

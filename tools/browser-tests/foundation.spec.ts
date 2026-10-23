@@ -10,13 +10,13 @@ test('studio shell explains unavailable features and has a keyboard-accessible h
   );
   await expect(
     page.getByText(
-      'Character creation, generation and publishing are not available yet.',
+      'Uploads, generation and publishing are not available in this UI yet.',
       { exact: false },
     ),
   ).toBeVisible();
   await page.keyboard.press('Tab');
   await expect(
-    page.getByRole('link', { name: 'Check studio health' }),
+    page.getByRole('link', { name: 'Open character library' }),
   ).toBeFocused();
   const response = await page.request.get('/api/health');
   expect(response.ok()).toBe(true);

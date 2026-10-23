@@ -1,5 +1,74 @@
 # 14 — Persistent implementation progress
 
+## Phase 3 — manual playtest acceptance recorded (2026-10-23)
+
+- Updated the Phase 3 manual checklist from the user-confirmed observations already recorded in `docs/phase-3-playtest.md` and historical playtest notes: shadow/jump presentation, Y-sort, movement/facing/attack feedback, recovery/hit behavior, both fixtures, restart/KO, and completion of both active-AI waves. No new playtest or code change is claimed in this documentation update.
+- Marked the Phase 3 roadmap verification item complete. Human shadow/Y-sort/feel review and active-AI playthrough are accepted based on those documented confirmations.
+- Retained limitations: airborne/elevated-target miss was not visually exercised because enemies did not jump; exact engine/platform details were not reported. Initial difficult-combat feedback and later improvement remain documented. No tuning was made.
+- Validation: documentation consistency review; no application tests run (documentation-only update).
+
+## Phase 5 — safe private original upload/preview increment (2026-10-23)
+
+### Implementation and policy
+
+- First command was `git status --short --branch`. Preserved all initially observed tracked/untracked paths, including metadata UI/remotes, browser harness and Phase 3 feedback. No reset, discard or commit. Read AGENTS, plans README/04/05/06/08/11/12/14, setup, authoring guide and ADRs (especially 026/027); inspected UI/remotes/services/repositories/schema/migrations/storage/helpers/routes/test harnesses before stating the bounded approach.
+- Shared upload policy/input schemas; explicit binary route caps actual streamed bytes before bounded in-memory multipart parsing (10 MiB file + 64 KiB envelope framing). Sharp verifies magic/MIME and full strict decode up to 20 megapixels; container checks additionally reject concatenated/MPO JPEG images that a single-image decoder might ignore. Rejects spoofing, malformed/truncated/undecodable/oversized images, animation/multipage/APNG and compressed PNG ancillary metadata (pixel bounds cannot bound metadata decompression).
+- Additive `0003_boring_black_cat.sql`/Drizzle snapshot adds immutable asset/source records, selected original reference and ownership/immutability guards. Earlier SQL migrations untouched. Exclusive generated keys, exact original bytes/SHA-256, flushed/read-only files before transactional adoption; separate EXIF-oriented metadata-stripped PNG preview within 1024×1024 without enlargement. Crashes/conflicts can leave inaccessible private orphan files; no destructive GC.
+- ADR-028 settles replacement: shared authoring revision CAS adopts both assets plus selection atomically; previous pairs retained. Metadata/archive/concurrent attachment cannot silently overwrite one another. Upload does not submit unsaved text, alter publication or fabricate versions/jobs. Archive hides private authoring access without deleting originals/revoking published content (ADR-027).
+- Private image routes resolve original ID plus owning non-archived character, follow the immutable preview source, reject arbitrary keys/paths/unsafe roots/symlinks/nonregular files/size/hash corruption. Private no-store/nosniff/same-origin/sandbox delivery; no public/static storage exposure. Metadata remotes/JSON APIs remain intact (ADR-026 binary exception). Native Sharp stays external as a production dependency.
+- Editor now supports keyboard attach/replace, real preview/original link and preview errors. Pending prevents overlap; validation/stale/uncertain errors retain text/file selection. Success retains unsaved metadata and updates the actual revision/selection. Stale/uncertain results require deliberate reload. Creative choices, generation, versions/review/publishing remain explicitly unavailable.
+- Added `docs/phase-5-uploads.md`, setup/authoring/plan 06 policy updates and ADR-028. Adapter-node needs `BODY_SIZE_LIMIT=10551296` in its process environment for the intended envelope; env example, built command and isolated browser harness updated. Default 512K remains safe but more restrictive; matching build/runtime ORIGIN still required.
+
+### Actual validation
+
+| Executed command | Actual result |
+|---|---|
+| `mise exec -- pnpm db:generate` (initial and recheck) | PASS: additive 0003 generated; recheck reports no schema changes. Prior SQL migrations unchanged. |
+| `mise exec -- pnpm --filter @doodleforge/image-processing add sharp@0.34.5 --save-exact`, studio workspace/Sharp additions, `mise exec -- pnpm install --frozen-lockfile` | PASS: existing pinned Sharp reused; no external version upgrades. |
+| `mise exec -- pnpm exec vitest run apps/studio/src/lib/server/originals.test.ts` | PASS at initial focused checkpoint: **11 tests**; final suite has **12 upload tests** after extra confinement coverage. Real migrated temporary DB/storage and Sharp. |
+| `mise exec -- pnpm test` | Final PASS: **185 tests / 12 files**. Limits/MIME/animation/truncation/decoded overflow, exact original bytes/hashes, preview orientation/dimensions/metadata, SQL immutability, confinement/corruption/restart and separate-connection concurrent/stale attachment/edit/archive cases; publication/metadata regressions retained. |
+| `mise exec -- pnpm check` | Final PASS: strict TS/Svelte, **0 errors / 0 warnings**. |
+| `mise exec -- pnpm test:e2e` | Final PASS: **9 Chromium tests**, real built studio/migrated temporary DB/storage. Keyboard upload, preview/replacement/history/private bytes, preview failure, unsaved text/file retention, stale attachment, pending/uncertain failures and built HTTP origin/adapter/route bounds. All six prior browser tests retained. |
+| `mise exec -- pnpm build`, `mise exec -- pnpm test:smoke` | PASS after native externalization fix: studio/worker production builds and real HTTP publication/security/history/corruption/operator/lifecycle regression. Browser harness additionally rebuilds for its isolated origin. |
+| `mise exec -- pnpm lint` | Final FAIL only the **two pre-existing explicit-any errors** at `packages/contracts/src/create-fixtures.ts:68–69`; unrelated findings preserved. |
+| `mise exec -- pnpm format:check`, `git diff --check`, `git diff --exit-code -- packages/database/migrations/0000_zippy_lord_hawal.sql packages/database/migrations/0001_dusty_wind_dancer.sql packages/database/migrations/0002_absent_morg.sql` | PASS: formatting/whitespace and prior SQL migration preservation. |
+
+Initial failures corrected: test Sharp dependency resolution/Blob typing, identical animation fixture frames optimized away, incorrect archive test DTO, and historical baseline test using today's schema-bound seed (test now uses historical SQL and retains upgrade/history/FK assertions, plus checks null original reference). Built smoke exposed bundled Sharp native resolution; externalized as a production dependency and rebuilt/reran smoke/browser successfully. Built HTTP oversized upload initially returned 503 because adapter stream status 413 became an unknown failure; mapped only that size status to structured 413, then reran all nine browser tests, checks and 185 Vitest tests successfully. New test formatting lint issue fixed. No weakened origin protection/error allowlist.
+
+### Remaining acceptance and limitations
+
+- Phase 5 remains **in progress**, not accepted. Remaining: creative choices/wizard; version/history/generated-animation/side-by-side previews; seeded review/approval/publication UI; real job boundaries and broader a11y/child-usability review. No Phase 6 generation/workflows, real AI or Phase 8 offline work advanced; no upload-to-generation E2E claim.
+- Phase 3 manual graphical/active-AI acceptance remains deferred, **not passed by this increment**; previous feedback/evidence preserved below. No new Godot/manual/remote CI/power-cut/other-platform tests run.
+- No browser/tooling blocker. Local loopback trust only, no hosted authentication/ownership; per-request bounds are not aggregate quotas. Compressed PNG metadata is restricted. Private orphan cleanup/retention remains unimplemented. Set ORIGIN and adapter limit explicitly. Existing lint findings remain.
+
+## Phase 5 — metadata library/editor UI increment (2026-10-23)
+
+### Implementation and boundaries
+
+- First command: `git status --short --branch`; initial tracked edits in `docs/phase-3-playtest.md` and this progress file preserved. No reset, discard or commit. Read AGENTS, plans README/04/05/06/08/11/12/14, setup, authoring guide and ADRs (especially 026/027); inspected studio shell/config, contracts, CharacterService/repositories, API tests/routes and browser harness before stating the small implementation approach.
+- Added `/characters`, linked from home: metadata-only library, create/edit form for name/description/body type, persisted revision labels and deliberate two-step archive with Cancel-first keyboard focus. No fabricated version/job/publication status. Creative choices, upload/preview, generation, versions/review and publishing remain explicitly unavailable in this UI. Archive still does not revoke published content; service/repositories/JSON API unchanged.
+- Enabled pinned Svelte experimental async and Kit remote functions. Thin library query and metadata commands dispatch to CharacterService; shared contracts remain schema source and supply body-type options. Structured validation/domain errors retain input; stale edit/archive conflicts block resubmission until deliberate reload/reselection. Reload explicitly discards selected local edits, never silently retries against a new revision. Pending controls prevent overlapping actions; transport failures retain input, explain uncertain commit status and require deliberate reload before retry. Query failures preserve input and permit recovery.
+- Verified installed framework APIs. Initial real-browser failures exposed adapter-node 6 ignoring runtime ORIGIN and defaulting inferred protocol to HTTPS. Configured Kit 3 build-time `paths.origin` from validated local config; origin protections remain enabled. Builds explicitly require the intended ORIGIN at build and runtime; documented compatibility in ADR-026/setup. No dependency, migration or publication-policy changes.
+- Browser harness builds for the test origin, migrates a fresh OS-temporary DB/storage tree and cleans it on shutdown. Added structured-result unit tests and real Chromium tests for persistence, escaped text, keyboard create/edit/archive, validation, cancel/confirmation, stale edit/archive, pending controls, uncertain transport failure, query recovery and wrong/missing origin rejection. Updated shell smoke expectation for the now-available metadata UI.
+
+### Actual validation
+
+| Executed command | Actual result |
+|---|---|
+| `mise exec -- pnpm check` | PASS: strict TS/Svelte, **0 errors / 0 warnings**. Initial attempts exposed import resolution and persisted body-type typing; corrected without schema duplication. |
+| `mise exec -- pnpm test` | PASS: **173 tests / 11 files**, including 3 new structured-result tests and existing real-DB authoring/API/publication regressions. |
+| `mise exec -- pnpm test:e2e` | PASS: final **6 Chromium tests**, real built studio and migrated temporary SQLite/storage. Earlier runs failed on origin compatibility and a test focus-timing assumption; corrected config/test synchronization, then reran all successfully. No browser tooling blocker. |
+| `mise exec -- pnpm build` | PASS: production studio/worker builds. Browser harness additionally rebuilds studio for test origin. |
+| `mise exec -- pnpm test:smoke` | PASS: real HTTP publication/security/history/corruption/operator and studio/worker lifecycle regression. Initial run failed only on obsolete shell copy assertion; updated to honest metadata UI availability text and reran successfully. |
+| `mise exec -- pnpm lint` | FAIL: final only two pre-existing explicit-any errors at `packages/contracts/src/create-fixtures.ts:68–69`. Initial run also caught new navigation/each-key lint issues; corrected those, leaving unrelated findings untouched. |
+| `mise exec -- pnpm format:check` and `git diff --check` | PASS. Targeted formatting only; initial playtest/progress evidence preserved. |
+
+### Remaining acceptance / next actions
+
+- Phase 5 remains **in progress**, not accepted. Remaining: creative choices/wizard; bounded decoded upload/private previews/immutable originals; version/history/animation previews; seeded review/approval/publication UI; real job UI boundaries and broader accessibility coverage. Choose a separate bounded follow-up; do not advance to workflow/generation, real AI or offline bundles.
+- Automated Chromium keyboard/interactions are verified, not a complete a11y audit, manual child-usability review, factory E2E or graphical/game acceptance. Phase 3 manual graphical/active-AI acceptance remains deferred and **not passed**. No new Godot/manual/remote-CI tests run; prior Phase 4 evidence below is retained.
+- No blocking dependency for another bounded Phase 5 increment identified. Known limitations: origin-specific builds must be rebuilt after changing ORIGIN; local loopback trust only; selecting another entry/New replaces local input (documented); unknown mutation results require checking the library before retry, especially create. Existing lint findings remain.
+
 ## Phase 5 — authorized; metadata authoring API increment (2026-10-23)
 
 ### Scope and implementation
@@ -111,7 +180,7 @@ An initial live-addition test attempt exposed test assumptions about the pre-loa
 - Phase 4 remains incomplete; Phase 5 not authorized. Phase 3 graphical/active-AI acceptance remains deferred, not passed. No fallback, offline bundle, authoring UI, or unrelated combat/lint work.
 
 ## Current phase
-**Phase 5 — explicitly authorized and in progress; initial metadata authoring API locally verified, full acceptance incomplete. Phase 4 acceptance remains locally verified, including data-only live addition after catalog discovery. Phase 3 manual graphical shadow/Y-sort/feel and human active-AI acceptance remain deferred, not passed.** Phases 0–2 retain their previously recorded local status.
+**Phase 5 — explicitly authorized and in progress; metadata API/remote-function editor and safe immutable original/private-preview upload increment locally verified, full acceptance incomplete. Phase 4 acceptance remains locally verified, including data-only live addition after catalog discovery. Phase 3 manual shadow/Y-sort/feel and human active-AI acceptance are now recorded as complete; elevated-target behavior remains an untested limitation (plan 14; docs/phase-3-playtest.md).** Phases 0–2 retain their previously recorded local status.
 
 ## Phase-gate exception — explicit user authorization
 The latest user instruction explicitly authorizes **Phase 5**, preserving the deferred Phase 3 acceptance requirements. The following records the earlier Phase 4-only authorization, not the current gate.
@@ -683,3 +752,35 @@ Continue Phase 3 only: bind input/state and rendered sprite animation from fixtu
 - Manual active-AI progress: user reports completing wave one and reaching wave two after restart. Wave-two completion remains unverified; full run is not yet accepted.
 
 - Manual active-AI update: user reports combat works better now but says they could not defeat both; the exact wave-two outcome and full-run completion are not confirmed. Keep wave-two/full-run acceptance unchecked.
+
+- Additional manual confirmation: user reports Comet stops ordinary movement during an attack and resumes afterward.
+
+- Additional manual confirmation: user reports enemy-hit knockback is understandable and Comet regains control afterward.
+
+- Additional manual confirmation: user reports Comet's attack misses an enemy clearly separated in ground depth.
+
+- Additional manual confirmation: user reports a hit during an attack interrupts it with the hurt response.
+
+- Additional manual confirmation: user reports holding J produces separate attack cycles rather than continuous damage from one attack.
+
+- Additional manual confirmation: user reports damage appears limited to the visible attack, not startup or recovery.
+
+- Manual active-AI acceptance: user explicitly confirms defeating the wave-two enemies and seeing the run-complete message after initially reporting they could not get past wave one. Both waves are now human-confirmed complete. Earlier report of very high difficulty is retained; later the user said combat worked better, with no code tuning.
+
+- Additional manual confirmation: user reports Sprout changes from idle to walk and back when moved/stopped, consistent with Comet.
+
+- User requested skipping the remaining Sprout-equivalent visual/gameplay questions and marking those items confirmed, reporting they work the same as Comet. Recorded this as user-reported rather than individually observed. Sprout idle/foot alignment, walk and attack state have direct confirmations; Comet foot alignment and remaining global checklist items are still unverified.
+
+- Additional manual confirmation: user confirms Comet's idle sprite is aligned at its feet with the ground.
+
+- Additional manual confirmation: user reports all four diagonal movement directions work.
+
+- Additional manual confirmation: user reports never seeing more than two active enemies during the waves.
+
+- Additional manual confirmation: user reports switching from Comet to Sprout resets the run to wave one with full health.
+
+- Manual checklist update: confirmed both-fixture rendering/state presentation (Sprout equivalent checks user-reported per explicit request), jump/shadow/elevation and Space behavior, facing/attack direction and restrictions, HUD/KO/restart/fixture switching/spawn cap, and both active-AI waves with completion. All four diagonal directions confirmed. Still unchecked: all eight-direction/depth-sort grouping as a complete item, elevated-target miss, and exact engine/platform details. The initial very-difficult feedback remains recorded; user later said combat worked better. No code changes or tests run. Phase 3 manual acceptance remains incomplete because checklist items remain unchecked.
+
+- Manual limitation: user reports enemies did not jump; attack behavior against an airborne/elevated enemy was not visually exercised and remains unchecked.
+
+- Additional manual confirmation: user confirms Comet moves correctly in all four cardinal directions. With the earlier explicit confirmation of all four diagonals and Y-sort, the full eight-direction/Y-sort checklist item is now checked.

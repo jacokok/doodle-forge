@@ -6,6 +6,7 @@ import {
   text,
   uniqueIndex,
   primaryKey,
+  type AnySQLiteColumn,
 } from 'drizzle-orm/sqlite-core';
 
 export const characters = sqliteTable(
@@ -17,6 +18,9 @@ export const characters = sqliteTable(
     bodyType: text('body_type').notNull(),
     fightingStyle: text('fighting_style').notNull(),
     specialPower: text('special_power').notNull(),
+    originalAssetId: text('original_asset_id').references(
+      (): AnySQLiteColumn => assets.id,
+    ),
     editRevision: integer('edit_revision').notNull().default(1),
     archivedAt: integer('archived_at'),
     createdAt: integer('created_at').notNull(),
@@ -27,6 +31,47 @@ export const characters = sqliteTable(
     check(
       'character_name_length',
       sql`length(trim(${table.name})) BETWEEN 1 AND 80`,
+    ),
+  ],
+);
+
+export const assets = sqliteTable(
+  'assets',
+  {
+    id: text('id').primaryKey(),
+    characterId: text('character_id')
+      .notNull()
+      .references(() => characters.id),
+    kind: text('kind', { enum: ['original', 'preview'] }).notNull(),
+    storageKey: text('storage_key').notNull().unique(),
+    mediaType: text('media_type').notNull(),
+    sha256: text('sha256').notNull(),
+    bytes: integer('bytes').notNull(),
+    width: integer('width').notNull(),
+    height: integer('height').notNull(),
+    sourceAssetId: text('source_asset_id').references(
+      (): AnySQLiteColumn => assets.id,
+    ),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [
+    check('asset_kind', sql`${table.kind} IN ('original','preview')`),
+    check(
+      'asset_dimensions',
+      sql`${table.width} > 0 AND ${table.height} > 0 AND ${table.width} * ${table.height} <= 20000000`,
+    ),
+    check('asset_size', sql`${table.bytes} > 0 AND ${table.bytes} <= 10485760`),
+    check(
+      'asset_hash',
+      sql`length(${table.sha256}) = 64 AND ${table.sha256} NOT GLOB '*[^a-f0-9]*'`,
+    ),
+    check(
+      'asset_media_type',
+      sql`${table.mediaType} IN ('image/jpeg','image/png','image/webp')`,
+    ),
+    check(
+      'asset_source',
+      sql`(${table.kind} = 'original' AND ${table.sourceAssetId} IS NULL) OR (${table.kind} = 'preview' AND ${table.sourceAssetId} IS NOT NULL AND ${table.mediaType} = 'image/png')`,
     ),
   ],
 );

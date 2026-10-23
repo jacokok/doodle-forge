@@ -54,9 +54,13 @@ export function migrateDatabase(path: string) {
 
 export function assertDatabaseReady(connection: DatabaseConnection) {
   // No implicit migration during application boot.
-  connection.sqlite.prepare('SELECT id FROM characters LIMIT 1').get();
+  connection.sqlite
+    .prepare('SELECT id, original_asset_id FROM characters LIMIT 1')
+    .get();
+  connection.sqlite.prepare('SELECT id FROM assets LIMIT 1').get();
   connection.sqlite.prepare('SELECT id FROM abilities LIMIT 1').get();
 }
+export { AssetRepository, type NewAsset } from './assets.js';
 export { ReleaseRepository, type ReleaseEntry } from './releases.js';
 export { CharacterRepository } from './repositories.js';
 export { seedDevelopment } from './seed.js';

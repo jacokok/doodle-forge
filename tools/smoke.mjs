@@ -51,7 +51,7 @@ try {
   assert.equal(page.status, 200);
   assert.match(
     (await page.text()).replace(/\s+/g, ' '),
-    /Character creation, generation and publishing are not available yet/,
+    /Uploads, generation and publishing are not available in this UI yet/,
   );
   assert.equal(
     (await fetch(`${env.ORIGIN}/storage/originals/private.png`)).status,

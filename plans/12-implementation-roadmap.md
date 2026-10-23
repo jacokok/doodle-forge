@@ -88,7 +88,7 @@ Contract precedes game and factory. API integration precedes authoring UI. To re
 - [x] Add timed hit/hurt boxes, damage/deduplication, knockback and KO.
 - [x] Add enemy approach/attack AI and bounded wave spawner.
 - [x] Build arena, camera, health HUD and fixture character selection.
-- [ ] Add deterministic headless gameplay tests and manual playtest notes. Headless assertions pass; manual visual/feel review remains pending (plan 14; docs/phase-3-playtest.md).
+- [x] Add deterministic headless gameplay tests and manual playtest notes. Headless assertions and manual visual/feel review plus human two-wave playthrough are recorded in plan 14 and docs/phase-3-playtest.md. Elevated-target behavior remains an explicitly documented limitation (enemies did not jump during the playtest).
 
 **Acceptance criteria:** Player moves, jumps, fights and completes an enemy wave; art is independent of combat and no per-character script exists. **Test requirements:** headless movement/timing/depth/team/elevation/HP/KO assertions plus manual shadow/Y-sort feel review.
 
@@ -120,13 +120,13 @@ Contract precedes game and factory. API integration precedes authoring UI. To re
 **Dependencies:** contract, database and Phase 4 approval/publication services. Automated generation waits for Phase 6.
 
 **Checklist:**
-- [ ] Implement server-validated character CRUD and optimistic revisions. Metadata-only JSON API (create/list/get/edit/archive), shared validation and stale-edit tests locally verified; creative choices and same-app UI remain incomplete (plan 14).
-- [ ] Add bounded/magic-verified upload, immutable originals and private derived previews.
+- [ ] Implement server-validated character CRUD and optimistic revisions. Metadata-only JSON API and remote-function library/create/edit/archive UI, shared validation and stale edit/archive tests locally verified; creative choices and full authoring remain incomplete (plan 14).
+- [x] Add bounded/magic-verified upload, immutable originals and private derived previews. Additive asset persistence/shared-revision attachment, strict Sharp safety/orientation and editor upload/replacement/private delivery locally verified (ADR-028; plan 14); not generation E2E or full Phase 5 acceptance.
 - [ ] Add name/description/body/fighting-style/power inputs and accessible responsive wizard.
 - [ ] Add side-by-side previews, history and clear draft/approved/published states.
 - [ ] Add review/approval/publication UI using validated seeded review versions.
 - [ ] Add job progress/retry/cancel UI boundaries; clearly show unavailable factory until connected.
-- [ ] Add mutation protection, structured errors and keyboard/a11y checks.
+- [ ] Add mutation protection, structured errors and keyboard/a11y checks. Metadata slice has real Chromium keyboard/pending/errors/conflict/origin coverage; broader upload/review/wizard accessibility acceptance remains pending.
 
 **Acceptance criteria:** Real upload/edit/review/publish interactions work on available valid versions, invalid uploads are rejected and original hashes unchanged. **Test requirements:** Vitest route/upload/version tests; Playwright wizard, keyboard navigation, previews and approval/publish gate; do not claim full upload-to-generation E2E yet.
 
