@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { DatabaseConnection } from './index.js';
 import {
   characterVersions,
@@ -143,7 +143,8 @@ export class ReleaseRepository {
       })
       .immediate();
   }
-  // Authority for future API routes: filesystem existence alone grants nothing.
+  // API authority: filesystem existence alone grants nothing. Bound the lookup
+  // even when the same immutable revision appears in many historical releases.
   readyReference(manifestPath: string) {
     return this.connection.db
       .select({ entry: contentReleaseEntries, release: contentReleases })
@@ -152,8 +153,13 @@ export class ReleaseRepository {
         contentReleases,
         eq(contentReleaseEntries.releaseId, contentReleases.id),
       )
-      .where(eq(contentReleaseEntries.manifestPath, manifestPath))
-      .all()
-      .find((row) => row.release.status === 'ready');
+      .where(
+        and(
+          eq(contentReleaseEntries.manifestPath, manifestPath),
+          eq(contentReleases.status, 'ready'),
+        ),
+      )
+      .limit(1)
+      .get();
   }
 }

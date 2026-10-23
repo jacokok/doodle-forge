@@ -25,6 +25,12 @@ try {
     { env },
   );
   assert.equal((await migration.done).code, 0);
+  const initialReconciliation = launch(
+    process.execPath,
+    ['--import', 'tsx', 'tools/content-cli/src/index.ts', 'reconcile'],
+    { env },
+  );
+  assert.equal((await initialReconciliation.done).code, 0);
   const studio = launch(process.execPath, ['apps/studio/build/index.js'], {
     env,
   });
@@ -51,6 +57,27 @@ try {
     (await fetch(`${env.ORIGIN}/storage/originals/private.png`)).status,
     404,
   );
+  const content = launch(
+    process.execPath,
+    ['--import', 'tsx', 'tools/content-cli/src/api-smoke.ts'],
+    { env },
+  );
+  assert.equal((await content.done).code, 0);
+  const reconcile = launch(
+    process.execPath,
+    ['--import', 'tsx', 'tools/content-cli/src/index.ts', 'reconcile'],
+    { env, stdio: ['ignore', 'pipe', 'inherit'] },
+  );
+  let reconciliationOutput = '';
+  reconcile.stdout.on('data', (chunk) => {
+    reconciliationOutput += chunk.toString();
+  });
+  assert.equal(
+    (await reconcile.done).code,
+    1,
+    'corrupt ready releases must fail the operator check',
+  );
+  assert.match(reconciliationOutput, /"corruptReady":\["/);
   await stop(worker);
   assert.equal((await worker.done).code, 0);
   const restarted = launch(process.execPath, ['apps/worker/dist/index.js'], {

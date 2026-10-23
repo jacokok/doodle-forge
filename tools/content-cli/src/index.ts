@@ -1,4 +1,7 @@
-import { ReviewService } from '@doodleforge/content-publisher';
+import {
+  PublicationService,
+  ReviewService,
+} from '@doodleforge/content-publisher';
 import { ensureStorage, loadConfig } from '@doodleforge/shared/server';
 import {
   validatePackage,
@@ -14,6 +17,7 @@ import {
   openDatabase,
   seedDevelopment,
   SnapshotRepository,
+  ReleaseRepository,
 } from '@doodleforge/database';
 
 try {
@@ -52,10 +56,11 @@ try {
   } else if (
     command !== 'migrate' &&
     command !== 'seed' &&
-    command !== 'seed-fixtures'
+    command !== 'seed-fixtures' &&
+    command !== 'reconcile'
   ) {
     throw new Error(
-      'Usage: content-cli <migrate|seed|seed-fixtures|validate <character.json>|schema [directory]>',
+      'Usage: content-cli <migrate|seed|seed-fixtures|reconcile|validate <character.json>|schema [directory]>',
     );
   }
   if (command === 'validate' || command === 'schema') process.exit(0);
@@ -68,7 +73,16 @@ try {
     const connection = openDatabase(config.databasePath);
     try {
       assertDatabaseReady(connection);
-      if (command === 'seed-fixtures') {
+      if (command === 'reconcile') {
+        const publisher = new PublicationService(
+          new ReviewService(new SnapshotRepository(connection)),
+          new ReleaseRepository(connection),
+          path.join(config.storageRoot, 'published'),
+        );
+        const report = await publisher.reconcile();
+        console.log(JSON.stringify(report));
+        if (report.corruptReady.length) process.exitCode = 1;
+      } else if (command === 'seed-fixtures') {
         const review = new ReviewService(new SnapshotRepository(connection));
         for (const fixture of ['sprout', 'comet'] as const)
           console.log(JSON.stringify(await review.seedFixture(fixture)));

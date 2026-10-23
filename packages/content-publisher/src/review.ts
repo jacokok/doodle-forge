@@ -18,7 +18,10 @@ import {
 const manifestLimit = 1_048_576;
 
 export async function readBoundedFile(filename: string, limit: number) {
-  const file = await open(filename, constants.O_RDONLY | constants.O_NOFOLLOW);
+  const file = await open(
+    filename,
+    constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+  );
   try {
     const stat = await file.stat();
     if (!stat.isFile() || stat.size > limit)

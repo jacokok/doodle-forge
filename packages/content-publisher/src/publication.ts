@@ -10,6 +10,7 @@ import {
 } from '@doodleforge/contracts';
 import { ReleaseRepository, type ReleaseEntry } from '@doodleforge/database';
 import { ReviewService, readBoundedFile, validateManifest } from './review.js';
+import { withPublicationOperation } from './operations.js';
 
 export type PublicationBoundary =
   | 'validated'
@@ -99,7 +100,17 @@ export class PublicationService {
     return manifest;
   }
 
-  async publish(input: {
+  publish(input: {
+    versionId: string;
+    expectedManifestSha256: string;
+    sourceDirectory: string;
+  }) {
+    return withPublicationOperation(this.root, false, () =>
+      this.publishUnlocked(input),
+    );
+  }
+
+  private async publishUnlocked(input: {
     versionId: string;
     expectedManifestSha256: string;
     sourceDirectory: string;
@@ -233,9 +244,15 @@ export class PublicationService {
     throw new Error('Publication contention; retry explicitly');
   }
 
-  // Offline/startup maintenance ONLY: stop publishers first. Interrupted work
+  // Offline operator maintenance ONLY: stop publishers first. Interrupted work
   // is logically quarantined, never auto-approved/activated or destructively GC'd.
-  async reconcile() {
+  reconcile() {
+    return withPublicationOperation(this.root, true, () =>
+      this.reconcileExclusive(),
+    );
+  }
+
+  private async reconcileExclusive() {
     const failed: string[] = [];
     for (const release of this.releases.preparing()) {
       this.releases.fail(release.id);

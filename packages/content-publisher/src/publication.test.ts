@@ -65,6 +65,20 @@ function publisher(
     hook,
   );
 }
+it('refuses reconciliation during an active preparation without failing the live release', async () => {
+  const request = await input();
+  const id = await publisher(async (point) => {
+    if (point === 'before-activation') {
+      const preparing = releases.preparing()[0]!;
+      await expect(publisher().reconcile()).rejects.toThrow(
+        'Publishers active',
+      );
+      expect(releases.get(preparing.id)?.status).toBe('preparing');
+    }
+  }).publish(request);
+  expect(releases.get(id)?.status).toBe('ready');
+  expect((await publisher().reconcile()).corruptReady).toEqual([]);
+});
 it('publishes exact immutable bytes, deduplicates retries, retains ready historical references and SQL guards', async () => {
   const first = await input();
   const id = await publisher().publish(first);

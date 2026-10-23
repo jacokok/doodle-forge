@@ -1,6 +1,6 @@
 # Local foundation setup
 
-The foundation provides process/storage/database skeletons. Phase 3 adds fixture gameplay; the first Phase 4 increment adds [frozen fixture review and explicit approvals](phase-4-review.md), not publication or API loading. Character creation/generation remain future work. See [progress](../plans/14-progress.md) for evidence, phase-gate exceptions and remaining acceptance work.
+The foundation provides process/storage/database skeletons. Phase 3 adds fixture gameplay; Phase 4 adds [fixture review/approval](phase-4-review.md), [immutable publication services](phase-4-publication.md) and a [published-only content API/operator audit](phase-4-content-api.md). Godot API loading and character creation/generation remain future work. See [progress](../plans/14-progress.md) for evidence, phase-gate exceptions and remaining acceptance work.
 
 ## Prerequisites and installation
 
@@ -23,9 +23,11 @@ Studio: `http://127.0.0.1:5173`, health: `/api/health`. Worker health: `http://1
 
 ## Database baseline and recovery
 
-The baseline has `characters`, `character_versions`, `abilities`, and `character_abilities`, with real FKs, unique versions, checked JSON/status/revisions and WAL/5-second busy timeout. `CharacterRepository` supplies persistence and optimistic rename. Phase 4 migration 0001 adds frozen manifest bytes/hashes, append-only approvals and immutability guards; see [fixture review](phase-4-review.md). Asset/original references, releases and workflow tables still await **new migrations in their consuming phases**. This is not yet a publication service.
+The baseline has `characters`, `character_versions`, `abilities`, and `character_abilities`, with real FKs, unique versions, checked JSON/status/revisions and WAL/5-second busy timeout. `CharacterRepository` supplies persistence and optimistic rename. Phase 4 migration 0001 adds frozen manifest bytes/hashes, append-only approvals and immutability guards; 0002 adds immutable releases/entries and the active-release pointer. Asset/original references and workflow tables still await **new migrations in their consuming phases**.
 
 `pnpm db:seed` creates one deterministic synthetic authoring identity, without art, versions, abilities, approvals or releases. Repeating it does not overwrite edits. `content:seed` is a separate explicit Phase 4 fixture-review/approval command; it does not publish game content.
+
+Before resuming interrupted publishers, stop publishing processes and run `pnpm content:reconcile`. See [safe operation, stale markers and corrupt-ready recovery](phase-4-content-api.md#operator-recovery). The audit never deletes or auto-activates content and refuses active publisher registrations.
 
 - `pnpm db:generate`: generate a new committed Drizzle migration after a schema change. Never edit an applied baseline or use schema push.
 - `pnpm db:migrate`: apply committed migrations under exclusive `<database path>.migrate.lock`. Start only one migrator. On failure the owned lock is released. After a killed process, inspect its PID in the lock, confirm no migration process remains, back up the DB, then manually remove that stale lock and rerun. Never blindly delete a live lock.

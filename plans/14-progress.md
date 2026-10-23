@@ -1,10 +1,151 @@
 # 14 — Persistent implementation progress
 
 ## Current phase
-**Phase 4 — in progress, review/approval and publication service increments locally verified. Phase 3 is NOT fully accepted.** Phases 0–2 retain their previously recorded local status.
+**Phase 4 — in progress, review/approval, publication, published-only content API, Godot repository/validation, bounded runtime/factory and explicit API arena discovery/selection increments locally verified. Phase 3 is NOT fully accepted.** Phases 0–2 retain their previously recorded local status.
 
 ## Phase-gate exception — explicit user authorization
 The user explicitly authorized starting **Phase 4 only** while deferring Phase 3 manual graphical playtesting. This supersedes the earlier “Do not begin Phase 4” instructions below, not Phase 3 acceptance requirements. Manual shadow/Y-sort/feel review and a human active-AI playthrough remain unchecked in [docs/phase-3-playtest.md](../docs/phase-3-playtest.md). **Phase 5 is not started.**
+
+## Latest Phase 4 increment — pinned published-API arena discovery/selection (2026-10-23)
+
+### Scope and implementation
+
+- First command was `git status --short`; preserved all existing tracked/untracked published API, Node, editor/gameplay, repository/validation and runtime/factory work. No reset, discard, commit, phase expansion, engine/toolchain/dependency/migration/schema changes or combat tuning. Read AGENTS, plans README/03/04/09/11/12/13/14, all four requested API/publication/repository/runtime guides and ADR-019/020/021. Inspected arena selection/reset/waves/HUD, generic fighter, fixture loader/shared fixtures, repository/factory/resource builder, publication/review services and engine/process/API harness before stating the small implementation approach.
+- `apps/game/scripts/arena.gd`: default fixture launch and existing regression tests retained; explicit `--content-api[=loopback-origin]` mode creates one repository/factory and owns one validated catalog for the entire arena lifetime. Selection resolves only catalog entries; API players and enemies use the existing generic factory. Initial labels use short IDs/version; successful selection displays validated name/version. No fixture substitution, per-character scripts/scenes, package-path URLs, or changes to fighter/combat/AI timing.
+- Discovery/selection/reset/wave refills have explicit loading state/messages and disabled controls. A programmatic overlap gate rejects actions rather than queuing/superseding loads; input/AI pause while awaiting resources. Errors stop/clear the whole match, zero health, display error codes and allow explicit discovery/selection/match retry. Start does not refresh, including after errors or match completion. One pinned release covers all fighters, matches and resets within that arena; new instances may discover newer releases. ADR-022 records this deliberately narrower policy.
+- Added `apps/game/tests/published_arena.gd` (**74 assertions**) to the existing real built-studio harness, retaining its **43** factory assertions. Uses the actual launch argument, migrated isolated SQLite and explicit approvals/publications of both fixtures. Exercises selection, resources/distinct art, input movement/jump, HUD, timed/deduplicated melee independent of art FPS, overlap rejection (including wave refills), bounded waves/completion/loss, reset and revision retention after actual Sprout v2 approval/publication. Separate new arena sees v2; original still uses v1. Corrupt/restored real ready catalog and Comet asset prove discovery/player/enemy errors, no partial match/fallback and explicit recovery. Test-only loopback control server only coordinates publication/corruption, never serves/proxies content. Existing source fingerprints must remain identical across publication/test. Process and await deadlines/cleanup remain bounded.
+- Added [API arena guide](../docs/phase-4-godot-arena.md); synchronized current integration/API/runtime/publication guides, roadmap and decisions without deleting prior evidence. The broader data-only second-character **live-addition/refresh** checkbox remains unchecked: both fixtures existed before discovery; the later publication changes a revision, not an active catalog's membership.
+
+### Actual commands and results
+
+All pnpm/Node commands used the existing `mise exec --` toolchain (Node **26.12.1**, pnpm **10.34.7**). Runner verified engine **4.7.2.stable.arch_linux.ed1daf0bf** and both matching Linux export templates **4.7.2.stable.official.ed1daf0bf** before engine work; pins unchanged.
+
+| Executed command/check | Actual result |
+|---|---|
+| Initial `mise exec -- pnpm test:godot:api` | Studio/worker builds and existing **231** engine/API assertions passed; new arena assertions passed but runner correctly FAILED on test teardown freeing an HTTP signal emitter in its completion stack. Fixed only test cleanup to deferred node disposal; no diagnostic allowlist relaxed. |
+| Final `mise exec -- node tools/godot-validation/run.mjs --published-api` | PASS: headless import, **3 startup + 57 fixture gameplay + 26 resource + 102 content + 43 published factory + 74 published arena = 305 assertions**; real studio/SQLite/publication and unchanged publication/test source fingerprints. |
+| Final `mise exec -- pnpm test:godot:api` | PASS: rebuilt studio/worker and reran all **305 assertions**, real publication/corruption/retry/pinning and source fingerprint checks |
+| `mise exec -- pnpm test` | PASS: **143 tests / 9 files** |
+| `mise exec -- pnpm check` | PASS: strict TS, Svelte **0 errors / 0 warnings** |
+| `mise exec -- pnpm test:smoke` | PASS: built HTTP published routes/ETags/HEAD/history/privacy/corruption, operator audit and studio/worker health/restart/signals/dev cleanup |
+| `mise exec -- pnpm lint` | FAIL: only unchanged known explicit-any errors at `packages/contracts/src/create-fixtures.ts:68–69` |
+| `mise exec -- pnpm format:check`, `git diff --check` | PASS |
+| Browser/manual graphical playtest, exported game, offline bundle, remote CI | NOT RUN |
+
+Expected native corrupt-IDAT diagnostics remain confined to the existing resource rejection tests; existing malformed Unicode vectors still emit expected diagnostics. New real API/arena suites emit no engine/script errors.
+
+### Remaining limitations / next task
+
+1. Plan cache, coordinated refresh/catalog replacement and fallback separately; none added. No polling, disk cache, bundle/export packaging, shutdown cancellation or global resident-resource quota. Host must outlive awaits; development checkout and loopback API remain the supported source. An empty validated catalog stays pinned; relaunch after publication rather than interpreting Start as Refresh.
+2. Broader second-character/live-update acceptance remains incomplete. This proves both prepublished fixtures selectable/playable in the arena and no mid-match revision mixing, not new-character discovery via live catalog swap. Phase 4 remains incomplete; Phase 5 has not started.
+3. Phase 3 human shadow/Y-sort/feel and active-AI playthrough acceptance remains deferred, **not passed**. Wave completion here is deterministic/headless; active human playability and reported combat difficulty are not newly accepted or tuned. Existing publication/API limitations and two lint errors remain.
+
+## Previous Phase 4 increment — bounded runtime resources and CharacterFactory (2026-10-23)
+
+### Scope and preserved work
+
+- First command was `git status --short`; preserved all tracked/untracked published API, Node upgrade, editor/gameplay and repository/validation work. Read AGENTS, plans README/03/04/09/11/12/13/14, publication/API/repository guides and ADR-019/020; inspected repository/validator, fixture/gameplay, shared contracts/vectors, publication/read services and existing engine/process/HTTP harnesses before stating this small approach. No phase expansion, combat tuning, dependencies, migrations, schema changes or engine changes.
+- Added `character_resources.gd`: shared-schema/semantic validation and whole-package admission **before asset requests**, at most 32 MiB declared encoded bytes and 128 MiB conservative pixel working allowance charged at 16 bytes/pixel. Serial fetch/decode of all declared assets; own input snapshot across awaits. Exact length/hash/actual IHDR limits rechecked before native decoding. Bounded PNG container scan refuses APNG, malformed/trailing containers, excessive chunks, compressed metadata/unknown ancillary chunks. Native PNG decode must succeed with matching nonempty dimensions; RGBA8 ImageTextures, shared per-sheet row-major AtlasTextures and manifest FPS/count/loop SpriteFrames. ADR-021 records the deliberately stricter runtime admission/subset policy and its non-global limitations.
+- Added `character_factory.gd`: repository-only boundary, serial whole loads, owned combat data, existing generic fighter scene, stats/resources/foot anchor and pinned release metadata. No fighter is instantiated until all resource work succeeds. Existing fighter/arena/fixture scripts and scenes remain **unchanged**; normal arena is still fixture-fed, not API-selectable.
+- Added **26 resource assertions**: real runtime multiframe/multirow pixels and regions, shared textures, FPS/loops, factory stats/anchor/owned data, busy behavior, encoded/pixel preflight before reads/no spawn, actual IHDR limits, hash/length, compressed metadata/APNG, hash-valid corrupt IDAT native rejection and failed-native-decode no-partial-fighter behavior. Runner permits only three explicit known native PNG diagnostic messages in this negative-test suite; script and unrelated engine errors still fail.
+- Added `test:godot:api` and isolated migrated SQLite/explicit fixture approval/publication/built-studio harness. **43 real API-to-Godot assertions** verify both fixtures' ImageTexture/atlas/frames, stats, distinct art, pinned release, generic scene, movement, separate jump elevation, startup/active/deduplicated melee despite changed art FPS, and unpublished revision refusal. SHA-256 fingerprints prove gameplay/project/scenes/fixture loader unchanged across publication/test. This is headless API fighter playability, **not** normal-arena selectability, live addition/refresh acceptance or the entire Phase 4 gate. Test-only seed is not a production publication CLI or startup bypass.
+- New [runtime guide](../docs/phase-4-godot-runtime.md); repository/API/publication guides, plan 09, roadmap and decisions synchronized. Earlier repository evidence remains below.
+
+### Actual commands and results
+
+All pnpm commands used `mise exec -- pnpm <command>` on the existing Node **26.12.1** / pnpm **10.34.7** toolchain. Runner verified installed Godot **4.7.2.stable.arch_linux.ed1daf0bf** and both actual matching Linux templates **4.7.2.stable.official.ed1daf0bf** before engine work. Pin unchanged.
+
+| Executed command/check | Actual result |
+|---|---|
+| `test:godot` | PASS: headless import, **3 startup + 57 gameplay + 26 resource + 102 content assertions** |
+| `test:godot:api` | PASS: studio/worker build, all above engine regressions, isolated real published studio API → Godot **43 assertions**, gameplay source fingerprints unchanged |
+| Final `mise exec -- node tools/godot-validation/run.mjs --published-api` after resource input-snapshot hardening | PASS: all **231 assertions** (3 + 57 + 26 + 102 + 43), real built API and source fingerprints |
+| `test` | PASS: **143 tests / 9 files** |
+| `check` | PASS: strict TS and Svelte **0 errors / 0 warnings** |
+| `test:smoke` after built API run | PASS: real published-route/ETag/history/privacy/corruption/operator audit, studio/worker health/restart/signals/dev cleanup regressions |
+| `format:check`, `git diff --check` | PASS |
+| `lint` | FAIL: only known unchanged explicit-any errors at `packages/contracts/src/create-fixtures.ts:68–69` |
+| `git diff --exit-code -- apps/game/project.godot apps/game/scenes apps/game/scripts/fighter.gd apps/game/scripts/fixtures.gd apps/game/scripts/arena.gd apps/game/scripts/enemy_brain.gd mise.toml .github/workflows packages/database/migrations packages/contracts/src/index.ts packages/contracts/schema` | PASS: existing gameplay/editor sources, pins, migrations, shared schemas/source unchanged |
+| Browser/manual graphical playtest, exported game, offline bundle, remote CI, measured/global memory stress | NOT RUN |
+
+No failed test run in this increment. The intentional two corrupt-IDAT tests emit native libpng/ERR_FILE_CORRUPT/ERR_PARSE_ERROR diagnostics while their rejection assertions pass; existing malformed Unicode tests also emit expected diagnostics. Initial successful integration had 20 resource assertions; expanded/hardened to 26 and reran engine/API regressions. No unrelated lint repair.
+
+### Remaining limitations / next task
+
+1. **Next small Phase 4 slice to plan:** wire repository/factory-backed discovery/selection into the arena without URLs in combat, explicit loading/error handling and retention of the match's pinned release. Coordinate any later catalog replacement rather than changing this repository's pin. Normal arena remains fixture-fed; the final roadmap second-character **selectability/live-update** proof is not checked off by this headless test.
+2. Bounded validated disk cache, coordinated polling/manual refresh/catalog swap, fallback/error UI, shutdown cancellation, aggregate resident CPU/GPU/cache quotas, export schema packaging, offline bundles and packaging remain pending. Per-load admission is conservative, not a measured global memory guarantee; multiple factories/fighters can exceed it in aggregate. Host/parent must outlive awaits; supported source is the development checkout/loopback API.
+3. Phase 3 human shadow/Y-sort/feel and active-AI acceptance remain deferred, **not accepted**. Combat feedback retained without tuning. Phase 4 incomplete; Phase 5 not started. Existing publication/API limitations and two lint errors remain.
+
+## Previous Phase 4 increment — Godot repository/API and supported-v1 validation (2026-10-23)
+
+### Scope and preserved work
+
+- First command was `git status --short`. Existing published-content API changes (tracked and untracked) were present and preserved. Node upgrade and Godot editor/gameplay state were not reverted or altered. Read AGENTS, plans README/03/04/09/11/12/13/14, API/publication guides, ADR-019, existing gameplay/fixtures, shared schemas/semantics/tests and published service before implementing. This increment implements only the fourth Phase 4 roadmap item; no Phase 5 or combat tuning.
+- Added `apps/game/scripts/content/{character_repository,api_character_repository,contract_validator}.gd`: RefCounted result boundary; loopback HTTPRequest adapter; one bounded request in flight, five-second timeout, redirects/gzip disabled. JSON capped at 1 MiB, assets at declared contract-bounded bytes. Exact manifest hash checked before parse; identity/semantic validation, declared asset length/hash/IHDR checked before returning bytes. All HTTP routes derive from pinned validated IDs/version/hash, never package paths. No static storage/publication inference.
+- First valid full catalog is pinned for the repository lifetime; defensive copies prevent callers altering authority. Unlisted revisions cannot be requested. Validated manifests memoized within that snapshot only; no disk cache. `refresh()` explicitly unsupported, not silent catalog replacement. Gameplay/fighter/fixture loader remain unchanged and fixture-fed.
+- Structural validation interprets the existing generated v1 schema keyword subset directly, failing unknown encountered keywords. GDScript mirrors shared semantic checks; release layout additionally matches publisher/API canonical paths. Pinned Zod 4.6.7 counts Unicode code points for schema strings; separate safe-path helper retains JS UTF-16 length cap. Godot converts NUL to U+FFFD, so both are conservatively rejected in paths (documented additional client restriction). ADR-020 records the incremental boundary and future export schema packaging requirement.
+- Added **63 shared TS/Godot vectors** (52 manifest, 11 release) covering valid fixtures/parameters/effects/Unicode, strict fields/types/versions/kinds, references/IDs/animations/layout/elevation, paths, numeric/array/map limits and index layout/uniqueness. New Godot content suite uses real HTTPRequest against deterministic local hostile peers: exact route mapping, pinned copies, one in-flight request, missing pin/unlisted/unsafe references, bad manifest hash/identity/version, oversized/malformed/invalid UTF-8 JSON, redirect/503, bad paths/duplicate/overlimit indexes, corrupt/oversized assets and mismatched PNG dimensions. Also checks nonfinite values and correct row ceiling for native GDScript integer layout inputs. **102 content assertions**; HTTP peers are not the real studio.
+- [Repository guide](../docs/phase-4-godot-repository.md), API guide, plan 09, roadmap and ADR-020 updated. No dependency, shared schema/semantic source, migration, engine pin or gameplay changes.
+
+### Actual commands and results
+
+All pnpm commands used `mise exec -- pnpm <command>` on Node **26.12.1** / pnpm **10.34.7**. `command -v godot` selected `/usr/bin/godot`; runner verified engine **4.7.2.stable.arch_linux.ed1daf0bf**, version marker and both actual matching Linux templates **4.7.2.stable.official.ed1daf0bf** before import/tests. Pin unchanged.
+
+| Executed command/check | Actual result |
+|---|---|
+| Initial `exec vitest run packages/contracts/src/compatibility.test.ts` | PASS: initial 44 vectors; later expanded to 63 below |
+| Final `test` | PASS: **143 tests / 9 files** (80 existing + 63 shared vectors) |
+| Final `test:godot` | PASS: headless import, **3 startup + 57 gameplay + 102 content assertions**; expected Unicode diagnostics for intentionally malformed NUL/UTF-8 cases, rejection assertions pass |
+| Final `check` | PASS: strict TS and Svelte **0 errors / 0 warnings** |
+| `build`, then `test:smoke` | PASS: studio/worker builds; real built HTTP published routes/ETags/HEAD/history/path/method/privacy/corruption and operator audit regression; health/restart/signal/dev cleanup |
+| `format:check`, `git diff --check` | PASS |
+| `lint` | FAIL: only the known `packages/contracts/src/create-fixtures.ts:68–69` explicit-any errors, unchanged |
+| `git diff --exit-code -- apps/game/project.godot apps/game/scenes apps/game/scripts/fixtures.gd apps/game/scripts/fighter.gd apps/game/scripts/arena.gd apps/game/scripts/enemy_brain.gd mise.toml .github/workflows packages/database/migrations packages/contracts/src/index.ts packages/contracts/schema` | PASS: those tracked sources/pins/schemas unchanged |
+| Godot against built studio, browser/manual graphical acceptance, desktop export, remote CI | NOT RUN |
+
+Failures found/corrected: first content runner failed because PackedByteArray has no `sha256_text()`; replaced with HashingContext. A NUL-path case exposed Godot replacement behavior; removed noisy NUL construction from every path check and documented conservative NUL/U+FFFD refusal. A Unicode parity vector exposed an incorrect initial UTF-16-length assumption: inspected installed Zod 4.6.7 checks, corrected schema length to code points and the vector expectation; final TS and Godot suites pass. No unrelated generator lint fix.
+
+### Remaining limitations / next task
+
+1. **Next Phase 4 slice:** bounded PNG decoding, atlas/SpriteFrames and a CharacterFactory using the existing generic fighter, with a Godot-to-real-published-API integration test. Returning verified PNG bytes here does not prove decodability or API playability. Do not expand automatically into cache/polling/refresh or Phase 5.
+2. Coordinated catalog replacement/manual refresh/polling, validated bounded disk cache, error/fallback UI, shutdown cancellation, aggregate memory budgets, exported schema resource packaging, bundle implementation and data-only second-character API playability proof remain pending. The host node must outlive each operation; only development checkout resources and loopback HTTP are supported now. Shared vectors are compatibility evidence, not an exhaustive/general JSON Schema certification.
+3. Phase 3 human shadow/Y-sort/feel and active-AI acceptance remain deferred, **not passed**. Difficult combat feedback is retained; no silent tuning. Phase 4 incomplete; Phase 5 not started. Existing API/reconciliation limitations and two lint errors remain.
+
+## Previous Phase 4 increment — published-only content API (2026-10-23)
+
+### Inspection, scope and implementation
+
+- First command was `git status --short`: clean checkout. Existing Node upgrade/Godot editor work was already committed; no existing changes were discarded. Read AGENTS, plans README/01/04/05/06/09/11/12/13/14 and publication/review/runtime/repository implementations before implementation. Kept this increment to the third Phase 4 roadmap item and safe operator reconciliation. No Phase 5, Godot API loading, gameplay tuning, schema changes or migrations.
+- `PublishedContentService` resolves only DB-ready releases/entries; JSON reads cap at 1 MiB, PNG reads at the contract-bounded declared length. Reads verify real-path confinement, regular files, exact hashes, manifest semantics/identity and PNG header dimensions. Final opens are no-follow/nonblocking (including the existing shared bounded helper). Ready-reference SQL now filters ready state and limits to one row rather than reading all historical references.
+- Four thin SvelteKit GET routes expose current index, historical ready index, ready-referenced manifests and manifest-declared PNG hashes. Exact-byte SHA-256 ETags, immutable/revalidating cache policies, HEAD via SvelteKit, weak/list/wildcard conditionals and bodyless 304. Verification happens before ETag evaluation. Missing/unpublished data returns 404, bad parameters 400; corrupt ready representations return explicit sanitized 503 with `no-store`, never repair/fallback or 304. No static storage or arbitrary path route.
+- `pnpm content:reconcile` is an explicit operator command, not a startup race. Shared publisher registrations and exclusive maintenance markers gate **all** service publish/reconcile calls; concurrent publishers/CAS remain supported. Refuses active or stale publisher markers before changing preparing rows. Never auto-expires markers, guesses approval, deletes content or activates history. Exit 1 on corrupt ready content/operational failure; exit 0 on clean audit. ADR-019 records read/maintenance boundaries and stale-marker tradeoffs.
+- Read-only `@doodleforge/content-publisher/content` export avoids importing Sharp-dependent publication into the studio bundle. Workspace links added only; no external package/version changes. New [API/operator guide](../docs/phase-4-content-api.md); setup/publication/roadmap/plan 09 synchronized.
+- **25 added tests**: 21 real-DB/filesystem route/security tests (including replacing a character revision while retaining old ready access, historical indexes/revocation, cross-package hash isolation, hidden preparations/orphans, malformed inputs and missing/hash/oversize/symlink corruption on all three representation types); three maintenance concurrency/stale-marker tests; one live-preparation service exclusion test. Built-process smoke now publishes both fixtures over real SQLite and fetches actual HTTP content, checks methods/encoded paths/private storage, simulates external corruption, and executes clean/corrupt operator audits. This is not Godot second-character runtime proof.
+
+### Actual commands and results
+
+All pnpm commands used **`mise exec -- pnpm <command>`**, selecting Node **26.12.1** (also verified with `mise exec -- node --version`) and pnpm **10.34.7**. No hardcoded Node 22 invocation.
+
+| Executed command/check | Actual result |
+|---|---|
+| `install --lockfile-only`, `install --frozen-lockfile` | PASS; workspace links only, no external dependency/pin changes |
+| `exec vitest run apps/studio/src/lib/server/content.test.ts packages/content-publisher/src/operations.test.ts packages/content-publisher/src/publication.test.ts` | PASS: **41 tests / 3 files** |
+| Final `test` | PASS: **80 tests / 8 files** (55 existing + 25 added) |
+| Final `check` | PASS: strict TypeScript, Svelte **0 errors / 0 warnings** |
+| `build`, then `test:smoke` | PASS: studio/worker builds; real HTTP published-only GET/HEAD/304/history, exact bytes, method/path/private-storage denial, corrupt conditional asset 503; operator clean exit 0/corrupt exit 1; prior health/restart/signals/dev cleanup checks retained |
+| Final `format:check`, `git diff --check` | PASS |
+| `lint` | FAIL: only the existing explicit-any errors in `packages/contracts/src/create-fixtures.ts:68–69`; unrelated fixes not mixed in |
+| `git diff --exit-code -- apps/game packages/contracts mise.toml .github/workflows packages/database/migrations` | PASS: Godot/editor, shared contract, Node/CI pins and migrations untouched |
+| Browser tests, Godot tests, manual graphical acceptance, remote CI, power-cut/other-OS tests | NOT RUN in this API increment |
+
+Failures caught and corrected: initial test/check exposed a missing test workspace link and unsupported `$lib` alias assumptions; used surrounding relative-import conventions and added the test dependency. First built smoke failed because root publisher imports bundled Sharp; separate read-only export fixed it. Smoke method assertion initially expected 405 for a form-like POST already rejected with 403 by SvelteKit CSRF; verified both that rejection and JSON POST 405 without weakening framework protections. One new hash-isolation test initially selected a PNG intentionally shared by both fixtures; corrected it to select a genuinely other-package-only declared hash. Final full suite passes. Formatting recheck caught and corrected one long subpath import.
+
+### Remaining limitations and next task
+
+1. **Next Phase 4 increment:** Godot repository interface/API adapter and supported-v1 semantic parity. Then runtime PNG/atlas/SpriteFrames, bounded validated cache, release pinning, polling/refresh/errors and data-only second-character playability proof. None implemented here; Phase 5 remains stopped.
+2. Phase 3 manual shadow/Y-sort/feel review and human active-AI wave completion remain deferred, **not accepted**. Human launch/checkerboard feedback is retained below; difficult combat remains a usability concern, not silently tuned.
+3. Reconciliation is deliberately manual/operator-controlled, non-destructive and fail-closed on stale operation markers. Stop all publisher/reconciler processes before removing only precise confirmed-stale empty marker directories. No automatic takeover/repair/rollback/GC. Ready-file corruption requires inspection and exact known-good backup restoration; index reads do not audit every descendant asset.
+4. Local trusted filesystem/service participation only; hostile concurrent filesystem mutation, authenticated hosting, aggregate HTTP rate/concurrency quotas, other-platform durability and actual process/power-kill recovery remain unverified/unimplemented. Per-representation reads are bounded; no aggregate resource-budget claim. The two pre-existing lint errors remain separately scoped.
 
 ## Human prototype feedback — 2026-10-23
 

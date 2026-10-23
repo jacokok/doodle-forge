@@ -9,5 +9,12 @@ export default defineConfig({
     tailwindcss(),
     sveltekit({ adapter: adapter(), preprocess: vitePreprocess() }),
   ],
-  ssr: { noExternal: ['@doodleforge/shared', '@doodleforge/database'] },
+  ssr: {
+    noExternal: [
+      '@doodleforge/shared',
+      '@doodleforge/database',
+      '@doodleforge/content-publisher',
+      '@doodleforge/contracts',
+    ],
+  },
 });

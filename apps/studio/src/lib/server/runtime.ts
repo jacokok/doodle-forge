@@ -1,6 +1,12 @@
 import { building } from '$app/env';
 import { ensureStorage, loadConfig } from '@doodleforge/shared/server';
-import { assertDatabaseReady, openDatabase } from '@doodleforge/database';
+import {
+  assertDatabaseReady,
+  openDatabase,
+  ReleaseRepository,
+} from '@doodleforge/database';
+import { PublishedContentService } from '@doodleforge/content-publisher/content';
+import path from 'node:path';
 
 let connection: ReturnType<typeof openDatabase> | undefined;
 
@@ -30,4 +36,13 @@ export function checkDatabase() {
   initializeRuntime();
   if (!connection) throw new Error('Runtime unavailable during build');
   connection.sqlite.prepare('SELECT 1').get();
+}
+
+export function publishedContent() {
+  initializeRuntime();
+  if (!connection) throw new Error('Runtime unavailable during build');
+  return new PublishedContentService(
+    new ReleaseRepository(connection),
+    path.join(loadConfig().storageRoot, 'published'),
+  );
 }

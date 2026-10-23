@@ -1,0 +1,62 @@
+[
+  { "name": "ready", "valid": true, "changes": [] },
+  {
+    "name": "empty",
+    "valid": true,
+    "changes": [{ "path": ["characters"], "value": [] }]
+  },
+  {
+    "name": "release-version",
+    "valid": false,
+    "changes": [{ "path": ["schemaVersion"], "value": 2 }]
+  },
+  {
+    "name": "release-id",
+    "valid": false,
+    "changes": [{ "path": ["releaseId"], "value": "../../secret" }]
+  },
+  {
+    "name": "release-unknown",
+    "valid": false,
+    "changes": [{ "path": ["extra"], "value": true }]
+  },
+  {
+    "name": "release-entry-unknown",
+    "valid": false,
+    "changes": [{ "path": ["characters", 0, "url"], "value": "http://evil" }]
+  },
+  {
+    "name": "release-hash",
+    "valid": false,
+    "changes": [{ "path": ["characters", 0, "manifestSha256"], "value": "bad" }]
+  },
+  {
+    "name": "release-path",
+    "valid": false,
+    "changes": [
+      { "path": ["characters", 0, "manifestPath"], "value": "../secret" }
+    ]
+  },
+  {
+    "name": "release-path-mismatch",
+    "valid": false,
+    "changes": [
+      {
+        "path": ["characters", 0, "manifestPath"],
+        "value": "characters/11111111-1111-4111-8111-111111111111/v2/character.json"
+      }
+    ]
+  },
+  {
+    "name": "release-duplicate",
+    "valid": false,
+    "repeat": { "collection": "characters", "count": 2 },
+    "changes": []
+  },
+  {
+    "name": "release-count",
+    "valid": false,
+    "repeat": { "collection": "characters", "count": 1001 },
+    "changes": []
+  }
+]

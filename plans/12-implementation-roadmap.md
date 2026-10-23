@@ -101,11 +101,12 @@ Contract precedes game and factory. API integration precedes authoring UI. To re
 
 **Checklist:**
 - [x] Implement frozen snapshots and hash-bound approval service used by fixture seed. Verified through additive migration/immutability/gate/seed tests and isolated CLI rerun (plan 14); approval alone is not publication.
-- [x] Implement staging/hash validation/release activation and crash reconciliation. Service/persistence slice locally verified (plan 14); reconciliation requires stopped publishers and is not yet wired to startup/CLI. No content API visibility is enabled.
-- [ ] Expose only published index/manifests/assets with ETags and bounded reads.
-- [ ] Implement repository interface and API adapter with supported-version checks.
-- [ ] Decode PNG runtime bytes, build atlas/SpriteFrames and instantiate existing fighter.
-- [ ] Add cache/error handling, release pinning, polling and manual refresh.
+- [x] Implement staging/hash validation/release activation and crash reconciliation. Service/persistence slice locally verified (plan 14); explicit operator reconciliation now excludes publishers using fail-closed operation markers (ADR-019).
+- [x] Expose only published index/manifests/assets with ETags and bounded reads. Route/security and real built HTTP checks locally verified, including historical ready releases and explicit corrupt-ready failures (plan 14).
+- [x] Implement repository interface and API adapter with supported-version checks. Headless HTTP boundary/shared-v1 validation verified (plan 14, ADR-020); gameplay remains fixture-fed, decoder/cache/refresh are separate tasks.
+- [x] Decode PNG runtime bytes, build atlas/SpriteFrames and instantiate existing fighter. Per-load admission/native decode/multirow resource tests and real built-published-API fighter movement/combat verified (plan 14, ADR-021); normal arena remains fixture-fed.
+- [x] Wire explicit API arena discovery/selection, loading/errors and match release retention. Real built-studio arena integration verifies both prepublished fixtures, resets/waves and mid-match publication pinning (plan 14, ADR-022); default fixture mode preserved.
+- [ ] Add validated bounded disk cache, coordinated catalog replacement, polling and manual refresh. Repository/arena pinning and basic fail-closed error/retry UI are verified separately above; no fallback is implemented.
 - [ ] Publish second fixture using data only and prove no gameplay source changes.
 
 **Acceptance criteria:** New approved fixture becomes selectable/playable without import, scenes or scripts; corrupt/unpublished data is not playable. **Test requirements:** TS/Godot contract parity, API tests, publisher fault/concurrency tests, headless HTTP texture loading/fighter instantiation and second-character proof.

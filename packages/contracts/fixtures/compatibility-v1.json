@@ -1,0 +1,317 @@
+[
+  { "name": "sprout", "fixture": "sprout", "valid": true, "changes": [] },
+  { "name": "comet", "fixture": "comet", "valid": true, "changes": [] },
+  {
+    "name": "trimmed-text",
+    "valid": true,
+    "changes": [{ "path": ["name"], "value": "  Sprout  " }]
+  },
+  {
+    "name": "unicode-trim",
+    "valid": true,
+    "changes": [{ "path": ["name"], "value": "\uFEFF\u00A0Sprout\u3000" }]
+  },
+  {
+    "name": "unicode-length",
+    "valid": true,
+    "changes": [
+      {
+        "path": ["name"],
+        "value": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+      }
+    ]
+  },
+  {
+    "name": "parameters",
+    "valid": true,
+    "changes": [
+      {
+        "path": ["abilities", 0, "parameters"],
+        "value": { "label": "spark", "power": 2, "enabled": true }
+      }
+    ]
+  },
+  {
+    "name": "parameters-nested",
+    "valid": false,
+    "changes": [
+      {
+        "path": ["abilities", 0, "parameters"],
+        "value": { "script": { "path": "evil.gd" } }
+      }
+    ]
+  },
+  {
+    "name": "valid-effect",
+    "valid": true,
+    "changes": [
+      {
+        "path": ["effects"],
+        "value": [
+          {
+            "id": "spark",
+            "assetId": "attack_light_sheet",
+            "anchor": "hand",
+            "durationSeconds": 1
+          }
+        ]
+      },
+      { "path": ["abilities", 0, "effectIds"], "value": ["spark"] }
+    ]
+  },
+  {
+    "name": "version",
+    "valid": false,
+    "changes": [{ "path": ["schemaVersion"], "value": 2 }]
+  },
+  {
+    "name": "unknown-field",
+    "valid": false,
+    "changes": [{ "path": ["script"], "value": "evil.gd" }]
+  },
+  {
+    "name": "unknown-nested-field",
+    "valid": false,
+    "changes": [{ "path": ["stats", "extra"], "value": 1 }]
+  },
+  {
+    "name": "wrong-type",
+    "valid": false,
+    "changes": [{ "path": ["stats", "health"], "value": "100" }]
+  },
+  {
+    "name": "boolean-number",
+    "valid": false,
+    "changes": [{ "path": ["schemaVersion"], "value": true }]
+  },
+  {
+    "name": "fractional",
+    "valid": false,
+    "changes": [{ "path": ["characterVersion"], "value": 1.5 }]
+  },
+  {
+    "name": "unsafe-integer",
+    "valid": false,
+    "changes": [{ "path": ["characterVersion"], "value": 9007199254740992 }]
+  },
+  {
+    "name": "empty-trimmed-name",
+    "valid": false,
+    "changes": [{ "path": ["name"], "value": "  " }]
+  },
+  {
+    "name": "uuid",
+    "valid": false,
+    "changes": [{ "path": ["characterId"], "value": "../secret" }]
+  },
+  {
+    "name": "health-limit",
+    "valid": false,
+    "changes": [{ "path": ["stats", "health"], "value": 10001 }]
+  },
+  {
+    "name": "speed-limit",
+    "valid": false,
+    "changes": [{ "path": ["stats", "moveSpeed"], "value": 1001 }]
+  },
+  {
+    "name": "missing-animation",
+    "valid": false,
+    "changes": [{ "path": ["animations", "walk"], "remove": true }]
+  },
+  {
+    "name": "animation-reference",
+    "valid": false,
+    "changes": [
+      { "path": ["animations", "idle", "assetId"], "value": "missing" }
+    ]
+  },
+  {
+    "name": "sheet-layout",
+    "valid": false,
+    "changes": [{ "path": ["animations", "idle", "columns"], "value": 2 }]
+  },
+  {
+    "name": "frame-limit",
+    "valid": false,
+    "changes": [{ "path": ["animations", "idle", "frameCount"], "value": 65 }]
+  },
+  {
+    "name": "fps-limit",
+    "valid": false,
+    "changes": [{ "path": ["animations", "idle", "fps"], "value": 61 }]
+  },
+  {
+    "name": "loop",
+    "valid": false,
+    "changes": [{ "path": ["animations", "idle", "loop"], "value": false }]
+  },
+  {
+    "name": "anchor",
+    "valid": false,
+    "changes": [
+      { "path": ["animations", "idle", "footAnchor", "x"], "value": 127 }
+    ]
+  },
+  {
+    "name": "attack-kind",
+    "valid": false,
+    "changes": [{ "path": ["attacks", 0, "kind"], "value": "projectile" }]
+  },
+  {
+    "name": "ability-kind",
+    "valid": false,
+    "changes": [{ "path": ["abilities", 0, "kind"], "value": "script" }]
+  },
+  {
+    "name": "attack-animation",
+    "valid": false,
+    "changes": [{ "path": ["attacks", 0, "animation"], "value": "missing" }]
+  },
+  {
+    "name": "hitbox-reference",
+    "valid": false,
+    "changes": [{ "path": ["attacks", 0, "hitboxIds"], "value": ["missing"] }]
+  },
+  {
+    "name": "ability-reference",
+    "valid": false,
+    "changes": [{ "path": ["abilities", 0, "attackId"], "value": "missing" }]
+  },
+  {
+    "name": "effect-reference",
+    "valid": false,
+    "changes": [{ "path": ["abilities", 0, "effectIds"], "value": ["missing"] }]
+  },
+  {
+    "name": "effect-asset",
+    "valid": false,
+    "changes": [
+      {
+        "path": ["effects"],
+        "value": [
+          {
+            "id": "spark",
+            "assetId": "missing",
+            "anchor": "hand",
+            "durationSeconds": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "elevation-order",
+    "valid": false,
+    "changes": [
+      { "path": ["hurtboxes", 0, "minElevation"], "value": 1024 },
+      { "path": ["hurtboxes", 0, "maxElevation"], "value": 0 }
+    ]
+  },
+  {
+    "name": "active-zero",
+    "valid": false,
+    "changes": [{ "path": ["attacks", 0, "activeSeconds"], "value": 0 }]
+  },
+  {
+    "name": "negative-startup",
+    "valid": false,
+    "changes": [{ "path": ["attacks", 0, "startupSeconds"], "value": -1 }]
+  },
+  {
+    "name": "duplicate-attack",
+    "valid": false,
+    "repeat": { "collection": "attacks", "count": 2 },
+    "changes": []
+  },
+  {
+    "name": "duplicate-hitbox",
+    "valid": false,
+    "repeat": { "collection": "hitboxes", "count": 2 },
+    "changes": []
+  },
+  {
+    "name": "duplicate-hurtbox",
+    "valid": false,
+    "repeat": { "collection": "hurtboxes", "count": 2 },
+    "changes": []
+  },
+  {
+    "name": "duplicate-ability",
+    "valid": false,
+    "repeat": { "collection": "abilities", "count": 2 },
+    "changes": []
+  },
+  {
+    "name": "array-limit",
+    "valid": false,
+    "repeat": { "collection": "abilities", "count": 33 },
+    "changes": []
+  },
+  {
+    "name": "asset-limit",
+    "valid": false,
+    "repeat": { "collection": "assets", "count": 129 },
+    "changes": []
+  },
+  {
+    "name": "asset-bytes-limit",
+    "valid": false,
+    "assetChange": { "field": "bytes", "value": 16777217 },
+    "changes": []
+  },
+  {
+    "name": "asset-dimension-limit",
+    "valid": false,
+    "assetChange": { "field": "width", "value": 4097 },
+    "changes": []
+  },
+  {
+    "name": "asset-hash",
+    "valid": false,
+    "assetChange": { "field": "sha256", "value": "ABC" },
+    "changes": []
+  },
+  {
+    "name": "traversal",
+    "valid": false,
+    "assetChange": { "field": "path", "value": "../secret.png" },
+    "changes": []
+  },
+  {
+    "name": "absolute",
+    "valid": false,
+    "assetChange": { "field": "path", "value": "/secret.png" },
+    "changes": []
+  },
+  {
+    "name": "drive",
+    "valid": false,
+    "assetChange": { "field": "path", "value": "C:/secret.png" },
+    "changes": []
+  },
+  {
+    "name": "backslash",
+    "valid": false,
+    "assetChange": { "field": "path", "value": "assets\\secret.png" },
+    "changes": []
+  },
+  {
+    "name": "empty-segment",
+    "valid": false,
+    "assetChange": { "field": "path", "value": "assets//secret.png" },
+    "changes": []
+  },
+  {
+    "name": "dot-segment",
+    "valid": false,
+    "assetChange": { "field": "path", "value": "assets/./secret.png" },
+    "changes": []
+  },
+  {
+    "name": "nul",
+    "valid": false,
+    "assetChange": { "field": "path", "value": "assets/\u0000.png" },
+    "changes": []
+  }
+]
