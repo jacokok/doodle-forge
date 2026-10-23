@@ -29,6 +29,59 @@ export class CharacterRepository {
       .get();
   }
 
+  get(id: string) {
+    return this.connection.db
+      .select()
+      .from(characters)
+      .where(and(eq(characters.id, id), isNull(characters.archivedAt)))
+      .get();
+  }
+
+  update(
+    id: string,
+    expectedRevision: number,
+    changes: Partial<
+      Pick<typeof characters.$inferInsert, 'name' | 'description' | 'bodyType'>
+    >,
+  ) {
+    return this.connection.db
+      .update(characters)
+      .set({
+        ...changes,
+        editRevision: expectedRevision + 1,
+        updatedAt: Date.now(),
+      })
+      .where(
+        and(
+          eq(characters.id, id),
+          eq(characters.editRevision, expectedRevision),
+          isNull(characters.archivedAt),
+        ),
+      )
+      .returning()
+      .get();
+  }
+
+  archive(id: string, expectedRevision: number) {
+    const now = Date.now();
+    return this.connection.db
+      .update(characters)
+      .set({
+        archivedAt: now,
+        editRevision: expectedRevision + 1,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(characters.id, id),
+          eq(characters.editRevision, expectedRevision),
+          isNull(characters.archivedAt),
+        ),
+      )
+      .returning()
+      .get();
+  }
+
   rename(id: string, expectedRevision: number, name: string) {
     return this.connection.db
       .update(characters)

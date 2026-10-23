@@ -97,7 +97,7 @@ Contract precedes game and factory. API integration precedes authoring UI. To re
 
 **Deliverables:** minimal validated publication service, seeded approval records, immutable API/index, Godot repository abstraction/API implementation, decoder/cache/refresh.
 
-**Dependencies:** Phases 1–3, plans 03/04/05/09/11; seed path supplies explicit approval before UI exists. **Explicit user phase-gate exception:** Phase 4 may proceed while Phase 3 manual shadow/Y-sort/feel review and human active-AI playthrough remain deferred, not accepted (plan 14; docs/phase-3-playtest.md). No authorization to start Phase 5.
+**Dependencies:** Phases 1–3, plans 03/04/05/09/11; seed path supplies explicit approval before UI exists. **Explicit user phase-gate exception:** Phase 4 may proceed while Phase 3 manual shadow/Y-sort/feel review and human active-AI playthrough remain deferred, not accepted (plan 14; docs/phase-3-playtest.md). Phase 4 acceptance subsequently verified locally; the user has now explicitly authorized Phase 5 (plan 14).
 
 **Checklist:**
 - [x] Implement frozen snapshots and hash-bound approval service used by fixture seed. Verified through additive migration/immutability/gate/seed tests and isolated CLI rerun (plan 14); approval alone is not publication.
@@ -107,8 +107,8 @@ Contract precedes game and factory. API integration precedes authoring UI. To re
 - [x] Decode PNG runtime bytes, build atlas/SpriteFrames and instantiate existing fighter. Per-load admission/native decode/multirow resource tests and real built-published-API fighter movement/combat verified (plan 14, ADR-021); normal arena remains fixture-fed.
 - [x] Wire explicit API arena discovery/selection, loading/errors and match release retention. Real built-studio arena integration verifies both prepublished fixtures, resets/waves and mid-match publication pinning (plan 14, ADR-022); default fixture mode preserved.
 - [x] Add opt-in validated bounded PNG disk cache. Fixed-slot bounds, pinned-manifest revalidation, explicit corruption/FS errors and atomic installs (ADR-023); executed evidence in plan 14. Not an offline bundle.
-- [x] Add coordinated catalog replacement, polling and manual refresh. Polling uses a five-second best-effort cadence; busy ticks are dropped, and poll/manual refresh share independent candidate preparation and an idle/loss/completion activation boundary (ADR-024/025). Validation evidence and the separate data-only live-addition proof remain tracked in plan 14.
-- [ ] Publish second fixture using data only and prove no gameplay source changes.
+- [x] Add coordinated catalog replacement, polling and manual refresh. Polling uses a five-second best-effort cadence; busy ticks are dropped, and poll/manual refresh share independent candidate preparation and an idle/loss/completion activation boundary (ADR-024/025).
+- [x] Publish second fixture using data only and prove no gameplay source changes. The built-studio integration starts with Sprout only, publishes Comet after arena discovery, polls the new catalog, then selects and plays Comet through the generic fighter; see plan 14.
 
 **Acceptance criteria:** New approved fixture becomes selectable/playable without import, scenes or scripts; corrupt/unpublished data is not playable. **Test requirements:** TS/Godot contract parity, API tests, publisher fault/concurrency tests, headless HTTP texture loading/fighter instantiation and second-character proof.
 
@@ -120,7 +120,7 @@ Contract precedes game and factory. API integration precedes authoring UI. To re
 **Dependencies:** contract, database and Phase 4 approval/publication services. Automated generation waits for Phase 6.
 
 **Checklist:**
-- [ ] Implement server-validated character CRUD and optimistic revisions.
+- [ ] Implement server-validated character CRUD and optimistic revisions. Metadata-only JSON API (create/list/get/edit/archive), shared validation and stale-edit tests locally verified; creative choices and same-app UI remain incomplete (plan 14).
 - [ ] Add bounded/magic-verified upload, immutable originals and private derived previews.
 - [ ] Add name/description/body/fighting-style/power inputs and accessible responsive wizard.
 - [ ] Add side-by-side previews, history and clear draft/approved/published states.

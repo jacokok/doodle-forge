@@ -9,12 +9,13 @@
   },
   "dependencies": {
     "@doodleforge/content-publisher": "workspace:*",
+    "@doodleforge/contracts": "workspace:*",
+    "zod": "4.6.7",
     "@doodleforge/database": "workspace:*",
     "@doodleforge/shared": "workspace:*",
     "better-sqlite3": "13.0.3"
   },
   "devDependencies": {
-    "@doodleforge/contracts": "workspace:*",
     "@sveltejs/adapter-node": "6.0.0",
     "@sveltejs/kit": "3.1.0",
     "@sveltejs/vite-plugin-svelte": "7.3.1",

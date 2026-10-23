@@ -1,5 +1,61 @@
 # 14 — Persistent implementation progress
 
+## Phase 5 — authorized; metadata authoring API increment (2026-10-23)
+
+### Scope and implementation
+
+- First command was `git status --short --branch`. Preserved all pre-existing tracked and untracked Phase 4 proof/docs and Phase 3 playtest changes; no reset, discard or commit. Read AGENTS, plans README/04/05/06/08/11/12/14, setup and decisions, then inspected studio shell/config/routes, review/publication/domain services, repositories/schema/migrations, contracts and test conventions before stating a bounded approach.
+- User explicitly authorized Phase 5 following locally verified Phase 4 acceptance, including the data-only second-character live-addition proof. Phase 3 manual graphical shadow/Y-sort/feel and human active-AI acceptance remain deferred and **not passed**.
+- Implemented metadata-only character create/list/get/edit/archive JSON API. Shared browser-safe authoring schemas own name/description/body type and revision inputs; manifest metadata reuses the same fields without changing generated content schemas. Domain service owns validation/defaults/conflict classification; repositories own conditional edit/archive persistence; routes only dispatch through bounded transport/error handling. No migration required.
+- New identities have unselected fighting style/no power, not fabricated executable abilities. Creative-choice catalog/inputs are intentionally incomplete. Archive is non-destructive and never unpublishes; frozen snapshots/approvals/ready membership are unchanged (ADR-027). The API implements the planned JSON protocol, not same-app UI fetching; remote-function/async UI remains future work under ADR-026.
+- Mutations require exact same origin and JSON; strict shared schemas, a 16 KiB streamed body limit, fatal UTF-8/JSON rejection, safe revision bounds, no-store/nosniff responses and sanitized structured errors with request IDs. Added 27 real migrated-SQLite route/domain tests, including two-connection CAS conflicts, no resurrection, unchanged historical content, chunked body cancellation, validation and mutation protection. Updated setup and `docs/phase-5-authoring.md`; Phase 5 checklist remains incomplete.
+
+### Actual validation
+
+| Executed command | Actual result |
+|---|---|
+| `mise exec -- pnpm install --lockfile-only`, then `mise exec -- pnpm install --frozen-lockfile` | PASS: workspace manifest/lock links updated for explicit runtime contracts/Zod imports; no external version upgrades. |
+| `mise exec -- pnpm exec vitest run apps/studio/src/lib/server/characters.test.ts packages/contracts/src/contracts.test.ts packages/database/src/database.test.ts` | PASS: final **43 tests / 3 files** (initial run before the last two tests: 41). |
+| `mise exec -- pnpm check` | PASS: final TypeScript/Svelte, **0 errors / 0 warnings**. Initial check failed on exact optional properties and partial test event typings; corrected the new code/tests, then reran successfully. |
+| `mise exec -- pnpm test` | PASS: **170 tests / 10 files**. |
+| `mise exec -- pnpm build` | PASS: production studio and worker builds. |
+| `mise exec -- pnpm test:smoke` | PASS: existing real built HTTP publication/security/history/corruption/operator and studio/worker lifecycle regression; not a new authoring browser E2E. |
+| `mise exec -- pnpm content:schema`, then `git diff --exit-code -- packages/contracts/schema` | PASS: generated content schemas unchanged after metadata reuse. |
+| `mise exec -- pnpm lint` | FAIL: only existing explicit-any errors in `packages/contracts/src/create-fixtures.ts:68–69`; left unchanged. |
+
+### Remaining acceptance and blockers
+
+- Phase 5 is **in progress**, not accepted. Remaining: creative choices; bounded decoded upload/private previews/immutable originals; library/wizard/editor; version/history/animation previews; seeded review/approval/publication UI; honest unavailable job UI boundaries; Playwright keyboard/a11y/mutation coverage. Next bounded slice can add same-app library/editor UI over this service or separately implement upload persistence/limits.
+- No new browser, manual, graphical, Godot or remote CI tests run in this increment. Prior Phase 4 verification remains recorded below; Phase 3 manual acceptance is still deferred. No claim of full CRUD UI, upload-to-generation E2E or Phase 5 acceptance.
+- No blocking dependency for the next metadata UI slice identified. Existing lint failures remain. Factory/job execution, real AI and offline bundles are explicitly not implemented or advanced (Phases 6/7/8).
+- Final `mise exec -- pnpm format:check` and `git diff --check`: PASS. Targeted Prettier formatting was run only on this increment's code/docs paths. Final Git status still contains all initially observed tracked/untracked paths; `docs/phase-3-playtest.md` also gained further external changes during this session and was not edited by this increment.
+
+## Phase 4 — data-only second-character live-addition proof (2026-10-23)
+
+### Scope and implementation
+
+- Inspected initial `git status --short --branch` first. At that point the working tree had existing edits to arena/game tests, Phase 4 docs/plans, setup and plan 06. Preserved them without reset/discard. During validation those previously modified paths became part of the observed `HEAD` (`726795a Finalising phase 4`, also at `origin/main`); this session did not run a commit command. The final status also contains a separate `docs/phase-3-playtest.md` modification, preserved and not made or modified as part of this task. This task's implementation changes are the test-only seed/harness, one new test, and Phase 4 docs/roadmap/progress.
+- Read AGENTS, plans README/03/04/09/11/12/14, Phase 4 API/publication/repository/runtime/arena/cache guides, and ADR-019–026. Inspected source fingerprint coverage, real built-studio publication harness, arena polling/Refresh, fixtures and existing hostile-peer/cache/published arena regressions. Approach: start isolated real SQLite/studio with only Sprout published, then add/publish Comet after the arena has discovered its one-entry catalog, invoke the exact production poll/candidate activation path, and prove selection plus gameplay while unchanged game source fingerprints are checked.
+- Test-only runtime seeding now has an `add-comet` action; initial harness setup publishes Sprout only. New `apps/game/tests/published_addition.gd` checks initial one-entry discovery/playability, old catalog retention before polling, release/catalog replacement after Comet publication, selectable generic-fighter load, movement, starting a match against Sprout, data-driven damage, and shared pinned release. It is deterministic and bounded; it calls the poll handler directly rather than sleeping for the five-second timer. The actual periodic cadence and busy-tick policies remain covered in the existing arena suite.
+- The real built-studio harness runs addition proof before the existing published-factory and published-arena regressions. Subsequent existing regressions start with both members and retain hostile-peer/cache and real published arena coverage. Fingerprints verify gameplay/project/scene sources unchanged through publication/tests. No gameplay implementation, fixture asset, contract or policy changed; no ADR change required. Marked the Phase 4 and plan 09 second-character checklist items complete and updated arena documentation. Phase 5 remains unauthorized.
+
+### Actual validation
+
+| Executed command | Actual result |
+|---|---|
+| `mise exec -- pnpm test:godot:api` | PASS: builds studio/worker, then verifies Godot 4.7.2.stable.arch_linux.ed1daf0bf and matching official Linux templates. Startup 3 + gameplay 57 + resources 26 + hostile-peer content 102 + cache 69 + live-addition 13 + real published factory 47 + published arena 88 = **405 assertions**. Real built studio/SQLite approval/publication; source fingerprint check passed; existing cache, hostile-peer and arena regressions retained. |
+| `mise exec -- pnpm test` | PASS: 143 tests / 9 files. |
+| `mise exec -- pnpm check` | PASS: TypeScript/Svelte, 0 errors / 0 warnings. |
+| `mise exec -- pnpm format:check` | PASS. |
+| `git diff --check` | PASS. |
+
+An initial live-addition test attempt exposed test assumptions about the pre-load label and the arena replacing its player on Start; corrected only the test to identify Comet by contract ID and reacquire the active player after Start. The final complete integration run above passed. Existing expected native malformed-PNG and malformed-Unicode diagnostics are still emitted by their negative tests; no broad Godot error allowlist was added.
+
+### Status and limits
+
+- Phase 4 checklist acceptance is now verified locally, including adding new catalog membership after discovery (not merely revising an existing member). This does not authorize Phase 5; wait for explicit user phase authorization.
+- Phase 3 manual graphical shadow/Y-sort/feel and active-AI human playthrough remain deferred and **not passed**. No offline bundle/export or manual visual acceptance is claimed. Existing lint findings are unrelated and were not changed.
+
 ## Studio framework guidance update (2026-10-23)
 
 - Updated plan 06 and `docs/setup.md` to prefer Svelte experimental async support and remote functions for same-app studio loading, queries and mutations wherever applicable. Kept stable public HTTP contracts and unsupported streaming/binary interactions on explicit routes; documented experimental API compatibility/testing cautions.
@@ -55,9 +111,11 @@
 - Phase 4 remains incomplete; Phase 5 not authorized. Phase 3 graphical/active-AI acceptance remains deferred, not passed. No fallback, offline bundle, authoring UI, or unrelated combat/lint work.
 
 ## Current phase
-**Phase 4 — in progress, review/approval, publication, published-only content API, Godot repository/validation, bounded runtime/factory, explicit API arena and opt-in bounded validated PNG disk cache increments locally verified. Phase 3 is NOT fully accepted.** Phases 0–2 retain their previously recorded local status.
+**Phase 5 — explicitly authorized and in progress; initial metadata authoring API locally verified, full acceptance incomplete. Phase 4 acceptance remains locally verified, including data-only live addition after catalog discovery. Phase 3 manual graphical shadow/Y-sort/feel and human active-AI acceptance remain deferred, not passed.** Phases 0–2 retain their previously recorded local status.
 
 ## Phase-gate exception — explicit user authorization
+The latest user instruction explicitly authorizes **Phase 5**, preserving the deferred Phase 3 acceptance requirements. The following records the earlier Phase 4-only authorization, not the current gate.
+
 The user explicitly authorized starting **Phase 4 only** while deferring Phase 3 manual graphical playtesting. This supersedes the earlier “Do not begin Phase 4” instructions below, not Phase 3 acceptance requirements. Manual shadow/Y-sort/feel review and a human active-AI playthrough remain unchecked in [docs/phase-3-playtest.md](../docs/phase-3-playtest.md). **Phase 5 is not started.**
 
 ## Latest Phase 4 increment — opt-in bounded validated PNG disk cache (2026-10-23)
@@ -578,3 +636,50 @@ No SpriteFrames/fixture art runtime rendering, player input loop, shadow/elevati
 
 #### Next actions
 Continue Phase 3 only: bind input/state and rendered sprite animation from fixture; implement enemy approach/attack and bounded waves; bind health HUD/selection; extend deterministic tests and record manual visual limitations. Then run Godot and broad relevant checks. Do not start Phase 4.
+
+## Phase 3 manual acceptance — user-confirmed checkpoint
+
+- The user launched the pinned Godot project and confirmed Sprout's idle checkerboard artwork and foot alignment looked as expected. This records only that observation; remaining visual/gameplay checks, including both active-AI waves, remain unverified.
+- No code changed and no tests were run. Existing working-tree changes were preserved.
+
+- Additional manual confirmation: user reports Comet's sprite is visible and looks different from Sprout. Foot alignment and other Comet animation states were not confirmed.
+
+- Additional manual confirmation: user reports Comet changes draw order appropriately when passing vertically in front of and behind an enemy.
+
+- Additional manual confirmation: user confirms a standing Space jump raises and lands the fighter while the shadow remains beneath the ground position and shrinks.
+
+- Additional manual confirmation: user reports Comet visibly changes from idle to walk and back when moved and stopped.
+
+- Additional manual confirmation: user reports Comet visibly shows its attack state when J is pressed.
+
+- Additional manual confirmation: user reports diagonal movement appears about as fast as straight movement.
+
+- Additional manual confirmation: user reports Comet's sprite faces left and right when turned in each direction.
+
+- Additional manual confirmation: user reports attacks reach in front of Comet facing either direction and jump direction works.
+
+- Additional manual confirmation: user reports moving while jumping does not cause unintended depth drift.
+
+- Additional manual confirmation: user confirms light attack is prevented while Comet is airborne.
+
+- Additional manual confirmation: user reports Comet's health bar is visible and readable during the fight.
+
+- Additional manual confirmation: user reports enemy AI approaches Comet and attacks at close range.
+
+- Additional manual feedback: user reports visible changes during combat exchanges; the individual attack/hit cues were not described separately.
+
+- Manual acceptance concern: user reports active combat is very difficult, almost impossible to win. No combat tuning or code changes were made. Wave-completion acceptance remains unverified.
+
+- Manual acceptance blocker: user reports they could not get past wave one, and describes combat as very difficult/almost impossible to win. Neither wave completion nor a complete two-wave run is confirmed. No tuning or code change.
+
+- Additional manual confirmation: user reports restarting returns Comet to full health and wave one.
+
+- Additional manual confirmation: user reports pressing Space during the active run jumps without triggering Start or restarting.
+
+- Additional manual confirmation: user reports an enemy hit decreases Comet's health and produces a hurt response.
+
+- Additional manual confirmation: user reports reaching zero health shows the loss/knockout state and restart option.
+
+- Manual active-AI progress: user reports completing wave one and reaching wave two after restart. Wave-two completion remains unverified; full run is not yet accepted.
+
+- Manual active-AI update: user reports combat works better now but says they could not defeat both; the exact wave-two outcome and full-run completion are not confirmed. Keep wave-two/full-run acceptance unchecked.

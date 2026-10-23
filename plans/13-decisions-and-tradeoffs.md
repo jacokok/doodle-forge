@@ -98,6 +98,12 @@ Installed engine `4.7.2.stable.arch_linux.ed1daf0bf` matches official Linux debu
 **Alternatives rejected:** retain load/form actions as the default for all studio data interactions; force remote functions onto public protocols or unsupported payloads.
 **Consequences:** experimental APIs may change across pinned framework upgrades; isolate their usage, test serialization/validation/errors/pending UI, and reevaluate compatibility on upgrades. This is implementation guidance, not a claim that remote functions are already enabled or implemented. See plan 06 and docs/setup.md.
 
+### ADR-027 — Authoring archive does not revoke published content (accepted, Phase 5)
+**Decision:** metadata CRUD edits only mutable character identities; DELETE archives with an expected edit revision, hides the identity from authoring reads and prevents further edits. It never deletes or rewrites frozen snapshots, approval decisions or ready release membership. The initial slice accepts name/description/body type only; new identities explicitly retain unselected fighting style and no power until creative-choice support exists. Explicit JSON routes implement the planned API; future same-app UI continues to prefer remote functions over the same domain service (ADR-026).
+**Rationale:** hiding an authoring identity must not become an implicit publication rollback or loss of history. No executable ability or generated version should be fabricated by metadata CRUD.
+**Alternatives rejected:** hard deletion, implicit release revocation, editing frozen metadata, accepting arbitrary executable creative configuration, or treating this API slice as completed UI/factory support.
+**Consequences:** archived characters can remain playable in historical/current ready releases. Unpublication/retention requires separately specified deliberate operations. No new migration or workflow is introduced. See docs/phase-5-authoring.md and plan 14.
+
 ## Dependencies
 Plans 01–11 contain detailed consequences. Roadmap orders implementations; progress records evidence. External source availability affects research, not local test status.
 

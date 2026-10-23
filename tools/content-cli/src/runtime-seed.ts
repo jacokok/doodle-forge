@@ -23,7 +23,20 @@ try {
     new ReleaseRepository(connection),
     path.join(config.storageRoot, 'published'),
   );
-  if (process.argv[2] === 'advance') {
+  if (process.argv[2] === 'add-comet') {
+    const seed = await reviews.seedFixture('comet');
+    if (!seed.manifestSha256) throw new Error('Fixture approval missing');
+    await publisher.publish({
+      versionId: seed.versionId,
+      expectedManifestSha256: seed.manifestSha256,
+      sourceDirectory: fileURLToPath(
+        new URL(
+          '../../../packages/contracts/fixtures/comet/v1',
+          import.meta.url,
+        ),
+      ),
+    });
+  } else if (process.argv[2] === 'advance') {
     const source = fileURLToPath(
       new URL(
         '../../../packages/contracts/fixtures/sprout/v1',
@@ -55,7 +68,7 @@ try {
       sourceDirectory: directory,
     });
   } else {
-    for (const name of ['sprout', 'comet'] as const) {
+    for (const name of ['sprout'] as const) {
       const seed = await reviews.seedFixture(name);
       if (!seed.manifestSha256) throw new Error('Fixture approval missing');
       await publisher.publish({

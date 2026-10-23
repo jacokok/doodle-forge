@@ -45,7 +45,7 @@ Contract/hashes (04), approvals and release tables (05), fighter factory (03), A
 - [ ] Implement shared validator and crash-safe idempotent publisher with reconciliation.
 - [ ] Seed approved fixtures through explicit fixture approval records, not production gate bypass.
 - [ ] Implement API routes/ETags and repository, decoder, cache, polling and coordinated manual refresh.
-- [ ] Prove second character loads without scene/script changes.
+- [x] Prove second character loads without scene/script changes (built-studio data-only live-addition test; see plan 14).
 - [ ] Implement bundle exporter/local repository and parity tests in Phase 8.
 
 ## Acceptance criteria

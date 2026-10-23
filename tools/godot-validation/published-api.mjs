@@ -52,7 +52,7 @@ export async function publishedApiTest(binary) {
   try {
     for (const args of [
       ['--import', 'tsx', 'tools/content-cli/src/index.ts', 'migrate'],
-      ['--import', 'tsx', 'tools/content-cli/src/runtime-seed.ts'],
+      ['--import', 'tsx', 'tools/content-cli/src/runtime-seed.ts', 'initial'],
     ]) {
       const result = await promisify(execFile)(process.execPath, args, {
         env,
@@ -63,26 +63,22 @@ export async function publishedApiTest(binary) {
     }
     studio = launch(process.execPath, ['apps/studio/build/index.js'], { env });
     await waitForHealth(`${env.ORIGIN}/api/health`, studio);
-    const result = await promisify(execFile)(
-      binary,
-      [
-        '--headless',
-        '--path',
-        resolve('apps/game'),
-        '--script',
-        'res://tests/published_api.gd',
-      ],
-      { env, timeout: 30000 },
-    );
-    process.stdout.write(result.stdout);
-    process.stderr.write(result.stderr);
-    assert.doesNotMatch(result.stderr, /SCRIPT ERROR|ERROR:/);
-    assert.match(result.stdout, /"status":"passed"/);
     const saved = new Map();
     // A test-only coordination server. All content still comes from real studio.
     control = createServer(async (request, response) => {
       try {
-        if (request.url === '/advance') {
+        if (request.url === '/add-comet') {
+          await promisify(execFile)(
+            process.execPath,
+            [
+              '--import',
+              'tsx',
+              'tools/content-cli/src/runtime-seed.ts',
+              'add-comet',
+            ],
+            { env, timeout: 15000 },
+          );
+        } else if (request.url === '/advance') {
           await promisify(execFile)(
             process.execPath,
             [
@@ -141,6 +137,45 @@ export async function publishedApiTest(binary) {
       }
     });
     await new Promise((resolve) => control.listen(0, '127.0.0.1', resolve));
+    const addition = await promisify(execFile)(
+      binary,
+      [
+        '--headless',
+        '--path',
+        resolve('apps/game'),
+        '--script',
+        'res://tests/published_addition.gd',
+        '--',
+        `--content-api=${env.ORIGIN}`,
+      ],
+      {
+        env: {
+          ...env,
+          DOODLEFORGE_ARENA_CONTROL: `http://127.0.0.1:${control.address().port}`,
+        },
+        timeout: 30000,
+      },
+    );
+    process.stdout.write(addition.stdout);
+    process.stderr.write(addition.stderr);
+    assert.doesNotMatch(addition.stderr, /SCRIPT ERROR|ERROR:/);
+    assert.match(addition.stdout, /"suite":"published_addition"/);
+    assert.match(addition.stdout, /"status":"passed"/);
+    const result = await promisify(execFile)(
+      binary,
+      [
+        '--headless',
+        '--path',
+        resolve('apps/game'),
+        '--script',
+        'res://tests/published_api.gd',
+      ],
+      { env, timeout: 30000 },
+    );
+    process.stdout.write(result.stdout);
+    process.stderr.write(result.stderr);
+    assert.doesNotMatch(result.stderr, /SCRIPT ERROR|ERROR:/);
+    assert.match(result.stdout, /"status":"passed"/);
     const arena = await promisify(execFile)(
       binary,
       [

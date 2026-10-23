@@ -1,6 +1,6 @@
 # Local foundation setup
 
-The foundation provides process/storage/database skeletons. Phase 3 adds fixture gameplay; Phase 4 adds [fixture review/approval](phase-4-review.md), [immutable publication services](phase-4-publication.md) and a [published-only content API/operator audit](phase-4-content-api.md). Godot API loading and character creation/generation remain future work. See [progress](../plans/14-progress.md) for evidence, phase-gate exceptions and remaining acceptance work.
+The foundation provides process/storage/database skeletons. Phase 3 adds fixture gameplay; Phase 4 adds [fixture review/approval](phase-4-review.md), [immutable publication services](phase-4-publication.md) and a [published-only content API/operator audit](phase-4-content-api.md). Phase 4 Godot API loading is locally verified; Phase 5 now provides a [metadata authoring JSON API](phase-5-authoring.md), not an authoring UI. Uploads and generation remain future work. See [progress](../plans/14-progress.md) for evidence, phase-gate exceptions and remaining acceptance work.
 
 ## Prerequisites and installation
 
@@ -23,7 +23,7 @@ Studio: `http://127.0.0.1:5173`, health: `/api/health`. Worker health: `http://1
 
 ## Database baseline and recovery
 
-The baseline has `characters`, `character_versions`, `abilities`, and `character_abilities`, with real FKs, unique versions, checked JSON/status/revisions and WAL/5-second busy timeout. `CharacterRepository` supplies persistence and optimistic rename. Phase 4 migration 0001 adds frozen manifest bytes/hashes, append-only approvals and immutability guards; 0002 adds immutable releases/entries and the active-release pointer. Asset/original references and workflow tables still await **new migrations in their consuming phases**.
+The baseline has `characters`, `character_versions`, `abilities`, and `character_abilities`, with real FKs, unique versions, checked JSON/status/revisions and WAL/5-second busy timeout. `CharacterRepository` supplies persistence, optimistic metadata updates and non-destructive archive. The Phase 5 domain service validates shared metadata contracts; authoring changes never rewrite frozen versions or ready releases. Phase 4 migration 0001 adds frozen manifest bytes/hashes, append-only approvals and immutability guards; 0002 adds immutable releases/entries and the active-release pointer. Asset/original references and workflow tables still await **new migrations in their consuming phases**.
 
 `pnpm db:seed` creates one deterministic synthetic authoring identity, without art, versions, abilities, approvals or releases. Repeating it does not overwrite edits. `content:seed` is a separate explicit Phase 4 fixture-review/approval command; it does not publish game content.
 

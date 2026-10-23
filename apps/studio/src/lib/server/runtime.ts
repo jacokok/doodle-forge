@@ -4,9 +4,11 @@ import {
   assertDatabaseReady,
   openDatabase,
   ReleaseRepository,
+  CharacterRepository,
 } from '@doodleforge/database';
 import { PublishedContentService } from '@doodleforge/content-publisher/content';
 import path from 'node:path';
+import { CharacterService } from './characters.js';
 
 let connection: ReturnType<typeof openDatabase> | undefined;
 
@@ -36,6 +38,12 @@ export function checkDatabase() {
   initializeRuntime();
   if (!connection) throw new Error('Runtime unavailable during build');
   connection.sqlite.prepare('SELECT 1').get();
+}
+
+export function characterService() {
+  initializeRuntime();
+  if (!connection) throw new Error('Runtime unavailable during build');
+  return new CharacterService(new CharacterRepository(connection));
 }
 
 export function publishedContent() {

@@ -2,9 +2,9 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
+import { characterMetadataSchema } from './authoring.js';
 
 const uuid = z.string().uuid();
-const boundedText = (max: number) => z.string().trim().max(max);
 const point = z
   .object({
     x: z.number().finite().min(0).max(256),
@@ -95,9 +95,7 @@ export const characterManifestSchema = z
     schemaVersion: z.literal(1),
     characterId: uuid,
     characterVersion: z.number().int().positive(),
-    name: z.string().trim().min(1).max(80),
-    description: boundedText(2000),
-    bodyType: z.enum(['humanoid', 'quadruped', 'floating', 'other']),
+    ...characterMetadataSchema.shape,
     artStyle: z.enum(['original', 'cartoon', 'pixel']),
     stats: z
       .object({
