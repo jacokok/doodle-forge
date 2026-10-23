@@ -1,6 +1,35 @@
 # 14 — Persistent implementation progress
 
-## Latest Phase 4 increment — coordinated manual catalog refresh (2026-10-23)
+## Studio framework guidance update (2026-10-23)
+
+- Updated plan 06 and `docs/setup.md` to prefer Svelte experimental async support and remote functions for same-app studio loading, queries and mutations wherever applicable. Kept stable public HTTP contracts and unsupported streaming/binary interactions on explicit routes; documented experimental API compatibility/testing cautions.
+- Added ADR-026. No application code or framework configuration changed; remote functions are guidance, not an implemented feature claim.
+- Validation: documentation review; `mise exec -- pnpm format:check` PASS; `git diff --check` PASS. No application tests run because no code/config changed.
+
+## Latest Phase 4 increment — safe-boundary automatic catalog polling (2026-10-23)
+
+### Policy and implementation
+
+- First command was `git status --short --branch`: clean `main` tracking `origin/main`. Preserved the existing manual-refresh increment; no reset, discard or commit. Read AGENTS, plans README/03/04/09/11/12/13/14, all requested Phase 4 guides and ADR-019–024, then inspected arena, repository, built-studio harness and current refresh tests. Stated the bounded approach before editing.
+- API mode now polls every five seconds using an arena-owned Timer. Timer ticks outside gameplay physics and are best-effort: if loading or a match is active, that tick is dropped, not queued. The existing repository snapshot is never mutated. Eligible poll and explicit Refresh share the independent candidate repository/factory/catalog/player preparation and atomic safe-boundary activation path; the shared loading gate rejects overlap.
+- Empty catalogs and candidate errors retain prior repository/release/catalog/selection/player and report an explicit error; no fallback or revision substitution. A subsequent eligible tick or explicit Refresh can retry. Fixed cadence is used (no exponential backoff); timer lifetime ends with the arena. Default fixture mode and opt-in cache unchanged.
+- Updated API/repository/arena docs, plan 09, roadmap and ADR-025. Targeted integration assertions cover five-second cadence, poll/manual rejection during loading and combat, failure retention through the real built-studio catalog-corruption path, and initial polling failure without fixture fallback. Both fixture characters remain prepublished: this does not prove adding a new character to an active catalog.
+
+### Actual validation
+
+| Executed command | Actual result |
+|---|---|
+| `mise exec -- node tools/godot-validation/run.mjs --published-api` | PASS: Godot 4.7.2.stable.arch_linux.ed1daf0bf and matching official Linux templates; 3 startup + 57 gameplay + 26 resources + 102 hostile-peer content + 69 cache + 47 real published factory + 88 real published arena assertions (392 total by sum). Built studio/SQLite/publication and existing cache/hostile-peer and real arena regressions retained. |
+| `mise exec -- pnpm test` | PASS: 143 tests / 9 files |
+| `mise exec -- pnpm check` | PASS: TypeScript/Svelte; 0 errors / 0 warnings |
+| `mise exec -- pnpm format:check` | PASS |
+| `git diff --check` | PASS |
+
+### Remaining status
+
+- Polling/manual-refresh coordination is implemented and headless tested; broader data-only live-addition proof remains unchecked. Phase 4 remains incomplete; Phase 5 unauthorized. Phase 3 graphical/active-AI acceptance remains deferred, not passed. No offline bundle, fallback, authoring UI or unrelated combat/lint work.
+
+## Previous Phase 4 increment — coordinated manual catalog refresh (2026-10-23)
 
 ### Policy and implementation
 

@@ -7,6 +7,7 @@ const Factory = preload("res://scripts/content/character_factory.gd")
 const DiskCache = preload("res://scripts/content/asset_disk_cache.gd")
 const WAVES := [2, 3]
 const ACTIVE_CAP := 2
+const CATALOG_POLL_INTERVAL_SECONDS := 5.0
 var player
 var enemies: Array[Node] = []
 var selected := 0
@@ -55,6 +56,12 @@ func _ready() -> void:
 		$HUD/Refresh.visible = true
 		_repository = ApiRepository.new(self, api_url, DiskCache.new() if content_cache else null)
 		_factory = Factory.new(_repository)
+		var poll_timer := Timer.new()
+		poll_timer.name = "CatalogPollTimer"
+		poll_timer.wait_time = CATALOG_POLL_INTERVAL_SECONDS
+		poll_timer.timeout.connect(_poll_catalog)
+		add_child(poll_timer)
+		poll_timer.start()
 		_discover_api()
 		return
 	selection.add_item("Sprout")
@@ -179,12 +186,24 @@ func _api_failure(code: String) -> void:
 	_finish_loading()
 	status.text = "Content error: %s · Start to retry (same release; no fixture fallback)" % code
 
-func refresh_catalog() -> void:
-	# Only a deliberate user action at an idle, completed, or lost-match boundary.
-	# The old pinned repository and player stay authoritative until candidate readiness.
+func _poll_catalog() -> void:
+	# A missed busy tick is dropped, never queued; the next timer tick may retry.
 	if not api_mode or _loading or running:
 		return
+	await _replace_catalog()
+
+func refresh_catalog() -> void:
+	# Manual Refresh shares the poll's gate and candidate activation policy.
+	if not api_mode or _loading or running:
+		return
+	await _replace_catalog()
+
+func _replace_catalog() -> void:
+	# The old pinned repository and player stay authoritative until candidate readiness.
+	if _loading or running:
+		return
 	_set_loading("Refreshing published catalog…")
+	var retained_message := "previous catalog retained" if not _entries.is_empty() else "no catalog installed"
 	var candidate_repository: RefCounted = ApiRepository.new(self, api_url, DiskCache.new() if content_cache else null)
 	var candidate_factory: RefCounted = Factory.new(candidate_repository)
 	var candidate: Dictionary = await candidate_repository.list_characters()
@@ -192,14 +211,14 @@ func refresh_catalog() -> void:
 		_finish_loading()
 		content_state = "ready" if not _entries.is_empty() else "error"
 		content_error = candidate.error
-		status.text = "Refresh failed: %s · previous catalog retained" % candidate.error
+		status.text = "Refresh failed: %s · %s" % [candidate.error, retained_message]
 		return
 	var candidate_entries: Array = candidate.value.characters.duplicate(true)
 	if candidate_entries.is_empty():
 		_finish_loading()
 		content_error = "empty_catalog"
 		content_state = "ready" if not _entries.is_empty() else "error"
-		status.text = "Refresh failed: empty_catalog · previous catalog retained"
+		status.text = "Refresh failed: empty_catalog · %s" % retained_message
 		return
 	var previous_id := ""
 	if selected >= 0 and selected < _entries.size():
@@ -219,7 +238,7 @@ func refresh_catalog() -> void:
 		_finish_loading()
 		content_state = "ready" if not _entries.is_empty() else "error"
 		content_error = replacement.error
-		status.text = "Refresh failed: %s · previous catalog retained" % replacement.error
+		status.text = "Refresh failed: %s · %s" % [replacement.error, retained_message]
 		return
 	# Candidate fighter is complete but remains hidden until the single activation boundary.
 	var new_player: Node = replacement.value

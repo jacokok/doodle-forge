@@ -49,6 +49,8 @@ pnpm test:e2e
 pnpm test:godot
 ```
 
+Studio UI/server guidance: prefer Svelte's experimental async support and remote functions for same-app data loading, queries and mutations wherever applicable; see [plan 06](../plans/06-sveltekit-studio.md) for boundaries and compatibility/testing requirements. Keep explicit HTTP routes for stable external/public protocols and unsupported binary/streaming cases.
+
 `check` checks strict TS plus Svelte; `test` uses isolated temporary SQLite/filesystems. `build` emits adapter-node output and a bundled worker (native SQLite remains external). `test:smoke` migrates temporary storage, launches **built** processes, checks health/private-file refusal, restarts worker, tests SIGTERM, then starts the actual dev supervisor and checks SIGINT child cleanup. `test:e2e` checks the built shell/keyboard navigation with Chromium and a separate ignored DB. It is not a character factory E2E. CI has separate TS, browser and Godot jobs with frozen installation; remote CI has not been executed by the local agent.
 
 Run built processes from the checkout after migrating:

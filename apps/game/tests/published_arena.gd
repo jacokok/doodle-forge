@@ -40,6 +40,7 @@ func run() -> void:
 	root.add_child(arena)
 	arena.set_physics_process(false)
 	check(arena.api_mode and arena.content_state == "discovering", "explicit_api_launch_discovery")
+	check(is_equal_approx(arena.CATALOG_POLL_INTERVAL_SECONDS, 5.0), "catalog_poll_cadence_five_seconds")
 	check(arena.selection.disabled and arena.get_node("HUD/Start").disabled and arena.player == null, "discovery_controls_no_fixture")
 	await settled(arena)
 	check(arena.content_state == "ready" and arena.selection.item_count == 2, "published_arena_selectable_catalog")
@@ -52,7 +53,8 @@ func run() -> void:
 		check(arena._loading and arena.content_state == "loading" and arena.player == null, "selection_loading_no_partial_player")
 		var held: int = arena.selected
 		arena.refresh_catalog()
-		check(arena.selected == held and arena._loading, "refresh_rejected_during_selection_load")
+		arena._poll_catalog()
+		check(arena.selected == held and arena._loading, "refresh_and_poll_rejected_during_selection_load")
 		arena.select_character(1 - index)
 		arena.start_run()
 		arena.maintain_waves()
@@ -91,7 +93,8 @@ func run() -> void:
 	check(arena.running and arena.spawned == 2 and arena.enemies.size() == 2, "api_initial_wave_cap")
 	var active_player = arena.player
 	arena.refresh_catalog()
-	check(arena._loading == false and arena.player == active_player and arena.release_id == release, "refresh_rejected_during_match")
+	arena._poll_catalog()
+	check(arena._loading == false and arena.player == active_player and arena.release_id == release, "refresh_and_poll_rejected_during_match")
 	check(arena.player.maximum_health == 100 and arena.player.get_meta("character_version") == 1, "reset_keeps_old_revision_after_publication")
 	assert_release(arena, release)
 	var enemy = arena.enemies[0]
@@ -154,7 +157,7 @@ func run() -> void:
 	var retained_player: Node = arena.player
 	var retained_release: String = arena.release_id
 	await control("corrupt-index")
-	await arena.refresh_catalog()
+	await arena._poll_catalog()
 	check(arena.player == retained_player and arena.release_id == retained_release and arena.selection.item_count == 2, "failed_refresh_retains_coherent_old_state")
 	check(arena.content_error == "http_503" and arena.status.text.contains("previous catalog retained"), "failed_refresh_explicit_error")
 	await control("restore-index")
@@ -174,6 +177,8 @@ func run() -> void:
 	await settled(bad)
 	check(bad.content_state == "error" and bad.content_error == "http_503" and bad.player == null and bad.selection.item_count == 0, "discovery_failure_no_fixture_catalog")
 	check(bad.selection.disabled and not bad.get_node("HUD/Start").disabled, "failed_discovery_can_retry")
+	await bad._poll_catalog()
+	check(bad.player == null and bad.selection.item_count == 0 and bad.status.text.contains("no catalog installed"), "initial_poll_failure_no_fixture_fallback")
 	await control("restore-index")
 	await bad.start_run()
 	check(bad.content_state == "ready" and bad.selection.item_count == 2 and bad.player != null, "discovery_retry_recovers")
