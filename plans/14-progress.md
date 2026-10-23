@@ -1,10 +1,50 @@
 # 14 — Persistent implementation progress
 
 ## Current phase
-**Phase 4 — in progress, first review/approval increment locally verified. Phase 3 is NOT fully accepted.** Phases 0–2 retain their previously recorded local status.
+**Phase 4 — in progress, review/approval and publication service increments locally verified. Phase 3 is NOT fully accepted.** Phases 0–2 retain their previously recorded local status.
 
 ## Phase-gate exception — explicit user authorization
 The user explicitly authorized starting **Phase 4 only** while deferring Phase 3 manual graphical playtesting. This supersedes the earlier “Do not begin Phase 4” instructions below, not Phase 3 acceptance requirements. Manual shadow/Y-sort/feel review and a human active-AI playthrough remain unchecked in [docs/phase-3-playtest.md](../docs/phase-3-playtest.md). **Phase 5 is not started.**
+
+## Latest Phase 4 increment — immutable publication service (2026-10-22)
+
+### Inspection and scope
+Verified clean `main` at `2e76932`, matching local `origin/main`; no newer/unrelated changes existed. Read AGENTS and plans README/03/04/05/09/11/12/14 before implementation. Preserved all recovered progress history below. No Phase 5 work, generic fighter/gameplay edits, contract duplication, earlier migration rewrites, original-upload mutation, or engine-pin changes. This implements the existing filesystem-first/DB-activation design, not a new architectural decision.
+
+### Implemented and verified
+- `packages/content-publisher/src/publication.ts`: selected frozen snapshot/latest approval check; bounded confined asset reads and exact hash/length checks; full Sharp 0.34.5 PNG decoding with dimensions/RGBA/page/pixel limits; exclusive same-root staging writes, file/directory fsync, immutable package rename and exact-existing-package validation. The original review implementation moved unchanged except helper exports into `review.ts`; package exports remain compatible.
+- Additive migration `0002_absent_morg.sql`, Drizzle schema/snapshot, `ReleaseRepository`: preparing/ready/failed releases, immutable entries/history, singleton generation/pointer, SQL immutability/state guards. Activation transaction recomputes frozen manifest hashes, rechecks latest selected approval, inserts complete entries, marks publication and CAS-activates atomically. CAS losers rebuild on latest state (eight-attempt bound), retaining both concurrent character selections. Exact active duplicate requests reuse the ready release.
+- Reconciliation service, callable only with publishers stopped: marks interrupted preparations failed without approval guessing; audits staging and unreferenced packages; reports ready-file corruption; deletes nothing and never auto-activates. Explicit retry safely reuses identical orphan packages. Not yet wired to application startup/operator CLI.
+- Ready-reference repository lookup is the authority boundary for future routes. No API route/static storage exposure was introduced. Later revocation blocks selecting that revision anew without rewriting historical/inherited ready releases.
+- 16 new publisher tests: seven interruption boundaries, post-commit retry, transaction rollback, source corruption, immutable existing-package mismatch, header-valid but undecodable approved PNG, duplicate/concurrent requests, separate-connection CAS conflict/rebuild, activation-time revocation, orphan reuse/audit and corruption reporting. Full suite uses real SQLite, filesystem and Sharp; not an actual OS/power-cut test.
+- Documentation: [publication boundary/recovery](../docs/phase-4-publication.md), review boundary updated. Second Phase 4 roadmap item checked only for this verified service/persistence slice; Phase 4 remains incomplete.
+
+### Actual commands and results
+Every pnpm command below used `mise exec node@22.23.3 -- npm exec --yes --package=pnpm@10.34.7 -- pnpm <command>`.
+
+| Executed command/check | Actual result |
+|---|---|
+| `--filter @doodleforge/content-publisher add sharp@0.34.5 --save-exact`, then `install --frozen-lockfile` | PASS; exact dependency/lock updated. pnpm warns Sharp lifecycle script is ignored; installed platform binary loaded and all real decoding tests passed without enabling scripts |
+| `db:generate`, then `db:generate` recheck | PASS: generated additive 0002; recheck reports no schema changes; 0000/0001 untouched |
+| `test` | PASS: **55 tests / 6 files** (39 existing + 16 publisher tests) |
+| `check` | PASS: strict TypeScript; Svelte 0 errors/0 warnings |
+| `build`, then `test:smoke` | PASS: studio/worker builds; migrated temp DB, actual health/private-storage 404, restart/signals/dev cleanup |
+| `test:godot` with documented `/tmp/doodle-godot` overrides | PASS: engine **and both actual templates** `4.7.2.stable.official.ed1daf0bf`; **3 startup + 57 gameplay assertions**. Phase 3 regression only, not Phase 4 runtime loading |
+| Final `test`, `format:check`, `git diff --check` after documentation and stronger old/new release fault assertions | PASS: 55 tests/6 files; formatting/whitespace clean |
+| `git diff --exit-code -- packages/database/migrations/0000_zippy_lord_hawal.sql packages/database/migrations/0001_dusty_wind_dancer.sql apps/game packages/contracts` | PASS: earlier migrations, generic gameplay and shared contracts unchanged |
+| `lint` | FAIL: only existing explicit-any errors in `packages/contracts/src/create-fixtures.ts:68–69`; unrelated source untouched |
+| Browser regression, manual graphical playtest, remote CI, desktop export, power-cut/other-OS durability | NOT RUN |
+
+Initial test run: 51 passed/1 failed because the corruption test tried to overwrite a correctly read-only published file. Corrected the test to deliberately chmod before simulating external corruption; subsequent suite passed (55 tests after added rollback/audit/history coverage). No production permission relaxation was made.
+
+### Remaining blockers / next actions
+1. Published-only bounded API/index/manifests/assets, historical ready releases and ETags; wire pre-publisher reconciliation into an appropriate startup/operator path without racing active publishers. Never static-serve storage or infer visibility from file existence. Ready corruption needs an explicit API failure/recovery path, not silent repair.
+2. Godot repository/API adapter and supported-v1 semantic parity, runtime PNG/atlas/SpriteFrames construction using the existing generic fighter, bounded validated cache, release pinning, refresh/polling and errors.
+3. Data-only second-character publication/selectability/playability through the API, without gameplay source/scene changes. Service tests publishing both fixtures are not this runtime proof.
+4. Phase 3 manual shadow/Y-sort/feel review and human active-AI playthrough remain **deferred, not accepted**. Phase 5 is not started. Existing lint errors remain separately scoped. Filesystem durability was exercised only on this Linux host; reconciliation is conservative/manual and no destructive GC is implemented.
+
+## Retained first Phase 4 increment evidence
+The following first-increment working-tree description, validation and next actions are historical; the latest publication service entry above supersedes publisher-not-yet-implemented statements.
 
 ## Phase 4 working-tree inspection and increment
 Initial inspection found the existing Phase 3 changes already uncommitted: project/main/fighter/gameplay/startup, the generic fighter scene, arena/enemy/fixture scripts and UIDs, playtest notes and plans 12/14. Preserved them all. The recovered Phase 0–2 history and initial Phase 3 snapshot below remain intact; earlier clean-tree descriptions refer to the previous session, not this one.

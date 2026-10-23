@@ -103,6 +103,62 @@ export const approvals = sqliteTable(
   ],
 );
 
+export const contentReleases = sqliteTable(
+  'content_releases',
+  {
+    id: text('id').primaryKey(),
+    status: text('status', {
+      enum: ['preparing', 'ready', 'failed'],
+    }).notNull(),
+    indexKey: text('index_key').notNull(),
+    indexSha256: text('index_sha256').notNull(),
+    indexJson: text('index_json').notNull(),
+    previousReleaseId: text('previous_release_id'),
+    expectedGeneration: integer('expected_generation').notNull(),
+    publishedAt: integer('published_at'),
+  },
+  (table) => [
+    check(
+      'release_status',
+      sql`${table.status} IN ('preparing','ready','failed')`,
+    ),
+    check('release_json', sql`json_valid(${table.indexJson})`),
+  ],
+);
+
+export const contentReleaseEntries = sqliteTable(
+  'content_release_entries',
+  {
+    releaseId: text('release_id')
+      .notNull()
+      .references(() => contentReleases.id),
+    characterId: text('character_id')
+      .notNull()
+      .references(() => characters.id),
+    characterVersionId: text('character_version_id')
+      .notNull()
+      .references(() => characterVersions.id),
+    manifestPath: text('manifest_path').notNull(),
+    manifestSha256: text('manifest_sha256').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.releaseId, table.characterId] })],
+);
+
+export const contentState = sqliteTable(
+  'content_state',
+  {
+    id: integer('id').primaryKey(),
+    activeReleaseId: text('active_release_id').references(
+      () => contentReleases.id,
+    ),
+    generation: integer('generation').notNull().default(0),
+  },
+  (table) => [
+    check('state_singleton', sql`${table.id} = 1`),
+    check('generation_positive', sql`${table.generation} >= 0`),
+  ],
+);
+
 export const abilities = sqliteTable(
   'abilities',
   {

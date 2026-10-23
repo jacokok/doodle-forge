@@ -57,6 +57,7 @@ export function assertDatabaseReady(connection: DatabaseConnection) {
   connection.sqlite.prepare('SELECT id FROM characters LIMIT 1').get();
   connection.sqlite.prepare('SELECT id FROM abilities LIMIT 1').get();
 }
+export { ReleaseRepository, type ReleaseEntry } from './releases.js';
 export { CharacterRepository } from './repositories.js';
 export { seedDevelopment } from './seed.js';
 export { SnapshotRepository, type ApprovalDecision } from './snapshots.js';

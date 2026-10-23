@@ -101,7 +101,7 @@ Contract precedes game and factory. API integration precedes authoring UI. To re
 
 **Checklist:**
 - [x] Implement frozen snapshots and hash-bound approval service used by fixture seed. Verified through additive migration/immutability/gate/seed tests and isolated CLI rerun (plan 14); approval alone is not publication.
-- [ ] Implement staging/hash validation/release activation and crash reconciliation.
+- [x] Implement staging/hash validation/release activation and crash reconciliation. Service/persistence slice locally verified (plan 14); reconciliation requires stopped publishers and is not yet wired to startup/CLI. No content API visibility is enabled.
 - [ ] Expose only published index/manifests/assets with ETags and bounded reads.
 - [ ] Implement repository interface and API adapter with supported-version checks.
 - [ ] Decode PNG runtime bytes, build atlas/SpriteFrames and instantiate existing fighter.

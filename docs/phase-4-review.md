@@ -1,6 +1,6 @@
 # Phase 4 — frozen fixture review (first increment)
 
-This implements review snapshots and approval persistence only. It does **not** publish a release, expose a content API, or load API characters in Godot. Phase 4 remains in progress; Phase 5 has not started.
+This document describes review snapshots and approval persistence only. The subsequent [publication service increment](phase-4-publication.md) can publish through an explicit service call; review/seed alone do **not** publish a release, expose a content API, or load API characters in Godot. Phase 4 remains in progress; Phase 5 has not started.
 
 ## Explicit development seed
 
@@ -17,16 +17,16 @@ The original `db:seed` is unchanged: foundation authoring metadata only. Storage
 
 ## Service and persistence boundaries
 
-- `packages/content-publisher/src/index.ts`: `ReviewService.freezePackage()` validates the shared contract/semantics and bounded package file reads, asset lengths, hashes, PNG headers/dimensions, and real-path confinement. Canonical UTF-8 manifest bytes are stored in SQLite; review never exposes files publicly. Full PNG decoding is still required in the upcoming publisher.
+- `packages/content-publisher/src/index.ts`: `ReviewService.freezePackage()` validates the shared contract/semantics and bounded package file reads, asset lengths, hashes, PNG headers/dimensions, and real-path confinement. Canonical UTF-8 manifest bytes are stored in SQLite; review never exposes files publicly. Full PNG decoding is additionally enforced by the publication service.
 - `ReviewService.decide()` requires a version ID, expected exact manifest hash, decision and actor label. Decisions are append-only; the latest per-version decision order determines authority (decision IDs remain UUIDs), not wall-clock timestamps or status alone. Reject/revoke removes authorization; a later explicit approval can restore it.
-- `ReviewService.requireApproval()` verifies the stored snapshot and latest hash-bound approval. It is not a reservation: the publisher must recheck approval/hash inside its future activation transaction to prevent races.
+- `ReviewService.requireApproval()` verifies the stored snapshot and latest hash-bound approval. It is not a reservation: the publisher must recheck approval/hash inside its activation transaction to prevent races.
 - `packages/database/src/snapshots.ts`: transactional persistence; exact duplicate freezes reuse the revision, conflicts require a new version. New reviews cannot inherit approval from another revision. SQL triggers protect frozen snapshot bytes/identity/provenance, frozen ability children, append-only approvals, and published version rows. Revoking a published revision does not rewrite its immutable history.
 - Migration `0001_dusty_wind_dancer.sql` is additive; the baseline is untouched. Legacy draft records remain intact and unapproved. Repository/domain APIs, not direct SQL, validate contract semantics and calculate hashes.
 
-Review freezes manifest/hash metadata, **not source asset files**. The future publisher must reread, fully decode and verify assets, write immutable packages first, and atomically activate a ready release. An approval alone never implies game visibility. Local filesystem access is trusted; this is not an authenticated public service.
+Review freezes manifest/hash metadata, **not source asset files**. The publication service rereads, fully decodes and verifies assets, writes immutable packages first, and atomically activates a ready release. An approval alone never implies game visibility. Local filesystem access is trusted; this is not an authenticated public service.
 
 ## Remaining gates
 
-Publisher staging/reconciliation/fault/concurrency tests, immutable API/ETags, Godot contract parity/repository/runtime decoding/cache/refresh, and data-only second-character publication proof remain unimplemented.
+Publisher staging/reconciliation/fault/concurrency tests are now implemented as a service slice (linked above). Immutable API/ETags and startup wiring, Godot contract parity/repository/runtime decoding/cache/refresh, and data-only second-character API playability proof remain unimplemented.
 
 Phase 3 manual graphical review and a human active-AI playthrough remain deferred by explicit user authorization, **not accepted**; see [phase-3-playtest.md](phase-3-playtest.md).
