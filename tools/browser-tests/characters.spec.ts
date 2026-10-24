@@ -19,6 +19,11 @@ test('keyboard create, structured validation, edit, deliberate archive and persi
   await expect(page.getByLabel('Body type')).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Tab');
+  await expect(page.getByLabel('Fighting style')).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Tab');
+  await expect(page.getByLabel('Special power')).toBeFocused();
+  await page.keyboard.press('Tab');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('alert')).toContainText(
     'Invalid character input',
@@ -30,6 +35,8 @@ test('keyboard create, structured validation, edit, deliberate archive and persi
   await expect(page.getByLabel('Description')).toHaveValue(
     '<script>not executable</script>',
   );
+  await expect(page.getByLabel('Fighting style')).toHaveValue('light_melee');
+  await expect(page.getByLabel('Special power')).toHaveValue('none');
   await page.getByLabel('Name', { exact: true }).fill(name);
   await page.getByRole('button', { name: 'Save metadata' }).click();
   await expect(
@@ -42,6 +49,8 @@ test('keyboard create, structured validation, edit, deliberate archive and persi
   await page.reload();
   await page.getByRole('button', { name, exact: true }).click();
   await expect(page.getByLabel('Name', { exact: true })).toBeFocused();
+  await expect(page.getByLabel('Fighting style')).toHaveValue('light_melee');
+  await page.getByLabel('Fighting style').selectOption('unselected');
   await page.getByLabel('Name', { exact: true }).fill(`${name} edited`);
   await page.getByRole('button', { name: 'Save metadata' }).click();
   await expect(
@@ -101,9 +110,11 @@ test('two editors retain stale input, block resubmission and require deliberate 
   await page.getByRole('button', { name: 'Save metadata' }).click();
   await expect(page.getByText('Editing metadata revision 2')).toBeVisible();
   await other.getByLabel('Description').fill('my stale input');
+  await other.getByLabel('Fighting style').selectOption('light_melee');
   await other.getByRole('button', { name: 'Save metadata' }).click();
   await expect(other.getByRole('alert')).toContainText('Character changed');
   await expect(other.getByLabel('Description')).toHaveValue('my stale input');
+  await expect(other.getByLabel('Fighting style')).toHaveValue('light_melee');
   await expect(
     other.getByRole('button', { name: 'Save metadata' }),
   ).toBeDisabled();
@@ -114,6 +125,7 @@ test('two editors retain stale input, block resubmission and require deliberate 
     .getByRole('button', { name: 'Reload library and discard local edits' })
     .click();
   await expect(other.getByLabel('Description')).toHaveValue('winning edit');
+  await expect(other.getByLabel('Fighting style')).toHaveValue('unselected');
   await expect(
     other.getByRole('button', { name: 'Save metadata' }),
   ).toBeEnabled();
@@ -143,6 +155,7 @@ test('pending mutation prevents duplicate input; network failure keeps input and
   await page
     .getByLabel('Name', { exact: true })
     .fill(`Pending ${randomUUID()}`);
+  await page.getByLabel('Fighting style').selectOption('light_melee');
   let release!: () => void;
   const hold = new Promise<void>((resolve) => {
     release = resolve;
@@ -161,6 +174,8 @@ test('pending mutation prevents duplicate input; network failure keeps input and
     page.getByRole('status').filter({ hasText: 'Working' }),
   ).toBeVisible();
   await expect(page.getByLabel('Name', { exact: true })).toBeDisabled();
+  await expect(page.getByLabel('Fighting style')).toBeDisabled();
+  await expect(page.getByLabel('Special power')).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Saving…' })).toBeDisabled();
   await expect(
     page.getByRole('button', { name: 'New character', exact: true }),
@@ -173,4 +188,5 @@ test('pending mutation prevents duplicate input; network failure keeps input and
     /^Pending /,
   );
   await expect(page.getByLabel('Name', { exact: true })).toBeEnabled();
+  await expect(page.getByLabel('Fighting style')).toHaveValue('light_melee');
 });

@@ -14,17 +14,47 @@ export const editRevisionSchema = z
   .int()
   .positive()
   .max(Number.MAX_SAFE_INTEGER - 1);
-export const createCharacterSchema = characterMetadataSchema;
-export const updateCharacterSchema = characterMetadataSchema
+// Authoring intent only: these choices never configure executable abilities.
+export const fightingStyleSchema = z.enum(['unselected', 'light_melee']);
+export const specialPowerSchema = z.enum(['none']);
+export const fightingStyleChoices = [
+  { value: 'unselected', label: 'Not selected' },
+  { value: 'light_melee', label: 'Light melee' },
+] as const satisfies readonly {
+  value: z.infer<typeof fightingStyleSchema>;
+  label: string;
+}[];
+export const specialPowerChoices = [
+  { value: 'none', label: 'None' },
+] as const satisfies readonly {
+  value: z.infer<typeof specialPowerSchema>;
+  label: string;
+}[];
+export const characterCreativeChoicesSchema = z
+  .object({
+    fightingStyle: fightingStyleSchema,
+    specialPower: specialPowerSchema,
+  })
+  .strict();
+const authoringSchema = characterMetadataSchema.extend(
+  characterCreativeChoicesSchema.shape,
+);
+export const createCharacterSchema = characterMetadataSchema.extend({
+  fightingStyle: fightingStyleSchema.default('unselected'),
+  specialPower: specialPowerSchema.default('none'),
+});
+export const updateCharacterSchema = authoringSchema
   .partial()
   .extend({
     expectedRevision: editRevisionSchema,
   })
   .strict()
   .refine(
-    ({ name, description, bodyType }) =>
-      name !== undefined || description !== undefined || bodyType !== undefined,
-    { message: 'At least one metadata field is required' },
+    (changes) =>
+      Object.entries(changes).some(
+        ([key, value]) => key !== 'expectedRevision' && value !== undefined,
+      ),
+    { message: 'At least one authoring field is required' },
   );
 export const archiveCharacterSchema = z
   .object({ expectedRevision: editRevisionSchema })

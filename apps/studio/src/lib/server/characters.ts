@@ -1,10 +1,11 @@
+import { createHash } from 'node:crypto';
 import {
   archiveCharacterSchema,
   characterIdSchema,
   createCharacterSchema,
   updateCharacterSchema,
 } from '@doodleforge/contracts/authoring';
-import { CharacterRepository } from '@doodleforge/database';
+import { CharacterRepository, SnapshotRepository } from '@doodleforge/database';
 import { z } from 'zod';
 
 export class CharacterError extends Error {
@@ -37,7 +38,10 @@ function validate<T>(schema: z.ZodType<T>, input: unknown): T {
 }
 
 export class CharacterService {
-  constructor(private readonly repository: CharacterRepository) {}
+  constructor(
+    private readonly repository: CharacterRepository,
+    private readonly snapshots?: SnapshotRepository,
+  ) {}
 
   list() {
     return this.repository.list();
@@ -50,14 +54,62 @@ export class CharacterService {
     return character;
   }
 
+  history(id: unknown) {
+    const characterId = validate(characterIdSchema, id);
+    this.get(characterId); // Archived and missing identities expose no history.
+    if (!this.snapshots)
+      throw new CharacterError(
+        503,
+        'unavailable',
+        'Version history unavailable.',
+      );
+    return this.snapshots
+      .history(characterId)
+      .map(({ version, decisions, publications }) => {
+        let snapshot: unknown = null;
+        try {
+          snapshot =
+            version.manifestJson &&
+            version.manifestSha256 &&
+            createHash('sha256').update(version.manifestJson).digest('hex') ===
+              version.manifestSha256
+              ? JSON.parse(version.manifestJson)
+              : null;
+        } catch {
+          // Preserve the version identity while making corrupt frozen content explicit.
+        }
+        return {
+          id: version.id,
+          version: version.version,
+          status: version.status,
+          createdAt: version.createdAt,
+          manifestSha256: version.manifestSha256,
+          snapshot,
+          snapshotAvailable: snapshot !== null,
+          decisions: decisions.map(
+            ({
+              decision,
+              decisionOrder,
+              actorLabel,
+              note,
+              manifestSha256,
+              createdAt,
+            }) => ({
+              decision,
+              decisionOrder,
+              actorLabel,
+              note,
+              manifestSha256,
+              createdAt,
+            }),
+          ),
+          publications,
+        };
+      });
+  }
+
   create(input: unknown) {
-    const metadata = validate(createCharacterSchema, input);
-    // Creative choices and executable abilities arrive in separate increments.
-    return this.repository.create({
-      ...metadata,
-      fightingStyle: 'unselected',
-      specialPower: 'none',
-    });
+    return this.repository.create(validate(createCharacterSchema, input));
   }
 
   update(id: unknown, input: unknown) {
@@ -72,6 +124,12 @@ export class CharacterService {
         ? { description: changes.description }
         : {}),
       ...(changes.bodyType !== undefined ? { bodyType: changes.bodyType } : {}),
+      ...(changes.fightingStyle !== undefined
+        ? { fightingStyle: changes.fightingStyle }
+        : {}),
+      ...(changes.specialPower !== undefined
+        ? { specialPower: changes.specialPower }
+        : {}),
     });
     if (updated) return updated;
     this.get(characterId);

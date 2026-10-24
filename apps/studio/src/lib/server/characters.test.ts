@@ -276,7 +276,12 @@ it('retains frozen snapshots, approvals and ready release membership after edit/
   const published = reviews.getSnapshot(seed.versionId);
   const entries = releases.entries(releaseId);
   const id = original.characterId;
-  service.update(id, { expectedRevision: 1, name: 'New authoring name' });
+  service.update(id, {
+    expectedRevision: 1,
+    name: 'New authoring name',
+    fightingStyle: 'unselected',
+    specialPower: 'none',
+  });
   service.archive(id, { expectedRevision: 2 });
   expect(reviews.getSnapshot(seed.versionId)).toEqual(published);
   expect(reviews.getSnapshot(seed.versionId).manifestJson).toBe(
@@ -287,6 +292,125 @@ it('retains frozen snapshots, approvals and ready release membership after edit/
   ).not.toThrow();
   expect(releases.entries(releaseId)).toEqual(entries);
   expect(service.list()).toEqual([]);
+});
+
+it('persists choices across restart, preserves omitted legacy choices and shares metadata/archive CAS', async () => {
+  const response = await create({
+    ...metadata,
+    fightingStyle: 'light_melee',
+    specialPower: 'none',
+  });
+  expect(response.status).toBe(201);
+  const character = await response.json();
+  expect(character.fightingStyle).toBe('light_melee');
+  db.close();
+  db = openDatabase(join(root, 'test.sqlite'));
+  service = new CharacterService(new CharacterRepository(db));
+  expect(service.get(character.id)).toMatchObject({
+    fightingStyle: 'light_melee',
+    specialPower: 'none',
+    editRevision: 1,
+  });
+  const other = openDatabase(join(root, 'test.sqlite'));
+  try {
+    const rival = new CharacterService(new CharacterRepository(other));
+    expect(
+      (
+        await patch(character.id, {
+          expectedRevision: 1,
+          fightingStyle: 'unselected',
+        })
+      ).status,
+    ).toBe(200);
+    expect(() =>
+      rival.update(character.id, { expectedRevision: 1, name: 'Lost' }),
+    ).toThrow('changed');
+    expect(() => rival.archive(character.id, { expectedRevision: 1 })).toThrow(
+      'changed',
+    );
+    rival.update(character.id, { expectedRevision: 2, name: 'Winner' });
+    expect(
+      (
+        await patch(character.id, {
+          expectedRevision: 2,
+          fightingStyle: 'light_melee',
+        })
+      ).status,
+    ).toBe(409);
+    expect(service.get(character.id)).toMatchObject({
+      name: 'Winner',
+      fightingStyle: 'unselected',
+      editRevision: 3,
+    });
+    rival.archive(character.id, { expectedRevision: 3 });
+    expect(
+      (
+        await patch(character.id, {
+          expectedRevision: 3,
+          fightingStyle: 'light_melee',
+        })
+      ).status,
+    ).toBe(404);
+  } finally {
+    other.close();
+  }
+  const legacy = new CharacterRepository(db).create({
+    ...metadata,
+    fightingStyle: 'pending-contract',
+    specialPower: 'legacy-power',
+  });
+  expect(service.get(legacy.id).fightingStyle).toBe('pending-contract');
+  service.update(legacy.id, { expectedRevision: 1, name: 'Metadata only' });
+  expect(service.get(legacy.id)).toMatchObject({
+    fightingStyle: 'pending-contract',
+    specialPower: 'legacy-power',
+  });
+  expect(
+    (
+      await patch(legacy.id, {
+        expectedRevision: 2,
+        specialPower: 'legacy-power',
+      })
+    ).status,
+  ).toBe(400);
+  expect(
+    (
+      await patch(legacy.id, {
+        expectedRevision: 2,
+        fightingStyle: 'light_melee',
+        specialPower: 'none',
+      })
+    ).status,
+  ).toBe(200);
+  for (const table of [
+    'character_versions',
+    'character_abilities',
+    'abilities',
+    'approvals',
+    'content_releases',
+  ]) {
+    expect(
+      db.sqlite.prepare(`SELECT count(*) AS n FROM ${table}`).get(),
+    ).toEqual({ n: 0 });
+  }
+});
+
+it.each([
+  { fightingStyle: 'heavy_melee' },
+  { specialPower: 'fireball' },
+  { fightingStyle: 'light_melee', parameters: {} },
+])('rejects invalid choice PATCH atomically: %j', async (choices) => {
+  const character = service.create(metadata);
+  expect(
+    (
+      await patch(character.id, {
+        expectedRevision: 1,
+        name: 'Must not save',
+        ...choices,
+      })
+    ).status,
+  ).toBe(400);
+  expect(service.get(character.id)).toEqual(character);
 });
 
 it('bounds chunked bodies without Content-Length and cancels excess input', async () => {

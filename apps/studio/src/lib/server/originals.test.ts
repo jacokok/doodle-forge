@@ -294,7 +294,11 @@ it('CAS attachment/replacement retains old bytes, rejects stale metadata/archive
     });
     const first = characters.get(id).originalAssetId!;
     expect(() =>
-      characters.update(id, { expectedRevision: 1, name: 'Stale' }),
+      characters.update(id, {
+        expectedRevision: 1,
+        fightingStyle: 'light_melee',
+        specialPower: 'none',
+      }),
     ).toThrow('changed');
     expect(() => characters.archive(id, { expectedRevision: 1 })).toThrow(
       'changed',
@@ -310,7 +314,20 @@ it('CAS attachment/replacement retains old bytes, rejects stale metadata/archive
     expect(db.sqlite.prepare('SELECT count(*) AS n FROM assets').get()).toEqual(
       { n: 4 },
     );
-    characters.archive(id, { expectedRevision: 3 });
+    characters.update(id, {
+      expectedRevision: 3,
+      fightingStyle: 'light_melee',
+      specialPower: 'none',
+    });
+    expect((await service.image(id, first, 'original')).bytes).toEqual(bytes);
+    await expect(
+      rival.attach(id, { expectedRevision: 3 }, bytes, 'image/png'),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(characters.get(id)).toMatchObject({
+      fightingStyle: 'light_melee',
+      originalAssetId: replacement.originalAssetId,
+    });
+    characters.archive(id, { expectedRevision: 4 });
     expect((await get(first)).status).toBe(404);
     await expect(
       service.attach(id, { expectedRevision: 3 }, bytes, 'image/png'),
@@ -327,7 +344,7 @@ it('rejects attachment if metadata/archive changes during decode', async () => {
     await png(),
     'image/png',
   );
-  characters.update(id, { expectedRevision: 1, name: 'Winner' });
+  characters.update(id, { expectedRevision: 1, fightingStyle: 'light_melee' });
   await expect(pending).rejects.toMatchObject({ status: 409 });
   expect(characters.get(id).originalAssetId).toBeNull();
   expect(db.sqlite.prepare('SELECT count(*) AS n FROM assets').get()).toEqual({

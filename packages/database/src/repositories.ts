@@ -41,7 +41,10 @@ export class CharacterRepository {
     id: string,
     expectedRevision: number,
     changes: Partial<
-      Pick<typeof characters.$inferInsert, 'name' | 'description' | 'bodyType'>
+      Pick<
+        typeof characters.$inferInsert,
+        'name' | 'description' | 'bodyType' | 'fightingStyle' | 'specialPower'
+      >
     >,
   ) {
     return this.connection.db

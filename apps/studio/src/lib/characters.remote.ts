@@ -8,6 +8,10 @@ export const library = query(() =>
   characterResult(() => characterService().list()),
 );
 
+export const versionHistory = query(z.string().uuid(), (id) =>
+  characterResult(() => characterService().history(id)),
+);
+
 function mutation<T>(run: () => T) {
   return characterResult(() => {
     const { request, url } = getRequestEvent();

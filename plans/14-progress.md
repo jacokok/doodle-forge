@@ -1,5 +1,43 @@
 # 14 — Persistent implementation progress
 
+## Phase 5 — read-only frozen-version history increment (2026-10-23)
+
+- Preserved the pre-existing worktree changes (creative-choice increment and browser tests); did not reset, discard or stage unrelated work. Read requested plans/docs and inspected snapshot/approval/release persistence, publication authority, private asset confinement and existing editor/remotes.
+- Added same-app history remote query. The domain service validates identity ownership and excludes archived/missing identities. Repository returns frozen versions ordered newest-first with append-only decisions and only ready-release membership. UI explicitly selects a frozen version and displays its manifest hash, immutable manifest metadata, decision history and ready release IDs/times; authoring inputs remain independent. Empty, loading/error, corrupt snapshot and no-ready-release states are honest. Labels separate mutable authoring metadata/private original fixture from frozen content; no frozen binary delivery, approval/publication mutations or public file exposure added.
+- The history view uses frozen manifest metadata as persisted; review approval and ready release membership are independent. No schema/migration/ADR change.
+- Frozen manifests are rendered only when their stored SHA-256 matches; absent/corrupt bytes are explicitly unavailable. No filesystem paths/storage keys are returned. The editor's original preview remains private mutable authoring content, not a frozen/generated preview. No approval or publication mutation, migration, public binary route or ADR change.
+- Actual validation: `mise exec -- pnpm check` PASS (0 errors / 0 warnings); `mise exec -- pnpm test` PASS (205 tests / 13 files); `mise exec -- pnpm test:e2e` PASS (10 existing Chromium tests); `mise exec -- pnpm build` PASS (studio and worker); `mise exec -- pnpm format:check` PASS; `git diff --check` PASS. A first check found Svelte const placement; fixed before passing check. Browser suite did not yet add assertions for history selection, empty/error states or unsaved-draft preservation while browsing; the passing 10 tests are existing coverage, not those new behaviors.
+
+## Phase 5 — supported creative-choice editing increment (2026-10-23)
+
+### Implementation and policy
+
+- Read AGENTS, plans README/04/05/06/08/11/12/14, setup/authoring/upload docs and ADRs 026/027/028; inspected executable melee contracts, authoring schemas, catalog tables/seed/snapshots, repositories/migrations, CharacterService, remotes/JSON APIs, upload/private delivery and isolated SQLite/browser harnesses. Initial `git status --short` was clean. No unrelated work discarded, commits or resets.
+- Recorded ADR-029 **before implementation**: fighting style accepts `unselected` or `light_melee`; power accepts `none` only. Runtime implements light melee, no special-power executor; ability tables are scaffolding, not supported powers. Choices are authoring intent, not new combat semantics or automatic manifest mapping. No arbitrary executable configuration, generated art, versions, version abilities, jobs, approvals or releases created.
+- Shared browser-safe definitions/strict validation extend existing create/update schemas without changing manifest metadata schemas. Metadata-only create clients retain `unselected`/`none` defaults. Choice-only/mixed PATCH uses the same conditional identity update/revision as metadata/archive/upload. Omitted choices are preserved. Existing text columns suffice: **no migration**, earlier migrations unchanged.
+- Existing editor reuses its body-type input, adds labeled keyboard-native fighting-style/power selects and explicit authoring/runtime limitation copy. Unknown legacy stored strings are labeled unsupported, never normalized; unchanged choice fields are omitted from edits, so metadata-only edits preserve them. Deliberate replacement requires a supported value. Existing thin remotes and JSON API remain intact.
+- Pending/validation/transport/stale handling retains choices as well as text. No silent newer-revision retry. Deliberate reload replaces local choices with the current snapshot. Upload keeps unsaved creative intent without submitting it; stale attachment preserves local choices. Immutable original/preview bytes and archive/publication isolation remain unchanged.
+- Updated authoring guide, plan 06, roadmap annotations and ADR-029. Phase 5 remains **in progress**, not accepted. Live progress contains a newer historical Phase 3 manual-acceptance entry than the supplied summary; preserved it and all older deferred evidence unchanged. This increment runs no graphical/active-AI test and infers no new manual acceptance.
+
+### Actual validation
+
+| Executed command | Actual result |
+|---|---|
+| `mise exec -- pnpm test` | PASS: **205 tests / 13 files** (185 prior + 20 new). Strict allowed/unsupported/unknown/type/configuration validation, defaults, choice-only/mixed persistence/restart, legacy preservation/replacement, separate-connection edit/archive CAS, upload/choice conflict in both directions including decode-time mutation, immutable originals and frozen approved/published snapshot isolation. |
+| `mise exec -- pnpm check` | PASS including final rerun: strict TS/Svelte **0 errors / 0 warnings**. |
+| `mise exec -- pnpm test:e2e` | PASS on both runs: **10 Chromium tests** against real built studio and migrated temporary SQLite/storage. Choice selection/save/reload, single body input, keyboard navigation through selects, tampered unsupported-power server validation/field error/local retention, pending/error selection retention, stale metadata/archive/upload and deliberate reload; prior private preview/origin/bounds tests retained. |
+| `mise exec -- pnpm build`, `mise exec -- pnpm test:smoke` | PASS: production studio/worker builds and real HTTP publication/security/history/corruption/operator/lifecycle regressions. |
+| `mise exec -- pnpm content:schema`, `git diff --exit-code -- packages/contracts/schema packages/database/migrations` | PASS: generated game schemas and all migrations unchanged. |
+| `mise exec -- pnpm lint` | FAIL only the **two pre-existing explicit-any errors** at `packages/contracts/src/create-fixtures.ts:68–69`; no new findings. |
+
+Final `mise exec -- pnpm format:check` and `git diff --check`: PASS. Final `mise exec -- pnpm test` rerun: PASS, 205 tests / 13 files. No application test/tooling blocker or failed application test run in this increment. Targeted Prettier formatting performed on changed paths.
+
+### Remaining acceptance / next actions
+
+- Full Phase 5 remains incomplete: accessible full wizard/child-usability review, version/history/side-by-side/generated-animation previews, seeded review/approval/publication UI, job UI boundaries and broader a11y acceptance. Next bounded increment can address read-only seeded version/review presentation before deliberate approval/publication controls.
+- Special power is deliberately limited to None. More styles/powers require explicit catalog/runtime policy and matched executable contracts/executor tests, not speculative presets. Legacy unknown strings remain authoring data, not executable capabilities.
+- No new Godot, manual graphical/active-AI, remote CI, real AI, workflow/generation or offline tests run. No upload-to-generation E2E/full factory/Phase 5 acceptance claim. Build/runtime ORIGIN must still match; built adapter still needs `BODY_SIZE_LIMIT=10551296`. Browser harness leaves ignored build output configured for its test origin; rebuild for normal local use. Existing local trust/privacy/orphan/aggregate-quota limitations and lint findings remain.
+
 ## Phase 3 — manual playtest acceptance recorded (2026-10-23)
 
 - Updated the Phase 3 manual checklist from the user-confirmed observations already recorded in `docs/phase-3-playtest.md` and historical playtest notes: shadow/jump presentation, Y-sort, movement/facing/attack feedback, recovery/hit behavior, both fixtures, restart/KO, and completion of both active-AI waves. No new playtest or code change is claimed in this documentation update.
@@ -180,7 +218,7 @@ An initial live-addition test attempt exposed test assumptions about the pre-loa
 - Phase 4 remains incomplete; Phase 5 not authorized. Phase 3 graphical/active-AI acceptance remains deferred, not passed. No fallback, offline bundle, authoring UI, or unrelated combat/lint work.
 
 ## Current phase
-**Phase 5 — explicitly authorized and in progress; metadata API/remote-function editor and safe immutable original/private-preview upload increment locally verified, full acceptance incomplete. Phase 4 acceptance remains locally verified, including data-only live addition after catalog discovery. Phase 3 manual shadow/Y-sort/feel and human active-AI acceptance are now recorded as complete; elevated-target behavior remains an untested limitation (plan 14; docs/phase-3-playtest.md).** Phases 0–2 retain their previously recorded local status.
+**Phase 5 — explicitly authorized and in progress; metadata API/remote-function editor, safe immutable original/private-preview uploads and conservative creative-choice editing locally verified, full acceptance incomplete. Phase 4 acceptance remains locally verified, including data-only live addition after catalog discovery. Phase 3 manual shadow/Y-sort/feel and human active-AI acceptance are now recorded as complete; elevated-target behavior remains an untested limitation (plan 14; docs/phase-3-playtest.md).** Phases 0–2 retain their previously recorded local status.
 
 ## Phase-gate exception — explicit user authorization
 The latest user instruction explicitly authorizes **Phase 5**, preserving the deferred Phase 3 acceptance requirements. The following records the earlier Phase 4-only authorization, not the current gate.

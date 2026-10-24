@@ -4,6 +4,8 @@
   import {
     characterMetadataSchema,
     originalUploadPolicy,
+    fightingStyleChoices,
+    specialPowerChoices,
     type CharacterMetadata,
   } from '@doodleforge/contracts/authoring';
   import {
@@ -11,6 +13,7 @@
     createCharacter,
     editCharacter,
     archiveCharacter,
+    versionHistory,
   } from '../../lib/characters.remote.js';
 
   type Character = Extract<
@@ -30,6 +33,14 @@
   let name = $state('');
   let description = $state('');
   let bodyType = $state<CharacterMetadata['bodyType']>('humanoid');
+  let fightingStyle = $state('unselected');
+  let specialPower = $state('none');
+  const knownStyle = $derived(
+    fightingStyleChoices.some((choice) => choice.value === fightingStyle),
+  );
+  const knownPower = $derived(
+    specialPowerChoices.some((choice) => choice.value === specialPower),
+  );
   let busy = $state(false);
   let failure = $state<Failure | null>(null);
   let notice = $state('');
@@ -43,6 +54,7 @@
   let imageFile = $state<File | null>(null);
   let fileInput = $state<HTMLInputElement>();
   let previewFailed = $state(false);
+  let selectedVersionId = $state('');
 
   async function uploadOriginal() {
     if (!selected || !imageFile || busy || blocked) return;
@@ -87,11 +99,14 @@
     imageFile = null;
     if (fileInput) fileInput.value = '';
     previewFailed = false;
+    selectedVersionId = '';
     name = character?.name ?? '';
     description = character?.description ?? '';
     bodyType = character
       ? characterMetadataSchema.shape.bodyType.parse(character.bodyType)
       : 'humanoid';
+    fightingStyle = character?.fightingStyle ?? 'unselected';
+    specialPower = character?.specialPower ?? 'none';
     editing = true;
     confirming = false;
     failure = null;
@@ -106,7 +121,17 @@
     failure = null;
     notice = '';
     try {
-      const metadata = { name, description, bodyType };
+      const metadata = {
+        name,
+        description,
+        bodyType,
+        ...(!selected || fightingStyle !== selected.fightingStyle
+          ? { fightingStyle }
+          : {}),
+        ...(!selected || specialPower !== selected.specialPower
+          ? { specialPower }
+          : {}),
+      };
       const result = selected
         ? await editCharacter({
             id: selected.id,
@@ -123,6 +148,8 @@
       bodyType = characterMetadataSchema.shape.bodyType.parse(
         result.value.bodyType,
       );
+      fightingStyle = result.value.fightingStyle;
+      specialPower = result.value.specialPower;
       notice = 'Metadata saved. No version or job was created.';
       await catalog.refresh();
     } catch {
@@ -216,8 +243,8 @@
     changes published content.
   </p>
   <p class="my-3">
-    Creative choices, generation, versions, review and publishing are not
-    available in this UI. No factory jobs are running here.
+    Creative choices are authoring intent only. Generation, versions, review and
+    publishing are not available in this UI. No factory jobs are running here.
   </p>
   <div class="my-5 flex flex-wrap gap-3">
     <button disabled={busy} onclick={() => open(null)}>New character</button>
@@ -324,12 +351,154 @@
                   >{/each}</select
               >
             </div>
+            <div>
+              <label for="fighting-style">Fighting style</label>
+              <select
+                id="fighting-style"
+                bind:value={fightingStyle}
+                aria-invalid={!!failure?.fieldErrors?.fightingStyle}
+                aria-describedby={failure?.fieldErrors?.fightingStyle
+                  ? 'creative-help error-fightingStyle'
+                  : 'creative-help'}
+              >
+                {#if !knownStyle}<option value={fightingStyle} disabled
+                    >Unsupported stored choice: {fightingStyle}</option
+                  >{/if}
+                {#each fightingStyleChoices as choice (choice.value)}<option
+                    value={choice.value}>{choice.label}</option
+                  >{/each}
+              </select>
+            </div>
+            <div>
+              <label for="special-power">Special power</label>
+              <select
+                id="special-power"
+                bind:value={specialPower}
+                aria-invalid={!!failure?.fieldErrors?.specialPower}
+                aria-describedby={failure?.fieldErrors?.specialPower
+                  ? 'creative-help error-specialPower'
+                  : 'creative-help'}
+              >
+                {#if !knownPower}<option value={specialPower} disabled
+                    >Unsupported stored choice: {specialPower}</option
+                  >{/if}
+                {#each specialPowerChoices as choice (choice.value)}<option
+                    value={choice.value}>{choice.label}</option
+                  >{/each}
+              </select>
+            </div>
+            <p id="creative-help">
+              Authoring intent only; saving does not change gameplay or generate
+              art. The runtime supports light melee only. No special powers are
+              implemented; None is the only supported power. Unsupported stored
+              choices are kept unless you deliberately replace them.
+            </p>
             <button type="submit" disabled={blocked}
               >{busy ? 'Saving…' : 'Save metadata'}</button
             >
           </fieldset>
         </form>
         {#if selected}
+          <section aria-label="Frozen version history" class="my-6 space-y-3">
+            <h3 class="text-lg font-semibold">Frozen versions (read only)</h3>
+            <p>
+              These immutable review snapshots are separate from your mutable
+              authoring fields above. Approval and publication are distinct;
+              only a ready release establishes published visibility.
+            </p>
+            {#if selected}
+              {@const history = versionHistory(selected.id)}
+              {#if history.loading}<p role="status">Loading frozen versions…</p>
+              {:else if history.error}<p role="alert">
+                  Version history unavailable. Reload the editor to retry.
+                </p>
+              {:else if history.current?.ok}
+                {#if history.current.value.length === 0}<p>
+                    No frozen versions exist for this character.
+                  </p>
+                {:else}
+                  <label for="frozen-version"
+                    >Choose a frozen version to inspect</label
+                  >
+                  <select
+                    id="frozen-version"
+                    aria-label="Frozen version"
+                    onchange={(event) => {
+                      selectedVersionId = event.currentTarget.value;
+                    }}
+                  >
+                    <option value="">Choose version</option>
+                    {#each history.current.value as item (item.id)}<option
+                        value={item.id}>v{item.version} · {item.status}</option
+                      >{/each}
+                  </select>
+                  {#if selectedVersionId}
+                    {@const frozen = history.current.value.find(
+                      (item) => item.id === selectedVersionId,
+                    )}
+                    {#if frozen}
+                      <article
+                        aria-label="Selected frozen version"
+                        class="border p-3"
+                      >
+                        <h4>Frozen version {frozen.version}</h4>
+                        <p>Version ID: <code>{frozen.id}</code></p>
+                        <p>
+                          Manifest SHA-256: <code
+                            >{frozen.manifestSha256 ?? 'Unavailable'}</code
+                          >
+                        </p>
+                        {#if frozen.snapshotAvailable && frozen.snapshot}
+                          {@const metadata = frozen.snapshot as {
+                            name?: string;
+                            description?: string;
+                            bodyType?: string;
+                          }}
+                          <h5>{metadata.name ?? 'Unnamed frozen snapshot'}</h5>
+                          <p>{metadata.description ?? ''}</p>
+                          <p>Body type: {metadata.bodyType ?? 'Unavailable'}</p>
+                        {:else}<p role="alert">
+                            Frozen snapshot unavailable or corrupt; no mutable
+                            authoring values substituted.
+                          </p>{/if}
+                        <h5>Review decisions (newest first)</h5>
+                        {#if frozen.decisions.length === 0}<p>
+                            No approval decision recorded.
+                          </p>{:else}<ul>
+                            {#each frozen.decisions as decision (decision.decisionOrder)}<li
+                              >
+                                {decision.decision} · {decision.actorLabel} · {new Date(
+                                  decision.createdAt,
+                                ).toLocaleString()} · hash {decision.manifestSha256}
+                              </li>{/each}
+                          </ul>{/if}
+                        <h5>Published visibility</h5>
+                        {#if frozen.publications.length === 0}<p>
+                            Not present in any ready published release.
+                          </p>{:else}<ul>
+                            {#each frozen.publications as publication (publication.releaseId)}<li
+                              >
+                                Ready release {publication.releaseId} · {publication.publishedAt
+                                  ? new Date(
+                                      publication.publishedAt,
+                                    ).toLocaleString()
+                                  : 'publication time unavailable'}
+                              </li>{/each}
+                          </ul>{/if}
+                        <p>
+                          Art preview unavailable for frozen versions in this
+                          increment. The original-image preview below is mutable
+                          authoring art, not generated artwork.
+                        </p>
+                      </article>
+                    {/if}
+                  {/if}
+                {/if}
+              {:else if history.current}<p role="alert">
+                  {history.current.error.message}
+                </p>{/if}
+            {/if}
+          </section>
           <section aria-label="Original art" class="my-6 space-y-3">
             <h3 class="text-lg font-semibold">Private original art</h3>
             <p>

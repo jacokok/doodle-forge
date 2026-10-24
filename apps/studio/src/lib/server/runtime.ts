@@ -6,6 +6,7 @@ import {
   ReleaseRepository,
   CharacterRepository,
   AssetRepository,
+  SnapshotRepository,
 } from '@doodleforge/database';
 import { PublishedContentService } from '@doodleforge/content-publisher/content';
 import path from 'node:path';
@@ -45,7 +46,10 @@ export function checkDatabase() {
 export function characterService() {
   initializeRuntime();
   if (!connection) throw new Error('Runtime unavailable during build');
-  return new CharacterService(new CharacterRepository(connection));
+  return new CharacterService(
+    new CharacterRepository(connection),
+    new SnapshotRepository(connection),
+  );
 }
 
 export function originalService() {

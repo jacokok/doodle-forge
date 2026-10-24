@@ -120,9 +120,9 @@ Contract precedes game and factory. API integration precedes authoring UI. To re
 **Dependencies:** contract, database and Phase 4 approval/publication services. Automated generation waits for Phase 6.
 
 **Checklist:**
-- [ ] Implement server-validated character CRUD and optimistic revisions. Metadata-only JSON API and remote-function library/create/edit/archive UI, shared validation and stale edit/archive tests locally verified; creative choices and full authoring remain incomplete (plan 14).
+- [ ] Implement server-validated character CRUD and optimistic revisions. Metadata-only JSON API and remote-function library/create/edit/archive UI, shared validation and stale edit/archive tests locally verified; supported creative-choice editing is now locally verified; full authoring remains incomplete (plan 14).
 - [x] Add bounded/magic-verified upload, immutable originals and private derived previews. Additive asset persistence/shared-revision attachment, strict Sharp safety/orientation and editor upload/replacement/private delivery locally verified (ADR-028; plan 14); not generation E2E or full Phase 5 acceptance.
-- [ ] Add name/description/body/fighting-style/power inputs and accessible responsive wizard.
+- [ ] Add name/description/body/fighting-style/power inputs and accessible responsive wizard. Existing editor now covers all five fields using the conservative supported catalog (ADR-029); full wizard/child-usability acceptance remains pending.
 - [ ] Add side-by-side previews, history and clear draft/approved/published states.
 - [ ] Add review/approval/publication UI using validated seeded review versions.
 - [ ] Add job progress/retry/cancel UI boundaries; clearly show unavailable factory until connected.

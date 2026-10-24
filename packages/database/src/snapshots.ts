@@ -1,7 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq } from 'drizzle-orm';
 import type { DatabaseConnection } from './index.js';
-import { approvals, characters, characterVersions } from './schema.js';
+import {
+  approvals,
+  characters,
+  characterVersions,
+  contentReleases,
+  contentReleaseEntries,
+} from './schema.js';
 
 type FrozenInput = Pick<
   typeof characterVersions.$inferInsert,
@@ -42,6 +48,39 @@ export class SnapshotRepository {
       .from(characterVersions)
       .where(eq(characterVersions.id, id))
       .get();
+  }
+
+  history(characterId: string) {
+    const versions = this.connection.db
+      .select()
+      .from(characterVersions)
+      .where(eq(characterVersions.characterId, characterId))
+      .orderBy(desc(characterVersions.version))
+      .all();
+    return versions.map((version) => ({
+      version,
+      decisions: this.connection.db
+        .select()
+        .from(approvals)
+        .where(eq(approvals.characterVersionId, version.id))
+        .orderBy(desc(approvals.decisionOrder))
+        .all(),
+      publications: this.connection.db
+        .select({ release: contentReleases, entry: contentReleaseEntries })
+        .from(contentReleaseEntries)
+        .innerJoin(
+          contentReleases,
+          eq(contentReleaseEntries.releaseId, contentReleases.id),
+        )
+        .where(eq(contentReleaseEntries.characterVersionId, version.id))
+        .all()
+        .filter(({ release }) => release.status === 'ready')
+        .map(({ release, entry }) => ({
+          releaseId: release.id,
+          publishedAt: release.publishedAt,
+          manifestSha256: entry.manifestSha256,
+        })),
+    }));
   }
 
   latestDecision(id: string) {

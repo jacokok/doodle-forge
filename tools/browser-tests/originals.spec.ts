@@ -27,6 +27,7 @@ test('keyboard upload/preview/replacement persists art, retains unsaved text, re
   await page.goto('/characters');
   await page.getByRole('button', { name, exact: true }).click();
   await page.getByLabel('Description').fill('Unsaved local idea');
+  await page.getByLabel('Fighting style').selectOption('light_melee');
   await page.getByLabel('Original image', { exact: true }).setInputFiles({
     name: 'spoof.png',
     mimeType: 'image/png',
@@ -49,6 +50,11 @@ test('keyboard upload/preview/replacement persists art, retains unsaved text, re
   await expect(page.getByLabel('Description')).toHaveValue(
     'Unsaved local idea',
   );
+  await expect(page.getByLabel('Fighting style')).toHaveValue('light_melee');
+  expect(
+    (await (await page.request.get(`/api/characters/${character.id}`)).json())
+      .fightingStyle,
+  ).toBe('unselected');
   const preview = page.getByAltText(
     'Private preview of the attached original drawing',
   );
@@ -73,12 +79,14 @@ test('keyboard upload/preview/replacement persists art, retains unsaved text, re
   await expect(page.getByText('Editing metadata revision 4')).toBeVisible();
   expect(await (await page.request.get(originalUrl!)).body()).toEqual(bytes);
   await other.getByLabel('Description').fill('Stale local idea');
+  await other.getByLabel('Fighting style').selectOption('unselected');
   await other
     .getByLabel('Original image', { exact: true })
     .setInputFiles(image);
   await other.getByRole('button', { name: 'Replace original' }).click();
   await expect(other.getByRole('alert')).toContainText('Character changed');
   await expect(other.getByLabel('Description')).toHaveValue('Stale local idea');
+  await expect(other.getByLabel('Fighting style')).toHaveValue('unselected');
   await expect(
     other.getByRole('button', { name: 'Replace original' }),
   ).toBeDisabled();
@@ -91,6 +99,7 @@ test('keyboard upload/preview/replacement persists art, retains unsaved text, re
     .getByRole('button', { name: 'Reload library and discard local edits' })
     .click();
   await expect(other.getByText('Editing metadata revision 4')).toBeVisible();
+  await expect(other.getByLabel('Fighting style')).toHaveValue('light_melee');
   await expect(other.getByLabel('Description')).toHaveValue(
     'Unsaved local idea',
   );
