@@ -7,7 +7,7 @@ Define the shared, versioned boundary between authoring, generation, publication
 Schema v1 character manifests, PNG assets, release index, fixtures and validators. No arbitrary scripts, scene paths, provider credentials or original-upload paths enter game content.
 
 ## Technical approach
-Author strict Zod schemas in `packages/contracts`; generate and commit JSON Schema (draft 2020-12) from them using a tested converter compatible with the selected Zod release. CI checks generation is reproducible. Semantic cross-field checks live alongside schemas (and are documented since JSON Schema alone may not express all checks). Godot implements the supported v1 subset and identical semantic checks, tested with shared valid/invalid fixtures; it does not execute Zod or require a third-party JSON Schema runtime.
+Author strict Zod schemas in `packages/contracts`; generate and commit JSON Schema (draft 2020-12) from them using a tested converter compatible with the selected Zod release. CI checks generation is reproducible. Browser-consumed manifest schemas are exported from the Node-free `@doodleforge/contracts/manifest` entry; filesystem/hash/package-validation helpers stay in the root entry and must not enter client bundles. Both entries share the same schema source. Semantic cross-field checks live alongside schemas (and are documented since JSON Schema alone may not express all checks). Godot implements the supported v1 subset and identical semantic checks, tested with shared valid/invalid fixtures; it does not execute Zod or require a third-party JSON Schema runtime.
 
 ## Architecture and responsibilities
 The proposed v1 DTO is the normative field specification for Phase 2:

@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "node tools/dev.mjs",
+    "dev:studio": "node tools/dev.mjs --studio-only",
     "dev:game": "node tools/godot-validation/run.mjs --editor",
     "build": "pnpm --filter @doodleforge/studio build && pnpm --filter @doodleforge/worker build",
     "check": "tsc --noEmit && pnpm --filter @doodleforge/studio check",
@@ -17,6 +18,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:smoke": "node tools/smoke.mjs",
+    "test:startup": "node --test tools/dev.test.mjs",
     "test:e2e": "playwright test",
     "test:godot": "node tools/godot-validation/run.mjs",
     "test:godot:api": "pnpm build && node tools/godot-validation/run.mjs --published-api",

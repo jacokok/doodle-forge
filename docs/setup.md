@@ -8,18 +8,21 @@ Linux x86_64 is the verified foundation host. Toolchain versions are in `mise.to
 
 ```sh
 mise install
-pnpm install --frozen-lockfile
-cp .env.example .env
-pnpm db:migrate
-pnpm db:seed
-pnpm dev
+mise exec -- pnpm install --frozen-lockfile
+test -f .env || cp .env.example .env
+mise exec -- pnpm db:migrate
+mise exec -- pnpm dev:studio
 ```
 
 With mise shell integration enabled, entering the checkout selects its tools automatically; no version-prefixed commands are needed. Otherwise use `mise exec -- pnpm <command>` or install compatible Node/pnpm yourself. pnpm remains at 10.34.7; this is not a pnpm upgrade. After switching Node majors, run `pnpm rebuild better-sqlite3 esbuild` to rebuild native dependencies before testing. better-sqlite3 may require a C++ compiler, make, Python for node-gyp and Node headers; Python is build tooling, not an application runtime. Only better-sqlite3/esbuild install scripts are permitted by workspace policy.
 
 Root configuration loads `.env`; inherited environment variables take precedence. Relative storage/DB paths resolve from the workspace checkout, even when started inside an app directory or from a built entrypoint. Defaults create `storage/{originals,generated,approved,published,db}` and `storage/db/doodleforge.sqlite`. Do not place the DB on network storage. Originals are never statically/publicly served; explicit confined private authoring routes now deliver retained originals/previews. Set `BODY_SIZE_LIMIT=10551296` in the adapter-node process environment for the bounded 10 MiB + 64 KiB multipart envelope (its default 512K rejects larger uploads); reverse proxies must also bound requests. See the [upload guide](phase-5-uploads.md). Never commit `.env`, mutable DBs, generated art or secrets. Config currently rejects non-loopback service hosts/origins; hosted deployments are unsupported. Set `HOST`, `PORT`, `ORIGIN` and distinct `WORKER_PORT` consistently when changing ports. **Set `ORIGIN` before building as well as at runtime**: the pinned Kit 3/adapter-node 6 uses build-time `paths.origin`, configured from the validated local config. It does not use runtime `ORIGIN` to infer HTTP request URLs. Rebuild after changing studio origin; otherwise same-origin authoring/remote mutations will be rejected. Do not disable CSRF or trust client-supplied forwarding headers to work around this.
 
-Studio: `http://127.0.0.1:5173`, health: `/api/health`. Worker health: `http://127.0.0.1:5174/health`. Health explicitly reports `generation: unavailable`. Ctrl-C stops both dev children; failure of either child stops the other. Migrations are explicit; neither app migrates during startup. Unmigrated DBs fail startup rather than pretending to be ready.
+Open **http://127.0.0.1:5173/characters** after the **DoodleForge ready** message. The home page is `http://127.0.0.1:5173`, health is `/api/health`. `dev:studio` starts only the studio: no worker, Godot, credentials or fixture seed is needed. Create/save metadata and conservative creative choices, attach/replace private originals, and inspect read-only history. New characters have no frozen versions or released animations; uploads do not generate them. [Authoring guide](phase-5-authoring.md) explains available actions, stale-edit recovery and in-memory unsaved input. Saved data persists across restarts; unsaved input is not autosave.
+
+Use `mise exec -- pnpm dev` when you also want the worker health lifecycle (`http://127.0.0.1:5174/health` by default). It still executes no generation jobs. Both modes load root `.env` with inherited overrides and reuse server config validation. The supervisor checks that `HOST`, `PORT` and `ORIGIN` describe the same loopback HTTP URL, requires the exact studio port (`--strictPort`, no silent fallback), then prints the `/characters` URL only after the requested services return healthy/unavailable-generation status. Vite's own earlier “ready” message only means its listener started, not that the database/app is usable. `dev:studio` does not bind the worker port, though the shared config must still be valid. Ctrl-C/SIGTERM stops launched children; failure of either child in combined mode stops the other.
+
+Startup never migrates or seeds. For a new/outdated DB, stop services and explicitly run `mise exec -- pnpm db:migrate`, then restart. This applies existing committed migrations; no new migration is introduced by the launcher. `mise exec -- pnpm db:seed` is optional synthetic metadata only. Existing edits are not overwritten and no art, versions, approvals or releases are created. Keep your existing `.env`; do not replace it blindly. If startup reports invalid/mismatched configuration, check both `.env` and inherited shell variables. If a port is occupied, stop the known owning process or choose matching `HOST`/`PORT`/`ORIGIN` and a distinct `WORKER_PORT`; do not disable origin checks. Readiness is a startup health check, not a continuous guarantee or content audit.
 
 ## Database baseline and recovery
 
@@ -44,6 +47,7 @@ pnpm format:check
 pnpm test
 pnpm build
 pnpm test:smoke
+pnpm test:startup
 pnpm exec playwright install chromium
 pnpm test:e2e
 pnpm test:godot
@@ -51,7 +55,7 @@ pnpm test:godot
 
 Studio UI/server guidance: prefer Svelte's experimental async support and remote functions for same-app data loading, queries and mutations wherever applicable; see [plan 06](../plans/06-sveltekit-studio.md) for boundaries and compatibility/testing requirements. Keep explicit HTTP routes for stable external/public protocols and unsupported binary/streaming cases.
 
-`check` checks strict TS plus Svelte; `test` uses isolated temporary SQLite/filesystems. `build` emits adapter-node output and a bundled worker (native SQLite remains external). `test:smoke` migrates temporary storage, launches **built** processes, checks health/private-file refusal, restarts worker, tests SIGTERM, then starts the actual dev supervisor and checks SIGINT child cleanup. `test:e2e` rebuilds the studio for its test origin, migrates isolated temporary DB/storage, seeds synthetic approved fixtures and one ready release, then checks the real metadata/editor/history/review UI with Chromium. Coverage includes keyboard authoring and frozen-version selection, approved-but-unpublished versus ready-published states, confined published preview delivery, empty/archived histories, pending/errors, unsaved-input retention, structured validation/conflicts, origin protection and private upload/preview/replacement. It cleans the temporary tree on shutdown and does not reuse local authoring data. Chromium cases run serially against their shared suite-local DB/storage to avoid cross-test interference. The ignored studio build is left configured for the test origin; run `pnpm build` again with your normal `ORIGIN` before launching it locally. This is not a character factory E2E. CI has separate TS, browser and Godot jobs with frozen installation; remote CI has not been executed by the local agent.
+`check` checks strict TS plus Svelte; `test` uses isolated temporary SQLite/filesystems. `test:startup` runs seven real dev-launcher checks on temporary SQLite/storage and ephemeral loopback ports: invalid/mismatched config before storage creation, unmigrated DB refusal, studio-only operation with an occupied worker port, empty library without implicit seed, saved metadata across restart, readiness, SIGINT/SIGTERM cleanup, strict studio-port refusal and combined worker failure cleanup. It does not touch local authoring data or build output. `build` emits adapter-node output and a bundled worker (native SQLite remains external). `test:smoke` migrates temporary storage, launches **built** processes, checks health/private-file refusal, restarts worker, tests SIGTERM, then starts the actual dev supervisor and checks SIGINT child cleanup. `test:e2e` rebuilds the studio for its test origin, migrates isolated temporary DB/storage, seeds synthetic approved fixtures and one ready release, then checks the real metadata/editor/history/review UI with Chromium. Coverage includes keyboard authoring and frozen-version selection, approved-but-unpublished versus ready-published states, confined published preview delivery, empty/archived histories, pending/errors, unsaved-input retention, structured validation/conflicts, origin protection and private upload/preview/replacement. It cleans the temporary tree on shutdown and does not reuse local authoring data. Chromium cases run serially against their shared suite-local DB/storage to avoid cross-test interference. The ignored studio build is left configured for the test origin; run `pnpm build` again with your normal `ORIGIN` before launching it locally. This is not a character factory E2E. CI has separate TS, browser and Godot jobs with frozen installation; remote CI has not been executed by the local agent.
 
 Run built processes from the checkout after migrating:
 

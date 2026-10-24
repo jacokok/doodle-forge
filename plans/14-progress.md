@@ -1,5 +1,70 @@
 # 14 — Persistent implementation progress
 
+## Phase 5 — reliable local studio tryout increment (2026-10-24)
+
+### Scope and implementation
+
+- First ran `git status --short --branch`, then inspected this progress file. Initial edits in the character editor, contracts exports/schema extraction, comparison browser test, authoring docs and plans 04/12/13/14 (plus untracked `packages/contracts/src/manifest.ts`) were preserved. No reset, discard, stage or commit. Read AGENTS, plans README/01/06/11/12/14, setup/authoring instructions and relevant recorded local-config/framework decisions; inspected home/editor boundaries, shared config, database readiness, dev supervisor and smoke/browser harnesses. Some initially guessed plan/config filenames did not exist; located and read the actual files before editing.
+- Recommended the smallest usability step: make the existing app easier to start rather than adding another authoring feature. Added `pnpm dev:studio` (studio only, no worker needed for existing authoring) while retaining `pnpm dev` for studio + worker health lifecycle. Supervisor reuses root `.env`/shared server validation and enforces the documented matching loopback host/port/origin requirement, retains strict studio-port binding and child shutdown, and prints a library URL/capability summary only after the requested services pass health checks. Errors point to environment/ports and explicit migration recovery. No implicit migrations, seeds, jobs, AI, approvals, publication, dependencies or new storage/security policy. No architectural decision changed; no ADR added.
+- Replaced the obsolete Phase 1-only README with accurate run/try instructions. Expanded setup troubleshooting and roadmap annotation; no Phase 5 checkbox/gate advanced. `pnpm db:migrate` remains explicit application of existing migrations, not a new migration. Setup preserves an existing `.env` and no longer requires a synthetic seed.
+- Added `tools/dev.test.mjs` / `pnpm test:startup`: seven real isolated dev-launcher tests cover invalid/mismatched config before DB creation, unmigrated DB refusal, studio-only startup despite occupied worker port, empty library/no implicit seed, metadata persistence after restart, healthy combined startup, SIGINT/SIGTERM port cleanup, occupied studio port and combined worker failure cleanup. All DB/storage writes are OS-temporary test data, not local user data.
+
+### Actual validation
+
+| Executed command | Result |
+|---|---|
+| `mise exec -- pnpm test:startup` | PASS: 7 Node test-runner integration tests, real Vite/SQLite/worker processes on isolated loopback ports. |
+| `mise exec -- pnpm check` | PASS: TypeScript/Svelte, 0 errors / 0 warnings. |
+| `mise exec -- pnpm test` | PASS: 206 tests / 13 files (startup tests are a separate command). |
+| `mise exec -- pnpm build` | PASS: production studio/worker. Rebuilt again after browser tests to restore the normal local build origin. |
+| `mise exec -- pnpm test:smoke` | PASS: built HTTP publication/security/history/corruption/operator checks, worker lifecycle and actual combined dev supervisor SIGINT cleanup/readiness. |
+| `mise exec -- pnpm test:e2e` | PASS: 16 Chromium tests, preserving editor/upload/history/comparison and origin/security regressions on isolated data. |
+| `mise exec -- pnpm lint` | FAIL: 3 existing worktree findings: `apps/studio/src/routes/characters/+page.svelte:767` missing each-block key, and `packages/contracts/src/create-fixtures.ts:68–69` explicit-any. These paths were not changed by this increment. The startup test's initial missing-error-cause finding was corrected; final lint reports no findings in this increment's files. |
+| `mise exec -- pnpm format:check`; `git diff --check` | PASS. Targeted Prettier used only on this increment's paths. |
+
+Initial startup runs caught an incorrect root-level Vite path and a test-only occupied-port server keeping sockets open; corrected the app-local Vite path and test teardown. The first test run timed out; no leftover test/dev processes remained afterward. A subsequent worker-failure assertion used the wrong existing event spelling; corrected to `worker.start_failed` and reran all seven successfully. Failure assertions now check the actual database/port/worker cause rather than generic launcher advice alone.
+
+### Remaining work and limits
+
+- Phase 5 remains **in progress**, not accepted. Approval/rejection/publication mutations still require explicit authorization. Comprehensive accessibility audit and observed child-usability acceptance remain pending; automated Chromium and startup checks are not either acceptance.
+- New characters can save metadata/choices and private original art but have no generated/frozen/released content. Read-only history/comparison requires existing snapshots/ready releases; startup never fabricates them. Generation/workflows remain unavailable (Phase 6 not started).
+- Readiness is a bounded startup health check, not continuous monitoring or a content-integrity audit. The studio-only command still uses valid shared config (including a distinct configured worker port), but does not bind or require a worker listener. Public/hosted use remains unsupported. No Godot, manual graphical, screen-reader, observed-child or remote-CI tests ran in this increment.
+- Next: try the documented local guided flow with real user feedback; separately scope accessibility/child-usability verification or explicitly authorize remaining review mutations. Keep outstanding lint findings visible without altering the preserved worktree changes.
+
+## Browser contract import fix (2026-10-24)
+
+- User reported a real browser runtime failure: `Cannot access "node:crypto.createHash" in client code`, with SvelteKit HMR warning. Traced it to the comparison editor importing `characterManifestSchema` from the contracts root, which also imports Node crypto/filesystem/path validators.
+- Moved the exact shared schemas to `packages/contracts/src/manifest.ts`; root contracts re-exports them, preserving existing consumers. Added explicit `@doodleforge/contracts/manifest` package subpath and changed browser editor to import from it. No schema was duplicated or altered. Recorded ADR-030 and documented the client/server import boundary in plan 04.
+- Validation after correction: `mise exec -- pnpm check` PASS (0 errors/warnings); `mise exec -- pnpm test` PASS (206 tests / 13 files); `mise exec -- pnpm build` PASS (studio/worker; client build no longer emits Node built-in externalization warnings); `mise exec -- pnpm test:e2e` PASS (16 Chromium tests, including comparison); `mise exec -- pnpm format:check` and `git diff --check` PASS. Production browser build and browser E2E confirm the reported `node:crypto` client failure is resolved.
+
+## Phase 5 — side-by-side frozen animation comparison increment (2026-10-24)
+
+### Scope and implementation
+
+- First ran `git status --short --branch` (clean `main...origin/main`) and inspected this progress file before further reading. Preserved all worktree contents; no reset, discard, stage or commit. Read AGENTS, roadmap/progress, plans README/04/05/06, authoring/upload docs, and ADRs 026–029 (recorded in plan 13); inspected the guided editor, frozen history DTO, shared manifest animation contract, private original route, ready-release asset route and isolated Playwright/SQLite/storage harness. The requested `plans/04-character-package.md` does not exist; the applicable normative plan is `plans/04-character-asset-contract.md`.
+- Added responsive current-original/frozen-art comparison to the existing Review and history step. Original artwork is fetched only from the existing owner-checked private preview route and explicitly labeled current mutable authoring art, not necessarily the source of the frozen version. Frozen sprite sheets are fetched only through the existing ready-release content route; approved-but-unreleased versions still receive no image delivery. No new route, storage access, schema, or persistence.
+- Animation data is parsed with shared `characterManifestSchema`; choices, sheet geometry, frame count, FPS and loop behavior use the selected frozen manifest. Keyboard-native animation/frame/restart controls reflect those values. Automatic playback honors `prefers-reduced-motion`, follows loop/one-shot behavior and is cleaned up when the review step/version becomes inactive. Loading, unavailable and failed-image states are explicit and never substitute versions/assets. Generation/workflows remain unavailable; review and publication remain read-only.
+- Added real Playwright coverage in `history-review.spec.ts` using the existing isolated migrated SQLite/storage setup: owner-vs-stranger private-preview access, ready frozen animation selection/controls, reduced-motion behavior, private/frozen preview failure, 390px no-overflow layout, and retention of unsaved text while browsing. Existing history/review and private upload regressions remain.
+- Updated the Phase 5 authoring guide and roadmap. No architectural decision changed; no ADR was added.
+
+### Actual validation
+
+| Executed command | Result |
+|---|---|
+| `mise exec -- pnpm check` | PASS: TypeScript/Svelte, 0 errors / 0 warnings. |
+| `mise exec -- pnpm exec playwright test tools/browser-tests/history-review.spec.ts` | PASS: 4 Chromium tests, including new comparison coverage and existing history regressions. |
+| `mise exec -- pnpm test:e2e` | PASS: 16 Chromium tests against the built studio and isolated migrated SQLite/storage. |
+| `mise exec -- pnpm test` | PASS: 206 tests / 13 files. |
+| `mise exec -- pnpm build` | PASS: production studio and worker builds. |
+| `mise exec -- pnpm format:check`; `git diff --check` | PASS. |
+
+Initial targeted browser runs caught and corrected stale still-preview expectations, an ambiguous accessible locator, a request-interception path typo, and assertion ambiguity while loading; final targeted and full suites above passed. Build/browser emitted existing bundler notices about Node-only contract imports; no check/build failures resulted.
+
+### Remaining acceptance / limitations
+
+- Phase 5 remains **in progress**, not complete. Approval/rejection/publication mutation UI and its confirmation/gate tests remain unimplemented and require explicit authorization. Comprehensive accessibility audit and observed child-usability acceptance remain pending; Chromium keyboard and narrow-layout assertions are not those acceptance criteria.
+- Current fixture animations each have one frame; tests verify manifest-driven selection and frame controls with existing data, not multi-frame temporal visual acceptance. No Godot, manual visual, screen-reader, child-usability or remote-CI tests were run. Generation/workflows remain Phase 6 and unavailable.
+
 ## Phase 5 — guided responsive authoring increment (2026-10-24)
 
 ### Scope and implementation
@@ -282,7 +347,7 @@ An initial live-addition test attempt exposed test assumptions about the pre-loa
 - Phase 4 remains incomplete; Phase 5 not authorized. Phase 3 graphical/active-AI acceptance remains deferred, not passed. No fallback, offline bundle, authoring UI, or unrelated combat/lint work.
 
 ## Current phase
-**Phase 5 — explicitly authorized and in progress; metadata API/remote-function guided three-step editor, immutable private uploads/previews, conservative creative-choice editing, frozen history and read-only review/publication presentation locally verified. Side-by-side comparison, animation playback, authorized approval/publication mutations and comprehensive accessibility/child-usability acceptance remain incomplete. No unpublished frozen-art delivery is added.** Phase 4 acceptance remains locally verified, including data-only live addition after catalog discovery. Phase 3 manual shadow/Y-sort/feel and human active-AI acceptance are recorded complete; elevated-target behavior remains an untested limitation (plan 14; docs/phase-3-playtest.md). Phases 0–2 retain their previously recorded local status.
+**Phase 5 — explicitly authorized and in progress; metadata API/remote-function guided three-step editor, immutable private uploads/previews, conservative creative-choice editing, frozen history and read-only review/publication presentation locally verified. Side-by-side current-original/ready-release frozen-animation comparison is implemented with focused browser coverage (latest entries above); authorized approval/publication mutations and comprehensive accessibility/child-usability acceptance remain incomplete. No unpublished frozen-art delivery is added.** Phase 4 acceptance remains locally verified, including data-only live addition after catalog discovery. Phase 3 manual shadow/Y-sort/feel and human active-AI acceptance are recorded complete; elevated-target behavior remains an untested limitation (plan 14; docs/phase-3-playtest.md). Phases 0–2 retain their previously recorded local status.
 
 ## Phase-gate exception — explicit user authorization
 The latest user instruction explicitly authorizes **Phase 5**, preserving the deferred Phase 3 acceptance requirements. The following records the earlier Phase 4-only authorization, not the current gate.

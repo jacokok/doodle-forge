@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { resolve } from '$app/paths';
   import { beforeNavigate } from '$app/navigation';
+  import { characterManifestSchema } from '@doodleforge/contracts/manifest';
   import {
     characterMetadataSchema,
     originalUploadPolicy,
@@ -55,7 +56,12 @@
   let imageFile = $state<File | null>(null);
   let fileInput = $state<HTMLInputElement>();
   let previewFailed = $state(false);
+  let frozenArtworkFailed = $state(false);
+  let frozenArtworkLoading = $state(false);
   let selectedVersionId = $state('');
+  let selectedAnimationName = $state('');
+  let previewFrame = $state(0);
+  let reducedMotion = $state(false);
   const steps = ['Character details', 'Private original', 'Review and history'];
   let step = $state(0);
   let stepHeading = $state<HTMLHeadingElement>();
@@ -68,6 +74,44 @@
         specialPower !== (selected?.specialPower ?? 'none') ||
         imageFile !== null),
   );
+
+  onMount(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => (reducedMotion = media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  });
+
+  $effect(() => {
+    const active = step === 2 && !reducedMotion && Boolean(selectedVersionId);
+    const characterId = selected?.id;
+    const versionId = selectedVersionId;
+    if (!active || !characterId || !versionId) return;
+    const result = versionHistory(characterId).current;
+    if (!result?.ok) return;
+    const frozen = result.value.find((item) => item.id === versionId);
+    if (!frozen?.snapshotAvailable || !frozen.snapshot) return;
+    const parsed = characterManifestSchema.safeParse(frozen.snapshot);
+    if (!parsed.success) return;
+    const names = Object.keys(parsed.data.animations).sort();
+    const name = names.includes(selectedAnimationName)
+      ? selectedAnimationName
+      : names[0];
+    const animation = name ? parsed.data.animations[name] : undefined;
+    if (!animation || animation.frameCount <= 1) return;
+    const delay = 1000 / animation.fps;
+    const timer = window.setInterval(() => {
+      if (!animation.loop && previewFrame >= animation.frameCount - 1) {
+        window.clearInterval(timer);
+        return;
+      }
+      previewFrame = animation.loop
+        ? (previewFrame + 1) % animation.frameCount
+        : Math.min(previewFrame + 1, animation.frameCount - 1);
+    }, delay);
+    return () => window.clearInterval(timer);
+  });
 
   beforeNavigate((navigation) => {
     if (!unsaved && !busy) return;
@@ -151,7 +195,11 @@
     imageFile = null;
     if (fileInput) fileInput.value = '';
     previewFailed = false;
+    frozenArtworkFailed = false;
+    frozenArtworkLoading = false;
     selectedVersionId = '';
+    selectedAnimationName = '';
+    previewFrame = 0;
     name = character?.name ?? '';
     description = character?.description ?? '';
     bodyType = character
@@ -550,6 +598,12 @@
                       aria-label="Frozen version"
                       onchange={(event) => {
                         selectedVersionId = event.currentTarget.value;
+                        selectedAnimationName = '';
+                        frozenArtworkFailed = false;
+                        frozenArtworkLoading = Boolean(
+                          event.currentTarget.value,
+                        );
+                        previewFrame = 0;
                       }}
                     >
                       <option value="">Choose version</option>
@@ -630,33 +684,181 @@
                                 </li>{/each}
                             </ul>{/if}
                           {#if frozen.snapshotAvailable && frozen.snapshot && frozen.publications.length > 0}
-                            {@const manifest = frozen.snapshot as {
-                              characterId: string;
-                              characterVersion: number;
-                              animations?: Record<string, { assetId: string }>;
-                              assets?: Record<string, { sha256: string }>;
-                            }}
-                            {@const firstAnimationAssetId = Object.values(
-                              manifest.animations ?? {},
-                            )[0]?.assetId}
-                            {@const firstAnimationHash = firstAnimationAssetId
-                              ? manifest.assets?.[firstAnimationAssetId]?.sha256
-                              : undefined}
-                            {#if firstAnimationHash}
-                              <h5>Published frozen artwork preview</h5>
-                              <img
-                                class="max-h-64 max-w-full object-contain"
-                                src={resolve(
-                                  '/api/content/characters/[id]/versions/[version]/assets/[hash].png',
-                                  {
-                                    id: manifest.characterId,
-                                    version: String(manifest.characterVersion),
-                                    hash: firstAnimationHash,
-                                  },
-                                )}
-                                alt="Validated published artwork from this frozen version"
-                              />
-                            {/if}
+                            {@const parsedManifest =
+                              characterManifestSchema.safeParse(
+                                frozen.snapshot,
+                              )}
+                            {#if parsedManifest.success}
+                              {@const manifest = parsedManifest.data}
+                              {@const animationNames = Object.keys(
+                                manifest.animations,
+                              ).sort()}
+                              {@const animationName = animationNames.includes(
+                                selectedAnimationName,
+                              )
+                                ? selectedAnimationName
+                                : animationNames[0]}
+                              {@const animation = animationName
+                                ? manifest.animations[animationName]
+                                : undefined}
+                              {@const assetHash = animation
+                                ? manifest.assets[animation.assetId]?.sha256
+                                : undefined}
+                              <div
+                                class="my-5 grid grid-cols-1 gap-4 md:grid-cols-2"
+                                aria-label="Artwork comparison"
+                              >
+                                <section
+                                  aria-label="Current original comparison"
+                                  class="min-w-0 border p-3"
+                                >
+                                  <h5>Current mutable authoring original</h5>
+                                  <p>
+                                    This is the currently attached original, not
+                                    necessarily the source of frozen version {frozen.version}.
+                                  </p>
+                                  {#if selected.originalAssetId}
+                                    <img
+                                      class="max-h-72 w-full object-contain"
+                                      src={resolve(
+                                        '/api/characters/[id]/originals/[assetId]/[kind]',
+                                        {
+                                          id: selected.id,
+                                          assetId: selected.originalAssetId,
+                                          kind: 'preview',
+                                        },
+                                      )}
+                                      alt="Current mutable authoring original; may not be the source of this frozen version"
+                                      onerror={() => {
+                                        previewFailed = true;
+                                      }}
+                                    />
+                                    {#if previewFailed}<p role="alert">
+                                        Current original preview unavailable. No
+                                        other image is substituted.
+                                      </p>{/if}
+                                  {:else}<p>
+                                      No current original is attached.
+                                    </p>{/if}
+                                </section>
+                                <section
+                                  aria-label="Frozen animation panel"
+                                  class="min-w-0 border p-3"
+                                >
+                                  <h5>
+                                    Frozen version {frozen.version} animation
+                                  </h5>
+                                  {#if animationName && animation && assetHash}
+                                    <label for="frozen-animation"
+                                      >Animation</label
+                                    >
+                                    <select
+                                      id="frozen-animation"
+                                      aria-label="Frozen animation"
+                                      value={animationName}
+                                      onchange={(event) => {
+                                        selectedAnimationName =
+                                          event.currentTarget.value;
+                                        previewFrame = 0;
+                                        frozenArtworkFailed = false;
+                                        frozenArtworkLoading = true;
+                                      }}
+                                    >
+                                      {#each animationNames as name}<option
+                                          value={name}>{name}</option
+                                        >{/each}
+                                    </select>
+                                    {#if frozenArtworkFailed}<p role="alert">
+                                        Frozen animation unavailable. The
+                                        selected asset could not be loaded; no
+                                        other version or image is substituted.
+                                      </p>
+                                    {:else}
+                                      {@const rows = Math.ceil(
+                                        animation.frameCount /
+                                          animation.columns,
+                                      )}
+                                      {@const artworkUrl = resolve(
+                                        '/api/content/characters/[id]/versions/[version]/assets/[hash].png',
+                                        {
+                                          id: manifest.characterId,
+                                          version: String(
+                                            manifest.characterVersion,
+                                          ),
+                                          hash: assetHash,
+                                        },
+                                      )}
+                                      <img
+                                        class="sr-only"
+                                        src={artworkUrl}
+                                        alt=""
+                                        onload={() => {
+                                          frozenArtworkLoading = false;
+                                        }}
+                                        onerror={() => {
+                                          frozenArtworkLoading = false;
+                                          frozenArtworkFailed = true;
+                                        }}
+                                      />
+                                      {#if frozenArtworkLoading}<p
+                                          role="status"
+                                        >
+                                          Loading frozen animation artwork…
+                                        </p>{/if}
+                                      <div
+                                        class="my-3 flex min-h-64 items-center justify-center overflow-hidden"
+                                        role="img"
+                                        aria-label={`Frame ${previewFrame + 1} of ${animation.frameCount} for ${animationName}`}
+                                        style={`width:100%;aspect-ratio:1;max-height:18rem;background-image:url("${artworkUrl}");background-size:${animation.columns * 100}% ${rows * 100}%;background-position:${animation.columns > 1 ? ((previewFrame % animation.columns) / (animation.columns - 1)) * 100 : 0}% ${rows > 1 ? (Math.floor(previewFrame / animation.columns) / (rows - 1)) * 100 : 0}%;background-repeat:no-repeat`}
+                                      ></div>
+                                      <p>
+                                        Frame {previewFrame + 1} / {animation.frameCount}
+                                        · {animation.fps} frames/s · {animation.loop
+                                          ? 'loops'
+                                          : 'plays once'}{animation.loop
+                                          ? ''
+                                          : ' · does not loop'}
+                                      </p>
+                                      <div class="flex flex-wrap gap-2">
+                                        <button
+                                          type="button"
+                                          onclick={() => {
+                                            previewFrame =
+                                              (previewFrame +
+                                                animation.frameCount -
+                                                1) %
+                                              animation.frameCount;
+                                          }}>Previous frame</button
+                                        ><button
+                                          type="button"
+                                          onclick={() => {
+                                            previewFrame =
+                                              (previewFrame + 1) %
+                                              animation.frameCount;
+                                          }}>Next frame</button
+                                        ><button
+                                          type="button"
+                                          onclick={() => {
+                                            previewFrame = 0;
+                                          }}>Restart preview</button
+                                        >
+                                      </div>
+                                      {#if reducedMotion}<p role="status">
+                                          Reduced motion is preferred; automatic
+                                          playback is paused. Use frame controls
+                                          to inspect.
+                                        </p>{/if}
+                                    {/if}
+                                  {:else}<p role="alert">
+                                      Frozen animation data is unavailable in
+                                      this manifest.
+                                    </p>{/if}
+                                </section>
+                              </div>
+                            {:else}<p role="alert">
+                                Frozen animation data is unavailable or invalid.
+                                No mutable values are substituted.
+                              </p>{/if}
                           {:else}
                             <p>
                               Frozen artwork preview unavailable: unpublished
@@ -666,8 +868,10 @@
                             </p>
                           {/if}
                           <p>
-                            The private original in step 2 is mutable authoring
-                            art, not generated artwork.
+                            The current original is mutable authoring art—not
+                            necessarily the source of this selected frozen
+                            version. Frozen animation images are shown only
+                            through the existing ready-release content route.
                           </p>
                         </article>
                       {/if}

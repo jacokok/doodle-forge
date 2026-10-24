@@ -1,5 +1,15 @@
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
+
+const origin = 'http://127.0.0.1:5193';
+const fixtureRoot = 'packages/contracts/fixtures/sprout/v1';
+const fixtureManifest = JSON.parse(
+  readFileSync(`${fixtureRoot}/character.json`, 'utf8'),
+) as { assets: { idle_sheet: { path: string } } };
+const fixtureImage = readFileSync(
+  `${fixtureRoot}/${fixtureManifest.assets.idle_sheet.path}`,
+);
 
 test('keyboard history selection keeps unsaved authoring input and separates approval from ready publication', async ({
   page,
@@ -62,16 +72,9 @@ test('keyboard history selection keeps unsaved authoring input and separates app
   await expect(snapshot).toContainText('Latest decision: approved');
   await expect(snapshot).toContainText('Ready release');
   const publishedPreview = snapshot.getByRole('img', {
-    name: 'Validated published artwork from this frozen version',
+    name: 'Frame 1 of 1 for attack_light',
   });
   await expect(publishedPreview).toBeVisible();
-  await expect
-    .poll(() =>
-      publishedPreview.evaluate(
-        (image: HTMLImageElement) => image.naturalWidth,
-      ),
-    )
-    .toBeGreaterThan(0);
   await expect(history).toContainText(
     'only a ready release establishes published visibility',
   );
@@ -92,6 +95,101 @@ test('keyboard history selection keeps unsaved authoring input and separates app
   await expect(name).toHaveValue('Unsaved authoring name');
   await expect(description).toHaveValue('Unsaved description remains local');
   await expect(snapshot).toContainText('Sprout');
+});
+
+test('ready-release comparison uses authorized original and contract animations while retaining edits', async ({
+  page,
+}) => {
+  const result = await page.request.get('/api/characters');
+  const rows = (await result.json()) as {
+    characters: { id: string; name: string; editRevision: number }[];
+  };
+  const sprout = rows.characters.find(
+    (character) => character.name === 'Sprout',
+  )!;
+  const upload = await page.request.post(
+    `/api/characters/${sprout.id}/originals`,
+    {
+      headers: { origin },
+      multipart: {
+        expectedRevision: String(sprout.editRevision),
+        image: {
+          name: 'mutable.png',
+          mimeType: 'image/png',
+          buffer: fixtureImage,
+        },
+      },
+    },
+  );
+  expect(upload.status()).toBe(201);
+  const attached = (await upload.json()) as { originalAssetId: string };
+  expect(
+    (
+      await page.request.get(
+        `/api/characters/${sprout.id}/originals/${attached.originalAssetId}/preview`,
+      )
+    ).status(),
+  ).toBe(200);
+  const strangerResponse = await page.request.post('/api/characters', {
+    headers: { origin },
+    data: { name: 'Stranger', description: '', bodyType: 'humanoid' },
+  });
+  const stranger = (await strangerResponse.json()) as { id: string };
+  expect(
+    (
+      await page.request.get(
+        `/api/characters/${stranger.id}/originals/${attached.originalAssetId}/preview`,
+      )
+    ).status(),
+  ).toBe(404);
+
+  await page.route('**/api/characters/*/originals/*/preview', (route) =>
+    route.abort('failed'),
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/characters');
+  const library = page.getByLabel('Library');
+  await library.getByRole('button', { name: 'Sprout', exact: true }).click();
+  await page
+    .getByRole('button', { name: '1. Character details', exact: true })
+    .click();
+  await page
+    .getByLabel('Name', { exact: true })
+    .fill('Unsaved comparison draft');
+  await page
+    .getByRole('button', { name: '3. Review and history', exact: true })
+    .click();
+  const history = page.getByLabel('Frozen version history');
+  await history
+    .getByLabel('Frozen version')
+    .selectOption({ label: 'v2 · published' });
+  const compare = history.getByLabel('Artwork comparison');
+  await expect(compare.getByLabel('Current original comparison')).toContainText(
+    'not necessarily the source',
+  );
+  await expect(
+    compare.getByAltText(/Current mutable authoring original/),
+  ).toBeVisible();
+  await expect(compare).toContainText('Current original preview unavailable');
+  const animation = compare.getByRole('combobox', { name: 'Frozen animation' });
+  await expect(animation.locator('option')).toHaveCount(5);
+  await animation.selectOption('walk');
+  await expect(compare.getByText(/Reduced motion is preferred/)).toBeVisible();
+  await expect(
+    compare.getByRole('img', { name: 'Frame 1 of 1 for walk' }),
+  ).toBeVisible();
+  await compare.getByRole('button', { name: 'Restart preview' }).click();
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue(
+    'Unsaved comparison draft',
+  );
+  await expect(page.locator('html')).toHaveJSProperty('scrollWidth', 390);
+  await page.route(
+    '**/api/content/characters/*/versions/*/assets/*.png',
+    (route) => route.abort('failed'),
+  );
+  await animation.selectOption('idle');
+  await expect(compare).toContainText('Frozen animation unavailable');
 });
 
 test('archiving an identity in another browser removes its history from authoring without affecting published history', async ({
