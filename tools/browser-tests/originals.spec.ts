@@ -28,6 +28,9 @@ test('keyboard upload/preview/replacement persists art, retains unsaved text, re
   await page.getByRole('button', { name, exact: true }).click();
   await page.getByLabel('Description').fill('Unsaved local idea');
   await page.getByLabel('Fighting style').selectOption('light_melee');
+  await page
+    .getByRole('button', { name: '2. Private original', exact: true })
+    .click();
   await page.getByLabel('Original image', { exact: true }).setInputFiles({
     name: 'spoof.png',
     mimeType: 'image/png',
@@ -69,17 +72,26 @@ test('keyboard upload/preview/replacement persists art, retains unsaved text, re
     .getAttribute('href');
   const original = await page.request.get(originalUrl!);
   expect(await original.body()).toEqual(bytes);
+  await page
+    .getByRole('button', { name: '1. Character details', exact: true })
+    .click();
   await page.getByRole('button', { name: 'Save metadata' }).click();
   await expect(page.getByText('Editing metadata revision 3')).toBeVisible();
   const other = await context.newPage();
   await other.goto('/characters');
   await other.getByRole('button', { name, exact: true }).click();
+  await page
+    .getByRole('button', { name: '2. Private original', exact: true })
+    .click();
   await page.getByLabel('Original image', { exact: true }).setInputFiles(image);
   await page.getByRole('button', { name: 'Replace original' }).click();
   await expect(page.getByText('Editing metadata revision 4')).toBeVisible();
   expect(await (await page.request.get(originalUrl!)).body()).toEqual(bytes);
   await other.getByLabel('Description').fill('Stale local idea');
   await other.getByLabel('Fighting style').selectOption('unselected');
+  await other
+    .getByRole('button', { name: '2. Private original', exact: true })
+    .click();
   await other
     .getByLabel('Original image', { exact: true })
     .setInputFiles(image);
@@ -105,6 +117,9 @@ test('keyboard upload/preview/replacement persists art, retains unsaved text, re
   );
   await page.reload();
   await page.getByRole('button', { name, exact: true }).click();
+  await page
+    .getByRole('button', { name: '2. Private original', exact: true })
+    .click();
   await expect(
     page.getByAltText('Private preview of the attached original drawing'),
   ).toBeVisible();
@@ -121,6 +136,9 @@ test('keyboard upload/preview/replacement persists art, retains unsaved text, re
   await page.route('**/originals/*/preview', (route) => route.abort('failed'));
   await page.reload();
   await page.getByRole('button', { name, exact: true }).click();
+  await page
+    .getByRole('button', { name: '2. Private original', exact: true })
+    .click();
   await expect(page.getByRole('alert')).toContainText(
     'Private preview unavailable',
   );
@@ -180,6 +198,9 @@ test('pending upload blocks overlap; network failure preserves file/text and req
   await page.goto('/characters');
   await page.getByRole('button', { name, exact: true }).click();
   await page.getByLabel('Description').fill('Keep me');
+  await page
+    .getByRole('button', { name: '2. Private original', exact: true })
+    .click();
   await page.getByLabel('Original image', { exact: true }).setInputFiles(image);
   let release!: () => void;
   const hold = new Promise<void>((resolve) => {
@@ -193,6 +214,12 @@ test('pending upload blocks overlap; network failure preserves file/text and req
     .getByRole('button', { name: 'Attach original', exact: true })
     .click();
   await expect(page.getByRole('button', { name: 'Uploading…' })).toBeDisabled();
+  await expect(
+    page.getByRole('button', { name: '1. Character details', exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole('button', { name: 'Next step', exact: true }),
+  ).toBeDisabled();
   await expect(
     page.getByLabel('Original image', { exact: true }),
   ).toBeDisabled();

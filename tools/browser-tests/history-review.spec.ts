@@ -20,11 +20,17 @@ test('keyboard history selection keeps unsaved authoring input and separates app
   await library
     .getByRole('button', { name: 'No frozen history', exact: true })
     .click();
+  await page
+    .getByRole('button', { name: '3. Review and history', exact: true })
+    .click();
   await expect(page.getByLabel('Frozen version history')).toContainText(
     'No frozen versions exist for this character.',
   );
 
   await library.getByRole('button', { name: 'Comet', exact: true }).click();
+  await page
+    .getByRole('button', { name: '3. Review and history', exact: true })
+    .click();
   const cometHistory = page.getByLabel('Frozen version history');
   const cometVersion = cometHistory.getByLabel('Frozen version');
   await expect(cometVersion).toBeVisible();
@@ -41,6 +47,9 @@ test('keyboard history selection keeps unsaved authoring input and separates app
   await expect(cometHistory.getByRole('img')).toHaveCount(0);
 
   await library.getByRole('button', { name: 'Sprout', exact: true }).click();
+  await page
+    .getByRole('button', { name: '3. Review and history', exact: true })
+    .click();
   const history = page.getByLabel('Frozen version history');
   const versionSelect = history.getByLabel('Frozen version');
   await expect(versionSelect).toBeVisible();
@@ -68,8 +77,14 @@ test('keyboard history selection keeps unsaved authoring input and separates app
   );
   const name = page.getByLabel('Name', { exact: true });
   const description = page.getByLabel('Description');
+  await page
+    .getByRole('button', { name: '1. Character details', exact: true })
+    .click();
   await name.fill('Unsaved authoring name');
   await description.fill('Unsaved description remains local');
+  await page
+    .getByRole('button', { name: '3. Review and history', exact: true })
+    .click();
   await history
     .getByRole('combobox', { name: 'Frozen version' })
     .selectOption({ label: 'v1 · published' });
@@ -93,6 +108,9 @@ test('archiving an identity in another browser removes its history from authorin
   await page.goto('/characters');
   const library = page.getByLabel('Library');
   await library.getByRole('button', { name, exact: true }).click();
+  await page
+    .getByRole('button', { name: '3. Review and history', exact: true })
+    .click();
   await expect(page.getByLabel('Frozen version history')).toContainText(
     'No frozen versions exist for this character.',
   );
@@ -139,6 +157,9 @@ test('history remote pending and failure states do not clear authoring input', a
   await page
     .getByLabel('Library')
     .getByRole('button', { name: 'Sprout', exact: true })
+    .click();
+  await page
+    .getByRole('button', { name: '3. Review and history', exact: true })
     .click();
   const history = page.getByLabel('Frozen version history');
   await expect(history).toContainText('Loading frozen versions');

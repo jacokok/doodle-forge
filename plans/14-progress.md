@@ -1,5 +1,36 @@
 # 14 — Persistent implementation progress
 
+## Phase 5 — guided responsive authoring increment (2026-10-24)
+
+### Scope and implementation
+
+- First command was `git status --short --branch`: clean `main...origin/main`. Inspected current progress first, then AGENTS, plans README/05/06/12, authoring/upload docs and ADRs 026–029; inspected editor/remotes/domain validation, original ownership/confined reads, ready-content route and isolated browser harness. Preserved all prior evidence; no reset, discard, stage or commit commands. Phase 5 remains **in progress**.
+- Added three guided steps on `/characters`: Character details → optional Private original → Review and history. New identities explicitly save metadata before later steps unlock. Step buttons/Previous/Next focus the heading; inactive panels stay mounted so text, unknown legacy choices and selected files survive. Saving is explicit, separate from uploading. No implicit save/newer-revision retry; stale/uncertain outcomes retain their existing mutation block. Server field validation focuses the first invalid field after controls re-enable.
+- Added a local-input summary labeled separately from immutable snapshots, unsaved status, stacked narrow layout and wrapping hashes. Switching identities/New with unsaved fields/files requires discard confirmation; cancelling retains step/input. Leaving warns via navigation guard (native browser unload prompt where supported). This is in-memory retention, not autosave or recovery after confirmed leave.
+- Private original links/previews and ready-release-only frozen still preview retain their existing routes/authority. No new delivery, storage key/path, original exposure, unpublished-art route, contracts, persistence, migration, domain mutation or policy change. No ADR required: UI-only implementation of existing boundaries. Review/approval/publication remain read-only; generation/jobs remain unavailable.
+- Added `tools/browser-tests/guided-flow.spec.ts`: keyboard-only guided create/edit and unsaved step traversal at 390×844, no horizontal document overflow, local summary, selected-file/choice retention and cancelled discard/page navigation. Existing suites now traverse real panels; expanded stale-cross-step retention, pending step disablement and invalid-field focus checks. Existing upload/validation/errors/private preview/release authority tests remain real built-studio checks with isolated migrated SQLite/storage.
+- Smoke initially exposed a pre-existing obsolete home-copy expectation claiming uploads were unavailable. Updated only that assertion to the actual read-only/generation boundary; did not alter home behavior or relax security assertions.
+
+### Actual validation
+
+| Executed command | Result |
+|---|---|
+| `mise exec -- pnpm check` | PASS: TypeScript/Svelte, 0 errors / 0 warnings. |
+| `mise exec -- pnpm test` | PASS: 206 tests / 13 files. |
+| `mise exec -- pnpm test:e2e` | PASS: 15 Chromium tests, real built studio and isolated migrated SQLite/storage. Initial run: 14 passed, 1 new keyboard test raced async heading focus; added a focus wait, then full suite passed on subsequent runs. |
+| `mise exec -- pnpm build` | PASS: production studio and worker builds. |
+| `mise exec -- pnpm test:smoke` | Initial FAIL on obsolete home-copy assertion; after correcting the expectation, PASS: published-only HTTP/security/history/corruption/operator and process lifecycle checks. |
+| `mise exec -- pnpm lint` | FAIL only on existing explicit-any errors at `packages/contracts/src/create-fixtures.ts:68–69`; unchanged. |
+| `mise exec -- pnpm format:check`; `git diff --check` | PASS. Targeted `mise exec -- pnpm exec prettier --write` used on changed code/test paths. |
+
+### Exactly what remains for Phase 5 acceptance
+
+1. Genuine side-by-side original/frozen artwork comparison and generated-animation playback. This increment retains a published-only still and adds no unpublished art delivery; broader delivery needs separate authorization/design.
+2. Real approval/rejection/publication UI mutations and their browser gate/confirmation tests, **only with explicit user authorization**. Current authoritative review/history/release presentation remains read-only; Phase 5's real review/publish interaction acceptance is not met.
+3. Comprehensive accessibility verification and observed child-usability review of the guided flow, including broader responsive/manual/screen-reader evidence. Focused Chromium keyboard and 390px layout checks do not constitute either acceptance.
+
+Generation/persisted job progress/retry/cancel remain unavailable and belong to Phase 6. No workflow, AI, offline, Godot, manual graphical, remote CI, screen-reader or observed child-usability tests ran here. Browser unload warnings are platform-dependent, not a durable draft mechanism. Known lint findings remain; no new blocker to a separately authorized bounded Phase 5 follow-up.
+
 ## Phase 5 — verified read-only review/history UI increment (2026-10-24)
 
 ### Scope and implementation
@@ -251,7 +282,7 @@ An initial live-addition test attempt exposed test assumptions about the pre-loa
 - Phase 4 remains incomplete; Phase 5 not authorized. Phase 3 graphical/active-AI acceptance remains deferred, not passed. No fallback, offline bundle, authoring UI, or unrelated combat/lint work.
 
 ## Current phase
-**Phase 5 — explicitly authorized and in progress; metadata API/remote-function editor, immutable private uploads/previews, conservative creative-choice editing, frozen history and read-only review/publication presentation locally verified. Full responsive wizard, side-by-side comparison, unpublished frozen-art delivery, comprehensive accessibility/child-usability review and Phase 5 overall acceptance remain incomplete.** Phase 4 acceptance remains locally verified, including data-only live addition after catalog discovery. Phase 3 manual shadow/Y-sort/feel and human active-AI acceptance are recorded complete; elevated-target behavior remains an untested limitation (plan 14; docs/phase-3-playtest.md). Phases 0–2 retain their previously recorded local status.
+**Phase 5 — explicitly authorized and in progress; metadata API/remote-function guided three-step editor, immutable private uploads/previews, conservative creative-choice editing, frozen history and read-only review/publication presentation locally verified. Side-by-side comparison, animation playback, authorized approval/publication mutations and comprehensive accessibility/child-usability acceptance remain incomplete. No unpublished frozen-art delivery is added.** Phase 4 acceptance remains locally verified, including data-only live addition after catalog discovery. Phase 3 manual shadow/Y-sort/feel and human active-AI acceptance are recorded complete; elevated-target behavior remains an untested limitation (plan 14; docs/phase-3-playtest.md). Phases 0–2 retain their previously recorded local status.
 
 ## Phase-gate exception — explicit user authorization
 The latest user instruction explicitly authorizes **Phase 5**, preserving the deferred Phase 3 acceptance requirements. The following records the earlier Phase 4-only authorization, not the current gate.

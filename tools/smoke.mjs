@@ -51,7 +51,7 @@ try {
   assert.equal(page.status, 200);
   assert.match(
     (await page.text()).replace(/\s+/g, ' '),
-    /Uploads, generation and publishing are not available in this UI yet/,
+    /Generation and approval\/publication actions are unavailable here; released visibility is shown read-only/,
   );
   assert.equal(
     (await fetch(`${env.ORIGIN}/storage/originals/private.png`)).status,

@@ -32,6 +32,7 @@ test('keyboard create, structured validation, edit, deliberate archive and persi
     'aria-invalid',
     'true',
   );
+  await expect(page.getByLabel('Name', { exact: true })).toBeFocused();
   await expect(page.getByLabel('Description')).toHaveValue(
     '<script>not executable</script>',
   );
@@ -113,6 +114,16 @@ test('two editors retain stale input, block resubmission and require deliberate 
   await other.getByLabel('Fighting style').selectOption('light_melee');
   await other.getByRole('button', { name: 'Save metadata' }).click();
   await expect(other.getByRole('alert')).toContainText('Character changed');
+  await other
+    .getByRole('button', { name: '3. Review and history', exact: true })
+    .click();
+  await expect(other.getByLabel('Authoring summary')).toContainText(
+    'my stale input',
+  );
+  await expect(other.getByText('Editing metadata revision 1')).toBeVisible();
+  await other
+    .getByRole('button', { name: '1. Character details', exact: true })
+    .click();
   await expect(other.getByLabel('Description')).toHaveValue('my stale input');
   await expect(other.getByLabel('Fighting style')).toHaveValue('light_melee');
   await expect(
@@ -177,6 +188,9 @@ test('pending mutation prevents duplicate input; network failure keeps input and
   await expect(page.getByLabel('Fighting style')).toBeDisabled();
   await expect(page.getByLabel('Special power')).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Saving…' })).toBeDisabled();
+  await expect(
+    page.getByRole('button', { name: '2. Private original', exact: true }),
+  ).toBeDisabled();
   await expect(
     page.getByRole('button', { name: 'New character', exact: true }),
   ).toBeDisabled();
