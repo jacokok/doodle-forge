@@ -6,6 +6,8 @@ Provide a child-friendly authoring and review interface plus the single server A
 ## Scope
 Library, creation/editing, uploads, creative choices, generation progress, original/generated/animation previews, selective regeneration, version history, approval and publication. API supports studio and development Godot consumption.
 
+**Current Phase 5 boundary:** metadata/editor and private originals are implemented; frozen review history is read-only. A first-animation still is shown only for a frozen version already present in a ready release, through the published-content route. Unpublished frozen art has no delivery path and is explicitly unavailable. Approval/publication state is presented from persisted decisions/releases, without mutation controls. Generation/jobs remain unavailable until Phase 6; full wizard, side-by-side comparison, comprehensive accessibility and observed child-usability acceptance remain pending.
+
 ## Technical approach
 SvelteKit/Svelte 5 with runes for local reactive UI, Tailwind CSS and adapter-node. Enable and use Svelte's experimental async support and remote functions wherever applicable for studio data loading, queries and mutations; do not default to hand-written fetch wrappers or legacy load/form-action plumbing when a remote function expresses the interaction. Use async Svelte expressions/derived state where they simplify dependent asynchronous UI. Keep business operations in domain services, not `.svelte` files or remote-function modules. Browser bundles must not import database or provider SDKs; keep server modules in server-only boundaries. Use optimistic revision tokens on editing requests.
 

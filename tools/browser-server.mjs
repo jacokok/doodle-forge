@@ -26,6 +26,23 @@ try {
   child = launch('pnpm', ['db:migrate'], { env });
   if ((await child.done).code !== 0)
     throw new Error('Browser database migration failed');
+  child = launch('pnpm', ['content:seed'], { env });
+  if ((await child.done).code !== 0)
+    throw new Error('Browser review fixture seed failed');
+  child = launch(
+    'pnpm',
+    ['exec', 'tsx', 'tools/content-cli/src/runtime-seed.ts'],
+    { env },
+  );
+  if ((await child.done).code !== 0)
+    throw new Error('Browser publication fixture seed failed');
+  child = launch(
+    'pnpm',
+    ['exec', 'tsx', 'tools/content-cli/src/runtime-seed.ts', 'advance'],
+    { env },
+  );
+  if ((await child.done).code !== 0)
+    throw new Error('Browser version-history fixture seed failed');
   if (!stopping) {
     child = launch(process.execPath, ['apps/studio/build/index.js'], { env });
     const result = await child.done;

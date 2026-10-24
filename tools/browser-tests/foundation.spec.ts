@@ -10,7 +10,7 @@ test('studio shell explains unavailable features and has a keyboard-accessible h
   );
   await expect(
     page.getByText(
-      'Uploads, generation and publishing are not available in this UI yet.',
+      'Generation and approval/publication actions are unavailable here; released visibility is shown read-only.',
       { exact: false },
     ),
   ).toBeVisible();

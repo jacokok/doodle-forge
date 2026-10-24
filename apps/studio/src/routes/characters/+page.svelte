@@ -399,6 +399,13 @@
           </fieldset>
         </form>
         {#if selected}
+          <section aria-label="Generation and jobs" class="my-6 space-y-3">
+            <h3 class="text-lg font-semibold">Generation and jobs</h3>
+            <p role="status">
+              Unavailable until Phase 6: no generation job is queued or running,
+              and retry/cancel controls are not available.
+            </p>
+          </section>
           <section aria-label="Frozen version history" class="my-6 space-y-3">
             <h3 class="text-lg font-semibold">Frozen versions (read only)</h3>
             <p>
@@ -461,17 +468,31 @@
                             Frozen snapshot unavailable or corrupt; no mutable
                             authoring values substituted.
                           </p>{/if}
-                        <h5>Review decisions (newest first)</h5>
+                        <h5>Review and approval (read only)</h5>
                         {#if frozen.decisions.length === 0}<p>
-                            No approval decision recorded.
-                          </p>{:else}<ul>
+                            No approval decision recorded; this snapshot has no
+                            recorded approval.
+                          </p>{:else}
+                          {@const latestDecision = frozen.decisions[0]!}
+                          <p>
+                            Latest decision: {latestDecision.decision} ·
+                            {latestDecision.actorLabel} · hash-bound to
+                            {latestDecision.manifestSha256}.
+                          </p>
+                          {#if latestDecision.note}<p>
+                              Note: {latestDecision.note}
+                            </p>{/if}
+                          <h6>Append-only decision history (newest first)</h6>
+                          <ul>
                             {#each frozen.decisions as decision (decision.decisionOrder)}<li
                               >
                                 {decision.decision} · {decision.actorLabel} · {new Date(
                                   decision.createdAt,
                                 ).toLocaleString()} · hash {decision.manifestSha256}
+                                {decision.note ? ` · ${decision.note}` : ''}
                               </li>{/each}
-                          </ul>{/if}
+                          </ul>
+                        {/if}
                         <h5>Published visibility</h5>
                         {#if frozen.publications.length === 0}<p>
                             Not present in any ready published release.
@@ -485,10 +506,45 @@
                                   : 'publication time unavailable'}
                               </li>{/each}
                           </ul>{/if}
+                        {#if frozen.snapshotAvailable && frozen.snapshot && frozen.publications.length > 0}
+                          {@const manifest = frozen.snapshot as {
+                            characterId: string;
+                            characterVersion: number;
+                            animations?: Record<string, { assetId: string }>;
+                            assets?: Record<string, { sha256: string }>;
+                          }}
+                          {@const firstAnimationAssetId = Object.values(
+                            manifest.animations ?? {},
+                          )[0]?.assetId}
+                          {@const firstAnimationHash = firstAnimationAssetId
+                            ? manifest.assets?.[firstAnimationAssetId]?.sha256
+                            : undefined}
+                          {#if firstAnimationHash}
+                            <h5>Published frozen artwork preview</h5>
+                            <img
+                              class="max-h-64 max-w-full object-contain"
+                              src={resolve(
+                                '/api/content/characters/[id]/versions/[version]/assets/[hash].png',
+                                {
+                                  id: manifest.characterId,
+                                  version: String(manifest.characterVersion),
+                                  hash: firstAnimationHash,
+                                },
+                              )}
+                              alt="Validated published artwork from this frozen version"
+                            />
+                          {/if}
+                        {:else}
+                          <p>
+                            Frozen artwork preview unavailable: unpublished
+                            versions are not delivered by the published-content
+                            boundary. No storage path, original, or unpublished
+                            asset is exposed.
+                          </p>
+                        {/if}
                         <p>
-                          Art preview unavailable for frozen versions in this
-                          increment. The original-image preview below is mutable
-                          authoring art, not generated artwork.
+                          The original-image preview below is mutable authoring
+                          art, not generated artwork.
                         </p>
                       </article>
                     {/if}

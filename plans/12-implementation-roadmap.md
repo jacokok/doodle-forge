@@ -120,13 +120,13 @@ Contract precedes game and factory. API integration precedes authoring UI. To re
 **Dependencies:** contract, database and Phase 4 approval/publication services. Automated generation waits for Phase 6.
 
 **Checklist:**
-- [ ] Implement server-validated character CRUD and optimistic revisions. Metadata-only JSON API and remote-function library/create/edit/archive UI, shared validation and stale edit/archive tests locally verified; supported creative-choice editing is now locally verified; full authoring remains incomplete (plan 14).
+- [x] Implement server-validated character CRUD and optimistic revisions. Metadata/choice JSON API and remote-function library/create/edit/archive UI, shared validation and stale edit/archive tests locally verified (plan 14).
 - [x] Add bounded/magic-verified upload, immutable originals and private derived previews. Additive asset persistence/shared-revision attachment, strict Sharp safety/orientation and editor upload/replacement/private delivery locally verified (ADR-028; plan 14); not generation E2E or full Phase 5 acceptance.
 - [ ] Add name/description/body/fighting-style/power inputs and accessible responsive wizard. Existing editor now covers all five fields using the conservative supported catalog (ADR-029); full wizard/child-usability acceptance remains pending.
-- [ ] Add side-by-side previews, history and clear draft/approved/published states.
-- [ ] Add review/approval/publication UI using validated seeded review versions.
-- [ ] Add job progress/retry/cancel UI boundaries; clearly show unavailable factory until connected.
-- [ ] Add mutation protection, structured errors and keyboard/a11y checks. Metadata slice has real Chromium keyboard/pending/errors/conflict/origin coverage; broader upload/review/wizard accessibility acceptance remains pending.
+- [ ] Add side-by-side previews, history and clear draft/approved/published states. Read-only history/review status is implemented; only ready-release members use the confined published asset endpoint for a still preview. No unpublished frozen asset route or true side-by-side comparison; see plan 14.
+- [x] Add review/approval/publication presentation using validated seeded review versions. Read-only only: latest hash-bound decisions and append-only history are distinct from ready-release membership; no unsupported mutation controls.
+- [x] Add job UI boundary; clearly show unavailable factory until connected. UI says no job is queued/running and retry/cancel are unavailable until Phase 6; real persisted job progress remains Phase 6.
+- [ ] Add mutation protection, structured errors and keyboard/a11y checks. Mutation protections and focused Chromium keyboard/pending/errors/conflict/origin/history coverage are locally verified; full responsive wizard, broader accessibility audit and child-usability acceptance remain pending.
 
 **Acceptance criteria:** Real upload/edit/review/publish interactions work on available valid versions, invalid uploads are rejected and original hashes unchanged. **Test requirements:** Vitest route/upload/version tests; Playwright wizard, keyboard navigation, previews and approval/publish gate; do not claim full upload-to-generation E2E yet.
 

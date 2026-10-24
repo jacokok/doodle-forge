@@ -2,6 +2,7 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tools/browser-tests',
+  workers: 1,
   use: { baseURL: 'http://127.0.0.1:5193', browserName: 'chromium' },
   webServer: {
     command: 'node tools/browser-server.mjs',

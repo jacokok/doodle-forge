@@ -1,5 +1,38 @@
 # 14 — Persistent implementation progress
 
+## Phase 5 — verified read-only review/history UI increment (2026-10-24)
+
+### Scope and implementation
+
+- Began with `git status --short --branch`: `main...origin/main` plus the already-modified authoring/remotes/contracts/database/docs/plan/browser paths and untracked contract/browser tests. Preserved the worktree; no reset, discard, stage or commit command was run. During this task, `HEAD`/`origin/main` advanced to `f4f604f` (`Latest`), which contains those initially modified paths; the current remaining diff is this increment. Read the requested plans and Phase 4/5/setup docs, then inspected the existing editor/remotes, history service/repository, review/publication services, private-original and published-content boundaries, and browser harness before implementation.
+- Added read-only review presentation to frozen history: latest manifest-hash-bound decision and optional note, append-only decision history, and ready-release membership are displayed independently. Approval without ready membership is explicitly not published. No approval/rejection/publication controls or domain mutations were added.
+- Added a minimal still preview only when the frozen manifest is listed in at least one ready release. Its first animation asset is requested through the existing published-content route, which resolves membership and validated bytes; no storage key/path, private original, or unpublished asset is delivered. Approved-but-unpublished versions explicitly have no preview. No migration or ADR change; this implements the existing policy.
+- Editor explicitly states generation/jobs are unavailable until Phase 6 and that no job is queued/running and retry/cancel are unavailable. The browser harness now seeds isolated synthetic review fixtures (approved Comet without a release; Sprout v1/v2 with ready release membership) for deterministic browser checks.
+- Added service coverage for empty/missing/archived identity history, ownership, immutable frozen snapshot display, and approval-versus-ready-publication membership. Added real Chromium coverage for keyboard version selection, immutable snapshot metadata, approved-unpublished versus published, validated published preview load, empty/archive history, pending/errors, and retaining unsaved authoring values while browsing.
+- Updated authoring/setup documentation and roadmap annotations. Phase 5 remains **in progress**. No generation/workflow, fake actions, manual child-usability claims, migration or broader asset-delivery route was added.
+
+### Actual validation
+
+| Executed command | Result |
+|---|---|
+| `mise exec -- pnpm exec vitest run apps/studio/src/lib/server/characters.test.ts` | PASS: 32 tests. One initial run exposed the test service missing its optional history repository; corrected setup and reran. |
+| `mise exec -- pnpm check` | PASS: TypeScript/Svelte, 0 errors / 0 warnings. Initial check found template narrowing errors; corrected and reran. |
+| `mise exec -- pnpm exec playwright test tools/browser-tests/history-review.spec.ts` | PASS: 3 Chromium tests. Initial iterations caught test keyboard/locator assumptions; corrected and reran. |
+| `mise exec -- pnpm test` | PASS: 206 tests / 13 files. |
+| `mise exec -- pnpm test:e2e` | PASS: 13 Chromium tests, real built studio and isolated migrated SQLite/storage. |
+| `mise exec -- pnpm build` | PASS: production studio and worker builds. |
+| `mise exec -- pnpm test:smoke` | PASS: real built HTTP publication/security/history/corruption/operator and process-lifecycle checks. |
+| `mise exec -- pnpm format:check`; `git diff --check` | PASS. |
+| `mise exec -- pnpm lint` | FAIL only on the two existing explicit-any findings at `packages/contracts/src/create-fixtures.ts:68–69`; unchanged. |
+
+The first full browser run with six workers had one intermittent upload-input failure while all tests shared the suite database. The harness uses one isolated database with fixed review fixtures, so Playwright now runs serially (`workers: 1`); the final 13-test suite passed. This is a test-isolation adjustment, not a product behavior change.
+
+### Remaining Phase 5 acceptance / limitations
+
+- A full responsive creation wizard and genuine side-by-side original/generated comparison are not implemented. Frozen generated-art preview is intentionally unavailable for unpublished review snapshots; delivery remains strictly through the existing ready-release authority. The published preview is a single still, not animation playback.
+- Full accessibility audit and observed child-usability review remain pending; automated keyboard interactions are not evidence of either. No manual graphical, Godot, remote-CI or Phase 6 generation/job tests were run.
+- No approval or publication mutation controls exist in this increment; users can inspect authoritative decisions/releases only. Phase 5 remains in progress and its broader acceptance is not inferred.
+
 ## Phase 5 — read-only frozen-version history increment (2026-10-23)
 
 - Preserved the pre-existing worktree changes (creative-choice increment and browser tests); did not reset, discard or stage unrelated work. Read requested plans/docs and inspected snapshot/approval/release persistence, publication authority, private asset confinement and existing editor/remotes.
@@ -218,7 +251,7 @@ An initial live-addition test attempt exposed test assumptions about the pre-loa
 - Phase 4 remains incomplete; Phase 5 not authorized. Phase 3 graphical/active-AI acceptance remains deferred, not passed. No fallback, offline bundle, authoring UI, or unrelated combat/lint work.
 
 ## Current phase
-**Phase 5 — explicitly authorized and in progress; metadata API/remote-function editor, safe immutable original/private-preview uploads and conservative creative-choice editing locally verified, full acceptance incomplete. Phase 4 acceptance remains locally verified, including data-only live addition after catalog discovery. Phase 3 manual shadow/Y-sort/feel and human active-AI acceptance are now recorded as complete; elevated-target behavior remains an untested limitation (plan 14; docs/phase-3-playtest.md).** Phases 0–2 retain their previously recorded local status.
+**Phase 5 — explicitly authorized and in progress; metadata API/remote-function editor, immutable private uploads/previews, conservative creative-choice editing, frozen history and read-only review/publication presentation locally verified. Full responsive wizard, side-by-side comparison, unpublished frozen-art delivery, comprehensive accessibility/child-usability review and Phase 5 overall acceptance remain incomplete.** Phase 4 acceptance remains locally verified, including data-only live addition after catalog discovery. Phase 3 manual shadow/Y-sort/feel and human active-AI acceptance are recorded complete; elevated-target behavior remains an untested limitation (plan 14; docs/phase-3-playtest.md). Phases 0–2 retain their previously recorded local status.
 
 ## Phase-gate exception — explicit user authorization
 The latest user instruction explicitly authorizes **Phase 5**, preserving the deferred Phase 3 acceptance requirements. The following records the earlier Phase 4-only authorization, not the current gate.

@@ -38,7 +38,10 @@ beforeEach(() => {
   const filename = join(root, 'test.sqlite');
   migrateDatabase(filename);
   db = openDatabase(filename);
-  service = new CharacterService(new CharacterRepository(db));
+  service = new CharacterService(
+    new CharacterRepository(db),
+    new SnapshotRepository(db),
+  );
 });
 afterEach(() => {
   db.close();
@@ -250,6 +253,54 @@ it('rejects media types, malformed JSON, invalid UTF-8 and oversized streaming b
     ).toBe(status);
   }
   expect(service.list()).toEqual([]);
+});
+
+it('serves only owned active history, orders frozen snapshots, and separates approval from ready publication', async () => {
+  const emptyCharacter = service.create(metadata);
+  expect(service.history(emptyCharacter.id)).toEqual([]);
+  expect(() => service.history(randomUUID())).toThrow('Character not found');
+
+  const snapshots = new SnapshotRepository(db);
+  const reviews = new ReviewService(snapshots);
+  const releases = new ReleaseRepository(db);
+  const publisher = new PublicationService(
+    reviews,
+    releases,
+    join(root, 'published'),
+  );
+  const seeded = await reviews.seedFixture('comet');
+  const identityId = reviews.getSnapshot(seeded.versionId).characterId;
+  const before = service.history(identityId);
+  expect(before).toHaveLength(1);
+  expect(before[0]).toMatchObject({
+    version: 1,
+    snapshotAvailable: true,
+    decisions: [
+      { decision: 'approved', manifestSha256: seeded.manifestSha256 },
+    ],
+    publications: [],
+  });
+  const frozenManifest = before[0]!.snapshot;
+  await publisher.publish({
+    versionId: seeded.versionId,
+    expectedManifestSha256: seeded.manifestSha256!,
+    sourceDirectory: fileURLToPath(
+      new URL(
+        '../../../../../packages/contracts/fixtures/comet/v1',
+        import.meta.url,
+      ),
+    ),
+  });
+  const publishedHistory = service.history(identityId);
+  expect(publishedHistory[0]!.publications).toHaveLength(1);
+  expect(publishedHistory[0]!.snapshot).toEqual(frozenManifest);
+  service.update(identityId, {
+    expectedRevision: 1,
+    name: 'Mutable authoring edit',
+  });
+  expect(service.history(identityId)[0]!.snapshot).toEqual(frozenManifest);
+  service.archive(identityId, { expectedRevision: 2 });
+  expect(() => service.history(identityId)).toThrow('Character not found');
 });
 
 it('retains frozen snapshots, approvals and ready release membership after edit/archive', async () => {
