@@ -64,6 +64,9 @@
   let selectedAnimationName = $state('');
   let previewFrame = $state(0);
   let reducedMotion = $state(false);
+  let previewPaused = $state(false);
+  let documentHidden = $state(false);
+  let playbackRevision = $state(0);
   const steps = ['Character details', 'Private original', 'Review and history'];
   let step = $state(0);
   let stepHeading = $state<HTMLHeadingElement>();
@@ -81,12 +84,27 @@
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
     const update = () => (reducedMotion = media.matches);
     update();
+    const updateVisibility = () => (documentHidden = document.hidden);
+    updateVisibility();
     media.addEventListener('change', update);
-    return () => media.removeEventListener('change', update);
+    document.addEventListener('visibilitychange', updateVisibility);
+    return () => {
+      media.removeEventListener('change', update);
+      document.removeEventListener('visibilitychange', updateVisibility);
+    };
   });
 
   $effect(() => {
-    const active = step === 2 && !reducedMotion && Boolean(selectedVersionId);
+    // Restarting a completed one-shot needs a new timer even if it stays selected.
+    void playbackRevision;
+    const active =
+      step === 2 &&
+      !reducedMotion &&
+      !previewPaused &&
+      !documentHidden &&
+      !frozenArtworkLoading &&
+      !frozenArtworkFailed &&
+      Boolean(selectedVersionId);
     const characterId = selected?.id;
     const versionId = selectedVersionId;
     if (!active || !characterId || !versionId) return;
@@ -104,13 +122,12 @@
     if (!animation || animation.frameCount <= 1) return;
     const delay = 1000 / animation.fps;
     const timer = window.setInterval(() => {
-      if (!animation.loop && previewFrame >= animation.frameCount - 1) {
-        window.clearInterval(timer);
-        return;
-      }
       previewFrame = animation.loop
         ? (previewFrame + 1) % animation.frameCount
         : Math.min(previewFrame + 1, animation.frameCount - 1);
+      if (!animation.loop && previewFrame === animation.frameCount - 1) {
+        previewPaused = true;
+      }
     }, delay);
     return () => window.clearInterval(timer);
   });
@@ -214,6 +231,7 @@
     selectedVersionId = '';
     selectedAnimationName = '';
     previewFrame = 0;
+    previewPaused = false;
     name = character?.name ?? '';
     description = character?.description ?? '';
     bodyType = character
@@ -817,18 +835,20 @@
                                           hash: assetHash,
                                         },
                                       )}
-                                      <img
-                                        class="sr-only"
-                                        src={artworkUrl}
-                                        alt=""
-                                        onload={() => {
-                                          frozenArtworkLoading = false;
-                                        }}
-                                        onerror={() => {
-                                          frozenArtworkLoading = false;
-                                          frozenArtworkFailed = true;
-                                        }}
-                                      />
+                                      {#key `${selectedVersionId}:${animationName}`}
+                                        <img
+                                          class="sr-only"
+                                          src={artworkUrl}
+                                          alt=""
+                                          onload={() => {
+                                            frozenArtworkLoading = false;
+                                          }}
+                                          onerror={() => {
+                                            frozenArtworkLoading = false;
+                                            frozenArtworkFailed = true;
+                                          }}
+                                        />
+                                      {/key}
                                       {#if frozenArtworkLoading}<p
                                           role="status"
                                         >
@@ -851,7 +871,26 @@
                                       <div class="flex flex-wrap gap-2">
                                         <button
                                           type="button"
+                                          disabled={reducedMotion ||
+                                            animation.frameCount <= 1}
                                           onclick={() => {
+                                            if (
+                                              previewPaused &&
+                                              !animation.loop &&
+                                              previewFrame ===
+                                                animation.frameCount - 1
+                                            )
+                                              previewFrame = 0;
+                                            previewPaused = !previewPaused;
+                                          }}
+                                          >{previewPaused || reducedMotion
+                                            ? 'Play preview'
+                                            : 'Pause preview'}</button
+                                        >
+                                        <button
+                                          type="button"
+                                          onclick={() => {
+                                            previewPaused = true;
                                             previewFrame =
                                               (previewFrame +
                                                 animation.frameCount -
@@ -861,6 +900,7 @@
                                         ><button
                                           type="button"
                                           onclick={() => {
+                                            previewPaused = true;
                                             previewFrame =
                                               (previewFrame + 1) %
                                               animation.frameCount;
@@ -869,9 +909,18 @@
                                           type="button"
                                           onclick={() => {
                                             previewFrame = 0;
+                                            previewPaused = reducedMotion;
+                                            playbackRevision += 1;
                                           }}>Restart preview</button
                                         >
                                       </div>
+                                      <p>
+                                        Frame controls pause playback. Restart
+                                        plays from the beginning unless reduced
+                                        motion is preferred. Playback stops
+                                        while this step or browser tab is
+                                        hidden.
+                                      </p>
                                       {#if reducedMotion}<p role="status">
                                           Reduced motion is preferred; automatic
                                           playback is paused. Use frame controls

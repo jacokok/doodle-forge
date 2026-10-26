@@ -6,9 +6,12 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@doodleforge/contracts": "workspace:*",
     "@doodleforge/content-publisher": "workspace:*",
+    "@doodleforge/contracts": "workspace:*",
     "@doodleforge/database": "workspace:*",
     "@doodleforge/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "sharp": "0.34.5"
   }
 }

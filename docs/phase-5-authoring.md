@@ -38,6 +38,10 @@ Responses are `no-store` with `nosniff` and an `X-Request-Id`. Failures have `{e
 
 Authoring identities are mutable; frozen review snapshots, approvals and ready releases are not changed by editing or archiving. Archive hides an identity from authoring list/get and prevents further edits; historical published membership remains available through the content API. Nothing here creates a version, approval, job or release. Changing published content still requires a separate new frozen version, approval and publication. No new migration was needed for metadata or creative choices; existing identity columns hold the choices, not version ability rows. Upload migration 0003 adds immutable original/preview assets and a selected original reference; attachment shares the identity's optimistic edit revision. See the [upload policy and private HTTP boundary](phase-5-uploads.md).
 
+## Animation playback
+
+Published frozen previews have Pause/Play, Previous/Next frame and Restart controls. Frame stepping pauses playback; Restart starts at frame one (but never overrides reduced motion). One-shots stop at the last frame; Play or Restart can replay them. Explicit pause is retained when choosing another animation/version of the same identity; opening another identity resets it. Playback stops while the review step or browser tab is hidden, during loading or on asset failure. No new art delivery authority is added: unpublished frozen sheets remain unavailable.
+
 ## Accessibility follow-up
 
 Mutation failures focus the error summary unless a metadata field can be focused directly. Archive/removal recovery restores focus to New character; upload requirements describe the file input. Unsaved-input text is intentionally not a live announcement on every keystroke. See [focused coverage and outstanding manual checks](phase-5-accessibility.md); comprehensive accessibility and observed child-usability acceptance remain pending.

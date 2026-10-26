@@ -188,6 +188,10 @@ importers:
       '@doodleforge/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+    devDependencies:
+      sharp:
+        specifier: 0.34.5
+        version: 0.34.5
 
   tools/godot-validation: {}
 

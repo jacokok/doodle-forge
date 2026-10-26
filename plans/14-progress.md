@@ -1,5 +1,34 @@
 # 14 — Persistent implementation progress
 
+## Phase 5 — controllable multi-frame previews (2026-10-24)
+
+### Scope and implementation
+
+- Began with clean Git status and current progress; reread plans README/06/11/12 and accessibility guidance, then inspected animation timing, existing browser review fixtures and isolated seed harness. Continued a bounded Phase 5 increment, not approval/publication mutations or Phase 6.
+- Added explicit Pause/Play for multi-frame previews. Frame stepping pauses; Restart starts from frame one without overriding reduced motion. One-shots stop at the final frame and can replay. Pause is retained across animation/version choices within an identity; opening another identity resets it. Timers stop while the review step/document is hidden, during artwork loading or after asset failure. Listeners/timers are cleaned up through existing component lifecycle.
+- Fixed completed one-shot restart (explicit playback revision triggers a new timer) and shared-sheet selection stuck in loading (image load lifecycle keyed to version/animation). Both were exposed/covered by the new real multi-frame browser slice rather than single-frame fixtures.
+- Added test-only `browser-motion-seed.ts`: creates a four-frame/two-row colored PNG in temporary storage, freezes, explicitly approves and publishes a distinct synthetic identity via existing services. Normal startup never calls it; no committed/generated assets, schema/migrations, delivery authority, new domain behavior or architecture decision. Reused pinned Sharp 0.34.5 as a content-CLI dev dependency, with frozen-lock install verified. No ADR required.
+- Added two controlled-clock Chromium tests against real published content: pause/resume keyboard control, stepping/row positioning, loop wrap, one-shot completion/restart, reduced-motion no-autoplay/manual frames, inactive step and synthetic document-visibility cleanup/resume. Updated authoring/accessibility docs and roadmap detail without accepting pending gates.
+
+### Actual validation
+
+| Executed command | Result |
+|---|---|
+| `mise exec -- pnpm --filter @doodleforge/content-cli add -D sharp@0.34.5 --save-exact`; `mise exec -- pnpm install --frozen-lockfile` | PASS: existing pinned Sharp reused; lockfile consistent. |
+| `mise exec -- pnpm exec playwright test tools/browser-tests/animation-playback.spec.ts` | Final PASS: 2 Chromium tests after correcting test seed identity creation and shared-sheet loading lifecycle. |
+| `mise exec -- pnpm test:e2e` | PASS: 19 Chromium tests, built studio with temporary migrated SQLite/storage and actual publication services. |
+| `mise exec -- pnpm test` | PASS: 206 tests / 13 files. |
+| `mise exec -- pnpm check` | PASS: TypeScript/Svelte, 0 errors / 0 warnings. |
+| `mise exec -- pnpm build` | PASS: studio/worker production builds; normal local build origin restored after browser harness. |
+| `mise exec -- pnpm lint` | FAIL: only the two pre-existing explicit-any findings at `packages/contracts/src/create-fixtures.ts:68–69`, unchanged. |
+| `mise exec -- pnpm format:check`; `git diff --check` | PASS including final docs. |
+
+Initial targeted execution failed before tests because the new seed lacked an authoring identity; corrected via the existing fixture identity repository operation. Next execution failed both tests on stuck loading when animations share a sheet; fixed image lifecycle, then targeted and full browser suites passed. No test/security assertion weakened.
+
+### Remaining acceptance and next steps
+
+Phase 5 remains **in progress**, not accepted. Controlled-clock tests are not manual temporal/visual quality review; synthetic visibility events are not OS background-tab verification. No screen-reader/child-observation/manual/Godot/startup/smoke/remote-CI checks ran. Comprehensive accessibility and child-usability acceptance remain pending. Remaining approval/rejection/publication mutations require separately explicit scope authorization; generation/workflows remain unavailable. Next: user tryout/manual checklist feedback or explicitly scope review mutation services/UI and their gate tests. No phase advancement.
+
 ## Phase 5 — focused accessibility recovery increment (2026-10-24)
 
 ### Scope and implementation
