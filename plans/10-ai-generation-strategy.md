@@ -38,5 +38,11 @@ Entire mock pipeline runs offline with deterministic hashes. Replacing provider 
 ## Risks and limitations
 No guarantee of temporal consistency, identity preservation, exact reproducibility or safe provider retention. Provider policies/capabilities may change. Mock art verifies mechanics, not real AI quality. Legal/guardian review is required before sending actual child data externally.
 
+## Requested integration direction (not implemented)
+
+User requests investigating their OpenAI Codex subscription with a model called “luna”, and possibly pi durable agents, after completing Phase 5. Exact provider/model ID, entitlement, programmatic/OAuth access terms, image input/output capabilities, privacy/retention and cost/limits remain unverified. Do not assume a coding/chat subscription grants image-generation API access or map “luna” to another model silently. No credentials or private artwork have been read/sent as part of this request.
+
+Phase 6 remains deterministic mock-first/offline under ADR-010. Evaluate real capabilities in Phase 7 behind provider adapters, with consent and bounded test inputs. Pi SDK persisted sessions can retain finalized agent context, but are not the SQLite workflow queue, leases, fencing, checkpoint adoption or exactly-once billing. Any pi stage integration must expose narrowly scoped tools and keep untrusted drawings/descriptions away from shell/credential access; no default unrestricted coding-agent session over project/user files. No SDK dependency or orchestration replacement is selected here. A provider/SDK decision needs separate capability/terms evaluation and ADR before implementation.
+
 ## Future considerations
 Local models, reference/pose conditioning, multiple candidate selection, effects providers and quality metrics; preserve adapter contract and approval gate.

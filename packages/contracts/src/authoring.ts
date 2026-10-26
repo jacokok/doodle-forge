@@ -71,3 +71,19 @@ export const originalUploadPolicy = {
 export const attachOriginalSchema = archiveCharacterSchema;
 export const privateImageKindSchema = z.enum(['original', 'preview']);
 export const assetIdSchema = characterIdSchema;
+
+export const frozenVersionMutationSchema = z
+  .object({
+    characterId: characterIdSchema,
+    versionId: characterIdSchema,
+    expectedManifestSha256: z.string().regex(/^[a-f0-9]{64}$/),
+    expectedDecisionOrder: z
+      .number()
+      .int()
+      .min(0)
+      .max(Number.MAX_SAFE_INTEGER - 1),
+  })
+  .strict();
+export const reviewDecisionSchema = frozenVersionMutationSchema.extend({
+  decision: z.enum(['approved', 'rejected', 'revoked']),
+});

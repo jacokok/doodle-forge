@@ -125,6 +125,16 @@ Installed engine `4.7.2.stable.arch_linux.ed1daf0bf` matches official Linux debu
 **Alternatives rejected:** duplicate a reduced animation schema in studio code, remove useful server validators from the root API, or polyfill Node modules into the browser.
 **Consequences:** shared schema compatibility remains unchanged; package exports expose an explicit browser-safe entry. `pnpm check`, contract tests, production build and browser E2E verify the boundary. See plans 04/06 and plan 14.
 
+### ADR-031 — Bounded Phase 5 fixture review/publication commands (accepted)
+
+**Decision:** User has authorized remaining Phase 5 review/publication mutations before Phase 6. Use shared strict DTOs, hash-bound version identity and expected latest decision order. Decisions append with order/active-owner CAS inside SQLite; publication rechecks both at activation and on the already-active idempotent path. The local reviewer label is server-owned, not authenticated identity. Native confirmation dialogs pin version/hash with Cancel-first focus; stale/uncertain results require explicit review refresh and preserve unsaved authoring input.
+
+**Incremental protocol exception:** Before durable Phase 6 jobs exist, supported small packages use synchronous commands returning actual 200 results (including release ID), never fake 202 jobs. Admission is limited to fixture v1 packages selected by server allowlist or already-ready package paths, exact frozen canonical hash, at most five assets / 2 MB compressed / 2 million declared pixels per package and an admitted catalog of at most eight identities. No client path or source-snapshot path hint is used. Existing publisher performs full native decoding, durable writes and atomic activation. Larger/generated unpublished sources remain unavailable until Phase 6's asynchronous publication jobs; this does not authorize generation in HTTP handlers. Local filesystem stalls remain an operational risk; interrupted/uncertain commands require inspection/reconciliation, not blind retry.
+
+**Private review delivery:** A new no-store, owner-checked frozen-sheet route permits review before publishing only for these supported sources. It verifies bounded bytes/hashes and never exposes originals, source snapshots, paths or unrelated versions. Public game delivery still requires ready-release membership. Archive denies private review/actions but never removes historical ready releases. Rejection/revocation cannot retroactively unpublish.
+
+**Consequences:** No migration or workflow framework added. Source admission is intentionally narrow and must be replaced/extended by persistent generated-package registration and publication jobs in Phase 6. Manual accessibility/observed-child acceptance remains pending; authorization to implement is not evidence of acceptance.
+
 ## Dependencies
 Plans 01–11 contain detailed consequences. Roadmap orders implementations; progress records evidence. External source availability affects research, not local test status.
 

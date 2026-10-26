@@ -10,7 +10,7 @@ test('studio shell explains unavailable features and has a keyboard-accessible h
   );
   await expect(
     page.getByText(
-      'Generation and approval/publication actions are unavailable here; released visibility is shown read-only.',
+      'Generation remains unavailable; no factory jobs are started.',
       { exact: false },
     ),
   ).toBeVisible();

@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { deflateSync } from 'node:zlib';
-import { canonicalJson, sha256 } from './index.js';
+import { canonicalJson, sha256, type CharacterManifest } from './index.js';
 
 const crcTable = Uint32Array.from({ length: 256 }, (_, n) => {
   let c = n;
@@ -65,8 +65,8 @@ for (const [name, seed] of [
     'assets',
   );
   await mkdir(dir, { recursive: true });
-  const assets: Record<string, any> = {};
-  const anims: Record<string, any> = {};
+  const assets: CharacterManifest['assets'] = {};
+  const anims: CharacterManifest['animations'] = {};
   for (let i = 0; i < animations.length; i++) {
     const key = animations[i]!;
     const assetId = `${key}_sheet`;

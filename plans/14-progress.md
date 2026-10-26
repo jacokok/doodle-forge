@@ -1,5 +1,40 @@
 # 14 — Persistent implementation progress
 
+## Phase 5 — authorized review/publication feature increment (2026-10-26)
+
+### Scope and implementation
+
+- Started with clean `main...origin/main`; read required plans/progress and studio/persistence/publication/workflow/provider/testing boundaries, inspected domain/repositories/publisher/remotes/editor/browser harness. User explicitly requested completing Phase 5 review/publication before Phase 6. This authorizes those mutations, not fabrication of manual accessibility/child-usability acceptance. Phase 6 implementation has not started.
+- Added shared strict frozen-version action DTOs, validated domain service and JSON/remote dispatch. Requests bind owner/version UUID, canonical manifest hash and latest decision order; actor label is server-owned `local-studio-reviewer`. Decisions append with SQLite order/active-owner CAS. Publication rechecks decision order and active owner at activation and on its already-active idempotent path. Existing CLI/fixture paths preserve their prior behavior when no UI order token is supplied. No migrations, credentials or dependencies added.
+- Implemented native Cancel-first pinned version/hash confirmation for approve/reject/revoke/publish, pending overlap protection, explicit review refresh and stale/uncertain-result blocking. Unsaved authoring inputs remain untouched. Rejection/revocation never remove historical ready releases; approval alone never publishes. Preserved the current history view during query refresh so action feedback/focus are not lost to component remount.
+- Added bounded private frozen-sheet delivery for supported unpublished fixture sources, with owned active version lookup, no-store/same-origin resource policy, canonical source-hash equality, confined bounded reads and asset hash verification. Public content still requires ready-release references. Sources are only server-allowlisted Sprout/Comet v1 or already-ready immutable paths; no client/source-snapshot path hints. Admission is five assets, 2 MB compressed and 2 million declared pixels per package, eight catalog identities. Unsupported/generated unpublished packages explicitly require Phase 6.
+- ADR-031 records the incremental protocol exception: small Phase 5 fixture publication is a synchronous actual 200 result/release ID via existing durable atomic publisher, not a fictitious 202 job. Generated/larger publication will use Phase 6 persistent jobs. Filesystem stalls, uncertain results and interrupted-operation reconciliation remain operational limitations. No generation runs inside routes.
+- Updated home/library/dev capability text, setup/authoring/accessibility docs and normative plans. Replaced two pre-existing fixture-generator explicit-any declarations with shared `CharacterManifest` asset/animation types, resolving the remaining lint errors without changing generation logic or committed fixture assets.
+- Recorded requested OpenAI Codex subscription / “luna” / possible pi integration direction in plan 10. Exact model ID/entitlement/programmatic access/image capability/terms remain unverified. Read installed pi SDK persistence documentation for orientation only; no SDK dependency, provider request, credential access or private-art transfer. Persisted agent conversation context is not queue/lease/fencing durability. Phase 6 remains mock-first; real integration requires Phase 7 evaluation and a decision before implementation.
+
+### Actual validation
+
+| Executed command | Result |
+|---|---|
+| `mise exec -- pnpm exec vitest run apps/studio/src/lib/server/review-actions.test.ts` | PASS at initial checkpoint: 8 tests. Final full suite includes 12 new route/domain/source/concurrency cases. |
+| `mise exec -- pnpm exec playwright test tools/browser-tests/z-review-actions.spec.ts` | Final focused checkpoint PASS: 1 test before adding pending/uncertain coverage; full suite below includes both new cases. |
+| `mise exec -- pnpm test` | Final PASS: **218 tests / 14 files**. Covers private owner/path/archived access, JSON bounds/origins, invalid hashes/tokens/paths, cross-connection decision CAS, unapproved publish denial, idempotent publication, revocation preserving ready bytes, unregistered/corrupt source rejection, and decision/archive races before activation. |
+| `mise exec -- pnpm test:e2e` | Final PASS: **21 Chromium tests**, built studio/temp migrated SQLite/storage. New tests cover keyboard confirmation/cancel, pending/uncertain recovery, stale competing review, unsaved input retention, explicit public-index activation, remote wrong/missing origin denial and revocation preserving release visibility. Existing upload/history/animation regressions retained. |
+| `mise exec -- pnpm check` | Final PASS: TypeScript/Svelte, **0 errors / 0 warnings**. |
+| `mise exec -- pnpm lint` | Final PASS, including removal of the two previously recorded fixture-generator findings. |
+| `mise exec -- pnpm build`; `mise exec -- pnpm test:smoke` | PASS: production studio/worker and real HTTP publication/security/history/corruption/operator/lifecycle checks. Build restores normal local origin after browser tests. |
+| `mise exec -- pnpm test:startup` | PASS: 7 isolated real dev-launcher tests, startup configuration/migrations/studio-only/combined lifecycle and cleanup. |
+| `mise exec -- pnpm test:godot:api` | PASS: verified Godot 4.7.2/templates and **405 assertions** (foundation 3, gameplay 57, resources 26, hostile-peer content 102, cache 69, live addition 13, published factory 47, published arena 88). Existing expected malformed PNG/Unicode diagnostics remain; no error allowlist weakened. |
+| `mise exec -- pnpm format:check`; `git diff --check` | PASS including final documentation updates. |
+
+Initial check found relative-import resolution and nonreactive bindings; corrected with existing project import conventions and runes. Initial browser runs exposed confirmation focus timing (test now waits for Cancel/Confirm focus) and refresh remount losing action status (kept current history mounted while refreshing); reran focused and full suites successfully. Later tightened JSON route bodies to reject identity aliases and source validation to bound/hash-check manifests before asset reads; final check/test/browser/lint suites rerun successfully.
+
+### Remaining gates and next actions
+
+- Phase 5 feature implementation is locally verified for available supported fixture versions, **not overall accepted**. Comprehensive accessibility/screen-reader review and consenting child-usability observation remain pending. No manual graphical, observed-child, screen-reader or remote-CI tests ran. The manual checklist is `docs/phase-5-accessibility.md`; user must provide observations/acceptance or explicitly decide to defer that gate before Phase 6 advancement.
+- New uploads still produce immutable originals, not generated/frozen versions. Publication is deliberately small/source-limited until persistent Phase 6 registration/jobs; no full upload-to-generation E2E claim. Local loopback trust is not authenticated multi-user ownership. Explicit reviewer audit label is not a guardian account. No aggregate quota/retention policy or new rollback UI.
+- Next implementation after gate resolution: Phase 6 typed durable stages, additive job/attempt/lease persistence, fenced checkpoint adoption, deterministic mock provider and fault/restart tests. Do not replace these guarantees with pi conversation persistence or silently wire real AI/child-data transmission.
+
 ## Phase 5 — controllable multi-frame previews (2026-10-24)
 
 ### Scope and implementation

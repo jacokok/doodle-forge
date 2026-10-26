@@ -18,6 +18,12 @@ type FrozenInput = Pick<
 };
 export type ApprovalDecision = typeof approvals.$inferInsert.decision;
 
+export class ReviewConflictError extends Error {
+  constructor() {
+    super('Review changed or character archived; refresh before retrying.');
+  }
+}
+
 // Persistence only: the domain service validates contracts and package bytes.
 export class SnapshotRepository {
   constructor(private readonly connection: DatabaseConnection) {}
@@ -92,6 +98,24 @@ export class SnapshotRepository {
       .get();
   }
 
+  assertReviewCurrent(versionId: string, expectedDecisionOrder: number) {
+    const snapshot = this.get(versionId);
+    const owner =
+      snapshot &&
+      this.connection.db
+        .select()
+        .from(characters)
+        .where(eq(characters.id, snapshot.characterId))
+        .get();
+    if (
+      !owner ||
+      owner.archivedAt !== null ||
+      (this.latestDecision(versionId)?.decisionOrder ?? 0) !==
+        expectedDecisionOrder
+    )
+      throw new ReviewConflictError();
+  }
+
   freeze(input: FrozenInput) {
     return this.connection.sqlite
       .transaction(() => {
@@ -147,6 +171,7 @@ export class SnapshotRepository {
     note: string;
     // Fixture seed must not silently undo a human rejection/revocation on rerun.
     onlyIfUndecided?: boolean;
+    expectedDecisionOrder?: number;
   }) {
     return this.connection.sqlite
       .transaction(() => {
@@ -157,6 +182,11 @@ export class SnapshotRepository {
         )
           throw new Error('Approval hash does not match frozen snapshot');
         const latest = this.latestDecision(input.versionId);
+        if (input.expectedDecisionOrder !== undefined)
+          this.assertReviewCurrent(
+            input.versionId,
+            input.expectedDecisionOrder,
+          );
         if (input.onlyIfUndecided && latest) return latest;
         const now = Date.now();
         const result = this.connection.db

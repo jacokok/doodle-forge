@@ -51,10 +51,17 @@ test('keyboard history selection keeps unsaved authoring input and separates app
   await expect(cometHistory).toContainText(
     'Not present in any ready published release',
   );
-  await expect(cometHistory).toContainText(
-    'unpublished versions are not delivered by the published-content boundary',
-  );
-  await expect(cometHistory.getByRole('img')).toHaveCount(0);
+  await expect(
+    cometHistory.getByRole('img', { name: 'Frame 1 of 1 for attack_light' }),
+  ).toBeVisible();
+  // Private fixture review does not grant game-content visibility.
+  const index = await (await page.request.get('/api/content/index')).json();
+  expect(
+    index.characters.some(
+      (item: { characterId: string }) =>
+        item.characterId === '22222222-2222-4222-8222-222222222222',
+    ),
+  ).toBe(false);
 
   await library.getByRole('button', { name: 'Sprout', exact: true }).click();
   await page

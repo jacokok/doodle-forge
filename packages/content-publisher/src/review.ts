@@ -124,6 +124,7 @@ export class ReviewService {
     decision: ApprovalDecision;
     actorLabel: string;
     note?: string;
+    expectedDecisionOrder?: number;
   }) {
     const actorLabel = input.actorLabel.trim();
     const note = input.note ?? '';
@@ -139,7 +140,13 @@ export class ReviewService {
     return this.snapshots.recordDecision({ ...input, actorLabel, note });
   }
 
-  requireApproval(versionId: string, expectedManifestSha256: string) {
+  requireApproval(
+    versionId: string,
+    expectedManifestSha256: string,
+    expectedDecisionOrder?: number,
+  ) {
+    if (expectedDecisionOrder !== undefined)
+      this.snapshots.assertReviewCurrent(versionId, expectedDecisionOrder);
     const snapshot = this.getSnapshot(versionId);
     const latest = this.snapshots.latestDecision(versionId);
     if (

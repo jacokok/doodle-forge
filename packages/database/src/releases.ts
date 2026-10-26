@@ -65,7 +65,12 @@ export class ReleaseRepository {
   }
   // Filesystem verification occurs before this short synchronous transaction.
   // All newly selected entries are authorized again while holding the write lock.
-  activate(id: string, entries: ReleaseEntry[], selectedVersionId: string) {
+  activate(
+    id: string,
+    entries: ReleaseEntry[],
+    selectedVersionId: string,
+    expectedDecisionOrder?: number,
+  ) {
     return this.connection.sqlite
       .transaction(() => {
         const release = this.get(id);
@@ -78,6 +83,11 @@ export class ReleaseRepository {
         )
           return false;
         const snapshots = new SnapshotRepository(this.connection);
+        if (expectedDecisionOrder !== undefined)
+          snapshots.assertReviewCurrent(
+            selectedVersionId,
+            expectedDecisionOrder,
+          );
         for (const entry of entries) {
           const snapshot = snapshots.get(entry.characterVersionId);
           if (

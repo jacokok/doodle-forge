@@ -75,7 +75,7 @@ try {
   if (!stopping) {
     console.log(`\nDoodleForge ready: ${config.origin}/characters`);
     console.log(
-      'Create/edit characters, attach private originals, and inspect read-only history. Generation and approval/publication actions are unavailable.',
+      'Create/edit characters, attach private originals, and review/publish supported frozen fixtures. Generation remains unavailable; no factory jobs are started.',
     );
     console.log(
       studioOnly

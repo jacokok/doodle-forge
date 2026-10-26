@@ -2,7 +2,7 @@
 
 Turn children's paper drawings into approved, versioned game characters.
 
-**Current state:** Phase 5 Character Studio is in progress, not complete. The local app supports guided character metadata/creative-choice editing, private original uploads/previews, and read-only frozen history/released animation comparison when that content exists. Generation, workflow jobs, and approval/publication actions are unavailable in the app. The fixture-driven Godot prototype and published-content integration are separately verified; this is not yet an upload-to-play factory.
+**Current state:** Phase 5 Character Studio is in progress, not complete. The local app supports guided character metadata/creative-choice editing, private original uploads/previews, frozen history/animation comparison, and explicit hash-bound review/publication of supported fixture packages. Generation and workflow jobs remain unavailable. Phase 5 manual accessibility and child-usability acceptance is still pending. The fixture-driven Godot prototype and published-content integration are separately verified; this is not yet an upload-to-play factory.
 
 ## Try the local studio
 

@@ -104,6 +104,7 @@ export class PublicationService {
     versionId: string;
     expectedManifestSha256: string;
     sourceDirectory: string;
+    expectedDecisionOrder?: number;
   }) {
     return withPublicationOperation(this.root, false, () =>
       this.publishUnlocked(input),
@@ -114,10 +115,12 @@ export class PublicationService {
     versionId: string;
     expectedManifestSha256: string;
     sourceDirectory: string;
+    expectedDecisionOrder?: number;
   }) {
     const snapshot = this.reviews.requireApproval(
       input.versionId,
       input.expectedManifestSha256,
+      input.expectedDecisionOrder,
     );
     const manifest = validateManifest(JSON.parse(snapshot.manifestJson!));
     const entry: ReleaseEntry = {
@@ -198,6 +201,7 @@ export class PublicationService {
         this.reviews.requireApproval(
           input.versionId,
           input.expectedManifestSha256,
+          input.expectedDecisionOrder,
         );
         if (this.releases.state().generation === state.generation)
           return state.activeReleaseId!;
@@ -235,7 +239,14 @@ export class PublicationService {
         throw new Error('Index hash mismatch');
       for (const item of entries) await this.verifyPackage(item);
       await this.hook('before-activation');
-      if (this.releases.activate(id, entries, snapshot.id)) {
+      if (
+        this.releases.activate(
+          id,
+          entries,
+          snapshot.id,
+          input.expectedDecisionOrder,
+        )
+      ) {
         await this.hook('activated');
         return id;
       }

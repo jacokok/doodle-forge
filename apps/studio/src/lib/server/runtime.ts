@@ -1,5 +1,9 @@
 import { building } from '$app/env';
-import { ensureStorage, loadConfig } from '@doodleforge/shared/server';
+import {
+  ensureStorage,
+  loadConfig,
+  repositoryRoot,
+} from '@doodleforge/shared/server';
 import {
   assertDatabaseReady,
   openDatabase,
@@ -12,6 +16,7 @@ import { PublishedContentService } from '@doodleforge/content-publisher/content'
 import path from 'node:path';
 import { CharacterService } from './characters.js';
 import { OriginalService } from './originals.js';
+import { ReviewActionService } from './review-actions.js';
 
 let connection: ReturnType<typeof openDatabase> | undefined;
 
@@ -49,6 +54,18 @@ export function characterService() {
   return new CharacterService(
     new CharacterRepository(connection),
     new SnapshotRepository(connection),
+  );
+}
+
+export function reviewActionService() {
+  initializeRuntime();
+  if (!connection) throw new Error('Runtime unavailable during build');
+  return new ReviewActionService(
+    characterService(),
+    new SnapshotRepository(connection),
+    new ReleaseRepository(connection),
+    path.join(loadConfig().storageRoot, 'published'),
+    path.join(repositoryRoot, 'packages/contracts/fixtures'),
   );
 }
 

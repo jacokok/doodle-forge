@@ -107,7 +107,7 @@ test('studio-only starts without worker, serves empty library, and restarts with
   assert.match(instance.output(), new RegExp(`${env.ORIGIN}/characters`));
   assert.match(
     instance.output(),
-    /Generation and approval\/publication actions are unavailable/,
+    /Generation remains unavailable; no factory jobs are started/,
   );
   assert.equal((await fetch(`${env.ORIGIN}/characters`)).status, 200);
   assert.deepEqual(await (await fetch(`${env.ORIGIN}/api/characters`)).json(), {

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
+  import VersionActions from '../../lib/VersionActions.svelte';
   import { resolve } from '$app/paths';
   import { beforeNavigate } from '$app/navigation';
   import { characterManifestSchema } from '@doodleforge/contracts/manifest';
@@ -386,9 +387,9 @@
   </p>
   <p class="my-3">
     Save character details, optionally attach a private original, then inspect
-    read-only frozen history. Creative choices are authoring intent only.
-    Generation and publication actions are unavailable; no factory jobs are
-    running here.
+    frozen history, then explicitly review and publish supported fixture
+    versions. Creative choices are authoring intent only. Generation remains
+    unavailable; no factory jobs are running here.
   </p>
   <div class="my-5 flex flex-wrap gap-3">
     <button
@@ -618,7 +619,7 @@
               </p>
             </section>
             <section aria-label="Frozen version history" class="my-6 space-y-3">
-              <h3 class="text-lg font-semibold">Frozen versions (read only)</h3>
+              <h3 class="text-lg font-semibold">Frozen versions</h3>
               <p>
                 These immutable review snapshots are separate from your mutable
                 authoring fields above. Approval and publication are distinct;
@@ -626,7 +627,7 @@
               </p>
               {#if selected}
                 {@const history = versionHistory(selected.id)}
-                {#if history.loading}<p role="status">
+                {#if history.loading && !history.current}<p role="status">
                     Loading frozen versions…
                   </p>
                 {:else if history.error}<p role="alert">
@@ -642,6 +643,7 @@
                     >
                     <select
                       id="frozen-version"
+                      disabled={busy}
                       aria-label="Frozen version"
                       onchange={(event) => {
                         selectedVersionId = event.currentTarget.value;
@@ -692,7 +694,7 @@
                               Frozen snapshot unavailable or corrupt; no mutable
                               authoring values substituted.
                             </p>{/if}
-                          <h5>Review and approval (read only)</h5>
+                          <h5>Review and approval</h5>
                           {#if frozen.decisions.length === 0}<p>
                               No approval decision recorded; this snapshot has
                               no recorded approval.
@@ -717,6 +719,24 @@
                                 </li>{/each}
                             </ul>
                           {/if}
+                          {#if frozen.snapshotAvailable && frozen.manifestSha256}
+                            {#key frozen.id}
+                              <VersionActions
+                                characterId={selected.id}
+                                versionId={frozen.id}
+                                hash={frozen.manifestSha256}
+                                decisionOrder={frozen.decisions[0]
+                                  ?.decisionOrder ?? 0}
+                                latestDecision={frozen.decisions[0]?.decision}
+                                bind:busy
+                                refresh={async () => {
+                                  await history.refresh();
+                                  if (!history.current?.ok)
+                                    throw new Error('Review refresh failed');
+                                }}
+                              />
+                            {/key}
+                          {/if}
                           <h5>Published visibility</h5>
                           {#if frozen.publications.length === 0}<p>
                               Not present in any ready published release.
@@ -730,7 +750,7 @@
                                     : 'publication time unavailable'}
                                 </li>{/each}
                             </ul>{/if}
-                          {#if frozen.snapshotAvailable && frozen.snapshot && frozen.publications.length > 0}
+                          {#if frozen.snapshotAvailable && frozen.snapshot}
                             {@const parsedManifest =
                               characterManifestSchema.safeParse(
                                 frozen.snapshot,
@@ -825,16 +845,26 @@
                                         animation.frameCount /
                                           animation.columns,
                                       )}
-                                      {@const artworkUrl = resolve(
-                                        '/api/content/characters/[id]/versions/[version]/assets/[hash].png',
-                                        {
-                                          id: manifest.characterId,
-                                          version: String(
-                                            manifest.characterVersion,
-                                          ),
-                                          hash: assetHash,
-                                        },
-                                      )}
+                                      {@const artworkUrl =
+                                        frozen.publications.length > 0
+                                          ? resolve(
+                                              '/api/content/characters/[id]/versions/[version]/assets/[hash].png',
+                                              {
+                                                id: manifest.characterId,
+                                                version: String(
+                                                  manifest.characterVersion,
+                                                ),
+                                                hash: assetHash,
+                                              },
+                                            )
+                                          : resolve(
+                                              '/api/characters/[id]/versions/[versionId]/assets/[assetId]',
+                                              {
+                                                id: selected.id,
+                                                versionId: frozen.id,
+                                                assetId: animation.assetId,
+                                              },
+                                            )}
                                       {#key `${selectedVersionId}:${animationName}`}
                                         <img
                                           class="sr-only"
@@ -939,17 +969,17 @@
                               </p>{/if}
                           {:else}
                             <p>
-                              Frozen artwork preview unavailable: unpublished
-                              versions are not delivered by the
-                              published-content boundary. No storage path,
-                              original, or unpublished asset is exposed.
+                              Frozen artwork preview unavailable. No mutable
+                              original or different version is substituted.
                             </p>
                           {/if}
                           <p>
                             The current original is mutable authoring art—not
                             necessarily the source of this selected frozen
-                            version. Frozen animation images are shown only
-                            through the existing ready-release content route.
+                            version. Published animation images use the
+                            ready-release content route; supported unpublished
+                            fixture sheets use an owner-checked private review
+                            route.
                           </p>
                         </article>
                       {/if}

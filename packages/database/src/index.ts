@@ -64,4 +64,8 @@ export { AssetRepository, type NewAsset } from './assets.js';
 export { ReleaseRepository, type ReleaseEntry } from './releases.js';
 export { CharacterRepository } from './repositories.js';
 export { seedDevelopment } from './seed.js';
-export { SnapshotRepository, type ApprovalDecision } from './snapshots.js';
+export {
+  SnapshotRepository,
+  ReviewConflictError,
+  type ApprovalDecision,
+} from './snapshots.js';

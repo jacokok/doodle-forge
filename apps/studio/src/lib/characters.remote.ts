@@ -1,8 +1,15 @@
 import { command, getRequestEvent, query } from '$app/server';
 import { z } from 'zod';
-import { characterService } from './server/runtime.js';
+import { characterService, reviewActionService } from './server/runtime.js';
 import { CharacterError } from './server/characters.js';
 import { characterResult } from './server/character-result.js';
+
+export const decideVersion = command(z.unknown(), (input) =>
+  mutation(() => reviewActionService().decide(input)),
+);
+export const publishVersion = command(z.unknown(), (input) =>
+  mutation(() => reviewActionService().publish(input)),
+);
 
 export const library = query(() =>
   characterResult(() => characterService().list()),
