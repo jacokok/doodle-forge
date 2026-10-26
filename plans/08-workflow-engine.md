@@ -43,14 +43,14 @@ flowchart LR
 Database leases/attempts/indexes (plan 05), stage DAG (07), provider interface (10), publication transaction (09). Phase 1 worker only has a lifecycle smoke test; real execution is Phase 6.
 
 ## Phase 6 foundation increment
-`packages/workflow` now defines validated envelopes, generic typed stages, canonical input identities, graph enqueue and fenced execution/adoption. `packages/database` owns additive job/step/attempt persistence and short immediate transactions for claims, heartbeat, retry/failure, expiry recovery and cancellation (ADR-032). This is an independently tested library, not yet a running scheduler. Job gate transitions, provider composition, output-file verification/cache, manual retry and worker lifecycle wiring remain unimplemented. Completed computation alone does not advertise a review snapshot or success of approval/publication gates.
+`packages/workflow` now defines validated envelopes, generic typed stages, canonical input identities, graph enqueue and fenced execution/adoption. `packages/database` owns additive job/step/attempt persistence and short immediate transactions for claims, heartbeat, retry/failure, expiry recovery and cancellation (ADR-032). The follow-up mock-worker increment now runs the scheduler: one-second polls, default one stage (configurable 1–4), exact supported-stage/version claims, 15-second heartbeats, cancellation signals, bounded expiry batches and five-second graceful drain (ADR-033). Only mock description analysis is registered. Job gate transitions, output-file verification/cache and manual retry remain unimplemented. Completed computation alone does not advertise a review snapshot or success of approval/publication gates.
 
 ## Implementation tasks
-- [ ] Implement transition guards, claim/heartbeat/sweeper and fence-aware completion.
+- [x] Implement transition guards, claim/heartbeat/sweeper and fence-aware completion. Real worker lifecycle and subprocess recovery/competition tests recorded in plan 14; future gate transitions remain separate.
 - [ ] Implement validated checkpoints, cache keys and dependency invalidation.
-- [ ] Add retry classification/budget, cancel propagation and graceful termination.
+- [ ] Add retry classification/budget, cancel propagation and graceful termination. Basic explicit mock-transient classification, budget, poll-based cancellation and graceful relinquishment are tested; richer provider retry policy/jitter/Retry-After remains pending.
 - [ ] Add persisted approval/publication gates and job status API projections.
-- [ ] Add fake clock/fault injection hooks for deterministic tests.
+- [x] Add fake clock/fault injection hooks for deterministic tests. Timer/SQLite fault and real subprocess tests are recorded in plan 14.
 
 ## Acceptance criteria
 Kill/restart a worker mid-stage and the job resumes without accepting stale outputs. Two workers cannot adopt the same step completion. Transient failures retry to limit; permanent failures stop. Cancelled work cannot publish. Unchanged branches survive selective regeneration. Waiting approval consumes no active lease.

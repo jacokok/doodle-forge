@@ -1,5 +1,40 @@
 # 14 — Persistent implementation progress
 
+## Phase 6 — deterministic mock provider and running worker increment (2026-10-26)
+
+### Scope and implementation
+
+- User authorized the next bounded mock-worker increment. Initial Git status was clean, preserving the committed durable foundation. Read required agent/index/roadmap/live progress, plans 05/07/08/10/11 and relevant decisions; inspected worker lifecycle/config, empty AI boundary, typed workflow executor, SQLite leases and existing startup/smoke tests before implementation.
+- Added `packages/ai` capability schemas/interfaces and `deterministic-mock@1`. Offline description analysis preserves explicit body/style/combat intent and returns a reproducible structured brief/palette. Bounded frame requests return real nonempty transparent 256×256 RGBA PNG candidates with distinguishable ordered frames, animation/facing variation, exact hashes, deterministic request/seed/provider provenance, zero cost and synthetic-art warnings. Sharp is the existing pinned 0.34.5; no external version upgrades, SDK, network, credentials or artwork upload.
+- Added `packages/workflow/src/runner.ts`: one-second polling, default one concurrent attempt (bounded 1–4), exact registered key/version claims, 15-second heartbeats with 60-second leases, poll-based cancellation/lost-claim abort, bounded 100-step expiry sweeps, explicit safe transient classification and fixed sanitized persisted error codes. Unknown stages/versions remain queued without attempts. Job gate completion is still not inferred from computation.
+- Shutdown stops polling/claims, clears heartbeat timers, aborts handlers, transactionally relinquishes owned attempts, waits at most five seconds, then runtime closes SQLite/health. Relinquishment records a cancelled attempt with `WORKER_STOPPED`, consumes attempt budget and retries with persisted backoff (or fails at budget); it is not user job cancellation. Executor abort checks reject late results even if a handler ignores abort.
+- Composed the scheduler into the actual worker entry. Startup verifies workflow tables and binds health before claims; port/migration failures start no work. Only `analyze-description@1` is registered, with strict input/output/provenance validation and injected mock provider. Frame candidates remain provider-only in-memory outputs, **not worker-persisted game assets**. No HTTP generation, new public enqueue command, automatic jobs, review snapshots, progress UI or publication mutations were added. Health and Studio still honestly report full generation unavailable; combined dev banner now distinguishes the mock-analysis worker.
+- Added `DOODLEFORGE_WORKER_CONCURRENCY` validation/default/example and configuration tests. Native Sharp stays an external installed worker production dependency. No new migration; original migration history remains unchanged. ADR-033 records worker/provider boundaries, shutdown budget policy and limitations; setup/workflow docs and roadmap updated.
+- Added deterministic timer/SQLite tests plus real Node processes for actual entry checkpoint/restart, simultaneous scheduler competition, SIGKILL lease recovery, cross-process cancellation and persisted transient retry. Tests verify PNG decode/dimensions/transparency/hash/distinction, supported choices/bounds/no fallback, concurrency, default heartbeat cadence, sanitized errors, bounded recovery and graceful/uncooperative shutdown.
+- Code review found a potential local same-step reattempt tracking hazard: an old task's finalizer could remove the new task if keyed by step ID. Active entries now use immutable **attempt IDs**; an abort-ignoring old-task/reclaimed-attempt regression verifies the new attempt remains tracked and relinquished correctly.
+
+### Actual validation
+
+| Executed command | Result |
+|---|---|
+| `mise exec -- pnpm install --no-frozen-lockfile`; `mise exec -- pnpm install --frozen-lockfile` | PASS: existing pinned packages/workspace links; no new external versions. |
+| `mise exec -- pnpm exec vitest run packages/ai/src/mock.test.ts packages/workflow/src/runner.test.ts apps/worker/src/runtime.test.ts apps/worker/src/lifecycle.test.ts` | PASS at initial checkpoint: 28 tests / 4 files; later competition/recovery/tracking regressions pass in final full suite below. |
+| `mise exec -- pnpm exec vitest run packages/workflow/src/runner.test.ts` | PASS: final scheduler checkpoint **17 tests**, including abort-ignoring old attempt versus reclaimed local attempt. |
+| `mise exec -- pnpm test` | PASS: **279 tests / 18 files** (245 previous + 34 new). |
+| `mise exec -- pnpm check`; `mise exec -- pnpm lint` | PASS: strict TS/Svelte 0 errors / 0 warnings; ESLint clean. Initial check caught the new shutdown callback needing an explicit worker type; fixed and reran. |
+| `mise exec -- pnpm test:e2e` | PASS: **21 Chromium tests**, isolated migrated SQLite/storage and real built Studio; authoring/upload/review/publication regressions retained. No new factory-browser claim. |
+| `mise exec -- pnpm build`; `mise exec -- pnpm test:smoke` | PASS: Studio/worker production builds and real HTTP publication/security/corruption/reconciliation/process-lifecycle checks. Rebuilt after browser suite for normal local origin. |
+| `mise exec -- pnpm test:startup` | PASS: **7** isolated real launcher tests, including combined worker shutdown/port failure. |
+| `mise exec -- node tools/godot-validation/run.mjs --published-api` | PASS: pinned Godot 4.7.2 and matching Linux templates; **405 assertions** (3/57/26/102/69/13/47/88), real built Studio/SQLite publication/generic-fighter regression. Existing intentional malformed PNG/Unicode diagnostics unchanged. |
+| `mise exec -- pnpm db:generate`; `git diff --exit-code -- packages/database/migrations`; `mise exec -- pnpm format:check`; `git diff --check` | PASS: no schema changes/new migration, all committed migrations unchanged, formatting/whitespace clean. Final documentation formatting checks rerun after this result update. |
+
+### Remaining boundaries / next increment
+
+- Phase 6 remains **in progress**. Next: capture/original verification and attempt-scoped immutable artifact persistence, then mock master/pose/frame stages, normalization/sheet packing and validated frozen review snapshots. After that: persisted Studio progress, durable explicit publication jobs replacing ADR-031's bounded synchronous fixture path, selective regeneration and full two-character upload-to-game E2E.
+- Analysis uses a synthetic/internal pre-frozen metadata envelope, not the finished capture-first graph. The mock silhouette is not evidence of real AI fidelity, preservation of child identity or image-quality acceptance. No PNG output is yet adopted by a worker checkpoint, registered for private review or published.
+- Jitter/Retry-After, artifact cache verification, provider request reconciliation, manual retry/regeneration, frozen review/gate transitions and public job projections remain pending. Uncooperative handlers can occupy a slot until settling; graceful wait does not forcibly terminate arbitrary external resources. Same-host clocks and responsive event-loop assumptions remain.
+- Phase 5 manual accessibility/screen-reader and observed child-usability acceptance remain **explicitly deferred under the user's phase-gate exception, NOT passed**. No manual accessibility/child observation, remote CI, power-loss or real-provider test ran. Luna entitlement/automation/image-tool evaluation remains separately gated; no real integration was enabled.
+
 ## Phase 6 — durable workflow foundation (2026-10-26)
 
 ### Authorization and phase-gate exception

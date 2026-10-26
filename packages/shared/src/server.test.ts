@@ -26,6 +26,9 @@ describe('server configuration', () => {
     }
   });
   it.each([
+    { DOODLEFORGE_WORKER_CONCURRENCY: '0' },
+    { DOODLEFORGE_WORKER_CONCURRENCY: '5' },
+    { DOODLEFORGE_WORKER_CONCURRENCY: '1.5' },
     { PORT: 'nope' },
     { WORKER_PORT: '80' },
     { HOST: '0.0.0.0' },
@@ -36,6 +39,12 @@ describe('server configuration', () => {
     { DOODLEFORGE_STORAGE_ROOT: '' },
   ])('rejects invalid or nonlocal configuration %j', (env) => {
     expect(() => loadConfig(env)).toThrow();
+  });
+  it('defaults to one worker stage and accepts only bounded explicit concurrency', () => {
+    expect(loadConfig({}).workerConcurrency).toBe(1);
+    expect(
+      loadConfig({ DOODLEFORGE_WORKER_CONCURRENCY: '4' }).workerConcurrency,
+    ).toBe(4);
   });
   it('does not print invalid environment values', () => {
     expect(() => loadConfig({ PORT: 'private-secret' })).toThrow(

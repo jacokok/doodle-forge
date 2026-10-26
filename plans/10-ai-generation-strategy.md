@@ -26,7 +26,7 @@ Define capability-based TypeScript adapter interfaces, not one required universa
 Stable contract and normalization conventions (04/07), durable retries (08), review UI (06). Phase 6 mock end-to-end must pass before Phase 7 real-adapter work.
 
 ## Implementation tasks
-- [ ] Implement capability schemas, routing config, mock and deterministic tests.
+- [ ] Implement capability schemas, routing config, mock and deterministic tests. Initial mock-only analysis/frame-candidate capability schemas, zero-cost provenance, deterministic Sharp candidate tests and durable analysis-stage composition are implemented (ADR-033; plan 14). Cleanup/master/pose/effects and the full mock pipeline remain pending; no real adapter/routing is enabled.
 - [ ] Add bounded downloads, credential isolation, error mapping and provenance records.
 - [ ] Evaluate real providers against an explicit comparison matrix; record choice in plan 13.
 - [ ] Implement one chosen capability adapter first; gate live smoke tests behind opt-in secrets/budget.

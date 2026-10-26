@@ -3,6 +3,14 @@ import { z } from 'zod';
 import { canonicalJson, sha256 } from '@doodleforge/contracts';
 import { WorkflowRepository, type WorkflowClaim } from '@doodleforge/database';
 
+export {
+  WorkflowRunner,
+  stageHandler,
+  RetryableStageError,
+  type StageHandler,
+  type RunnerOptions,
+} from './runner.js';
+
 const hashSchema = z.string().regex(/^[a-f0-9]{64}$/);
 const keySchema = z.string().regex(/^[a-z][a-z0-9_.-]{0,79}$/);
 
@@ -24,7 +32,7 @@ export type StageEnvelope = z.infer<typeof stageEnvelopeSchema>;
 export interface StageContext {
   readonly claim: Readonly<WorkflowClaim>;
   readonly signal: AbortSignal;
-  /** Attempt-scoped storage and capability providers are supplied by worker composition, not routes. */
+  /** Structured event names only; provider adapters are injected into the stage by worker composition. */
   readonly log: (event: string) => void;
 }
 export interface Stage<I, O> {
@@ -117,6 +125,7 @@ export async function executeStage<I, O>(
   stage: Stage<I, O>,
   signal: AbortSignal,
   log: StageContext['log'] = () => {},
+  leaseMs = 60_000,
 ) {
   if (
     work.step.stageKey !== stage.key ||
@@ -130,7 +139,7 @@ export async function executeStage<I, O>(
     throw new Error('Corrupt stage input');
   const input = stage.inputSchema.parse(envelope);
   signal.throwIfAborted();
-  if (!repository.heartbeat(work.claim)) return false;
+  if (!repository.heartbeat(work.claim, leaseMs)) return false;
   const output = stage.outputSchema.parse(
     await stage.execute(
       { claim: Object.freeze({ ...work.claim }), signal, log },

@@ -143,7 +143,7 @@ test('combined dev announces both healthy services and stops both on Ctrl-C', as
   await ready(instance, env.ORIGIN);
   assert.match(
     instance.output(),
-    /Studio \+ worker health ready \(no generation jobs\)/,
+    /Studio \+ mock-analysis worker ready; full generation unavailable/,
   );
   assert.equal(
     (await fetch(`http://127.0.0.1:${env.WORKER_PORT}/health`)).status,

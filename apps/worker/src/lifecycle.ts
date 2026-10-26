@@ -6,6 +6,7 @@ export async function startWorkerHealth(
   connection: DatabaseConnection,
   host: string,
   port: number,
+  beforeClose: () => Promise<void> = async () => {},
 ) {
   const server = createServer((request, response) => {
     response.setHeader('content-type', 'application/json');
@@ -39,13 +40,19 @@ export async function startWorkerHealth(
   return {
     server,
     close: () =>
-      (closing ??= new Promise<void>((resolve, reject) => {
-        server.close((error) => {
-          connection.close();
-          if (error) reject(error);
-          else resolve();
-        });
-        server.closeAllConnections();
-      })),
+      (closing ??= (async () => {
+        try {
+          await beforeClose();
+        } finally {
+          await new Promise<void>((resolve, reject) => {
+            server.close((error) => {
+              connection.close();
+              if (error) reject(error);
+              else resolve();
+            });
+            server.closeAllConnections();
+          });
+        }
+      })()),
   };
 }

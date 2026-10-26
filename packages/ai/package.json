@@ -2,6 +2,11 @@
   "name": "@doodleforge/ai",
   "private": true,
   "type": "module",
+  "dependencies": {
+    "@doodleforge/contracts": "workspace:*",
+    "sharp": "0.34.5",
+    "zod": "4.6.7"
+  },
   "exports": {
     ".": "./src/index.ts"
   }
