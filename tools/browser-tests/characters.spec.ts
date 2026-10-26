@@ -86,6 +86,9 @@ test('keyboard create, structured validation, edit, deliberate archive and persi
       .getByRole('status')
       .filter({ hasText: 'Published content is unchanged' }),
   ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'New character', exact: true }),
+  ).toBeFocused();
   await page.reload();
   await expect(
     page.getByRole('button', { name: `${name} edited`, exact: true }),
@@ -114,6 +117,7 @@ test('two editors retain stale input, block resubmission and require deliberate 
   await other.getByLabel('Fighting style').selectOption('light_melee');
   await other.getByRole('button', { name: 'Save metadata' }).click();
   await expect(other.getByRole('alert')).toContainText('Character changed');
+  await expect(other.getByRole('alert')).toBeFocused();
   await other
     .getByRole('button', { name: '3. Review and history', exact: true })
     .click();
@@ -154,6 +158,34 @@ test('two editors retain stale input, block resubmission and require deliberate 
     other.getByRole('button', { name: 'Confirm archive', exact: true }),
   ).toBeDisabled();
   await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
+});
+
+test('reloading an externally archived selection restores focus to New character', async ({
+  page,
+}) => {
+  const name = `Removed ${randomUUID()}`;
+  const created = await page.request.post('/api/characters', {
+    headers: { origin: 'http://127.0.0.1:5193' },
+    data: { name, description: '', bodyType: 'other' },
+  });
+  expect(created.status()).toBe(201);
+  const character = await created.json();
+  await page.goto('/characters');
+  await page.getByRole('button', { name, exact: true }).click();
+  const removed = await page.request.delete(`/api/characters/${character.id}`, {
+    headers: { origin: 'http://127.0.0.1:5193' },
+    data: { expectedRevision: character.editRevision },
+  });
+  expect(removed.status()).toBe(204);
+  await page
+    .getByRole('button', { name: 'Reload library and discard local edits' })
+    .click();
+  await expect(page.getByLabel('Metadata editor')).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'New character', exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByLabel('Name', { exact: true })).toBeFocused();
 });
 
 test('pending mutation prevents duplicate input; network failure keeps input and explains uncertainty', async ({
@@ -198,6 +230,7 @@ test('pending mutation prevents duplicate input; network failure keeps input and
   await expect(page.getByRole('alert')).toContainText(
     'Could not confirm the result',
   );
+  await expect(page.getByRole('alert')).toBeFocused();
   await expect(page.getByLabel('Name', { exact: true })).toHaveValue(
     /^Pending /,
   );

@@ -120,6 +120,19 @@ test('selected upload and unsaved choices survive steps and cancelled character/
     .getByRole('button', { name: 'Attach original', exact: true })
     .click();
   await expect(page.getByRole('alert')).toContainText('unsafe');
+  await expect(page.getByRole('alert')).toBeFocused();
+  await expect(
+    page.getByLabel('Original image', { exact: true }),
+  ).toHaveAccessibleDescription(
+    /Still JPEG, PNG or WebP; up to 10 MiB and 20 megapixels/,
+  );
+  // Hidden steps must not expose their controls to assistive technology.
+  await expect(
+    page.getByRole('textbox', { name: 'Name', exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: '2. Private original', exact: true }),
+  ).toHaveAttribute('aria-current', 'step');
   await page
     .getByRole('button', { name: '1. Character details', exact: true })
     .click();

@@ -1,5 +1,30 @@
 # 14 — Persistent implementation progress
 
+## Phase 5 — focused accessibility recovery increment (2026-10-24)
+
+### Scope and implementation
+
+- Inspected clean Git status, required plans/progress, studio/testing plans, authoring guide, editor/styles and browser regressions. Selected a bounded Phase 5 accessibility follow-up; no approval/rejection/publication mutations, Phase 6 generation or later phases. No dependencies, persistence, routes, domain rules or architectural decisions changed; no ADR required.
+- Mutation errors focus the named error summary after controls re-enable unless metadata validation can focus the first invalid field. Added body-type error associations, upload policy description, keyboard-visible focus for programmatically focused headings/summaries, and New-character focus after archive or reload of an externally archived selection. Input retention and stale/uncertain mutation blocks remain unchanged.
+- Removed live-region role from per-keystroke unsaved-input text; working/success status and failure alerts remain. Added missing animation-option each-block key, resolving that existing lint finding. Corrected stale plan 06 comparison/playback wording.
+- Extended Chromium assertions for archive/removal focus recovery, stale/network/upload failure focus, upload description, hidden-panel control exclusion and current-step semantics. Added `docs/phase-5-accessibility.md` with outstanding manual keyboard/screen-reader/zoom/contrast/child-observation checks, not executed acceptance evidence.
+
+### Actual validation
+
+| Executed command | Result |
+|---|---|
+| `mise exec -- pnpm exec playwright test tools/browser-tests/characters.spec.ts tools/browser-tests/guided-flow.spec.ts` | PASS: 5 tests at initial checkpoint, before adding external-archive case. |
+| `mise exec -- pnpm test:e2e` | PASS: final 17 Chromium tests against built studio and isolated migrated SQLite/storage, including new external-archive case. |
+| `mise exec -- pnpm test` | PASS: 206 tests / 13 files. |
+| `mise exec -- pnpm check` | PASS: final TypeScript/Svelte, 0 errors / 0 warnings. |
+| `mise exec -- pnpm build` | PASS: studio/worker production builds; restores normal local build origin after browser harness. |
+| `mise exec -- pnpm lint` | FAIL: only two pre-existing explicit-any findings in `packages/contracts/src/create-fixtures.ts:68–69`; unchanged. |
+| `mise exec -- pnpm format:check`; `git diff --check` | PASS; final checks include documentation updates. |
+
+### Remaining acceptance and next steps
+
+Phase 5 remains **in progress**, not accepted. Focused browser assertions are not a comprehensive accessibility audit, screen-reader announcement review, observed child-usability acceptance or manual visual review. No startup/smoke/Godot/manual/remote-CI tests ran in this increment. Approval/rejection/publication mutations remain separately gated; generation/workflows remain unavailable. Next: execute and record manual accessibility/usability checks with user feedback, or obtain explicit scope authorization for review/publication mutations. No silent phase advancement.
+
 ## Phase 5 — reliable local studio tryout increment (2026-10-24)
 
 ### Scope and implementation

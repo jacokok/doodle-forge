@@ -4,7 +4,7 @@
   body {
     @apply bg-slate-50 text-slate-900;
   }
-  :is(a, button, input, textarea, select):focus-visible {
+  :is(a, button, input, textarea, select, [tabindex='-1']):focus-visible {
     @apply outline-2 outline-offset-4 outline-indigo-700;
   }
   button {

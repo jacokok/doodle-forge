@@ -48,6 +48,8 @@
   let notice = $state('');
   let confirming = $state(false);
   let nameInput = $state<HTMLInputElement>();
+  let newCharacterButton = $state<HTMLButtonElement>();
+  let failureSummary = $state<HTMLDivElement>();
   let cancelArchive = $state<HTMLButtonElement>();
   const bodyTypes = characterMetadataSchema.shape.bodyType.options;
   const stale = $derived(failure?.code === 'stale_revision');
@@ -151,6 +153,17 @@
     stepHeading?.focus();
   }
 
+  async function focusFailure(preferField = false) {
+    if (!failure) return;
+    await tick();
+    const field = preferField
+      ? nameInput
+          ?.closest('form')
+          ?.querySelector<HTMLElement>('[aria-invalid="true"]')
+      : null;
+    (field ?? failureSummary)?.focus();
+  }
+
   async function uploadOriginal() {
     if (!selected || !imageFile || busy || blocked) return;
     busy = true;
@@ -186,6 +199,7 @@
       };
     } finally {
       busy = false;
+      await focusFailure();
     }
   }
 
@@ -263,13 +277,7 @@
       };
     } finally {
       busy = false;
-      if (failure?.fieldErrors) {
-        await tick();
-        nameInput
-          ?.closest('form')
-          ?.querySelector<HTMLElement>('[aria-invalid="true"]')
-          ?.focus();
-      }
+      await focusFailure(true);
     }
   }
 
@@ -298,6 +306,10 @@
       notice = 'Library reload failed. Your input is kept; try again.';
     } finally {
       busy = false;
+      if (!editing) {
+        await tick();
+        newCharacterButton?.focus();
+      }
     }
   }
 
@@ -337,6 +349,11 @@
       };
     } finally {
       busy = false;
+      if (failure) await focusFailure();
+      else if (!editing) {
+        await tick();
+        newCharacterButton?.focus();
+      }
     }
   }
 </script>
@@ -356,8 +373,10 @@
     running here.
   </p>
   <div class="my-5 flex flex-wrap gap-3">
-    <button disabled={busy} onclick={() => requestOpen(null)}
-      >New character</button
+    <button
+      bind:this={newCharacterButton}
+      disabled={busy}
+      onclick={() => requestOpen(null)}>New character</button
     >
     <button disabled={busy || catalog.loading} onclick={reload}
       >Reload library{selected ? ' and discard local edits' : ''}</button
@@ -365,7 +384,13 @@
   </div>
   <p role="status">{busy ? 'Working… Please wait.' : notice}</p>
   {#if failure}
-    <div role="alert" class="my-4 border-2 border-red-700 p-4">
+    <div
+      bind:this={failureSummary}
+      role="alert"
+      tabindex="-1"
+      aria-label="Action failed"
+      class="my-4 border-2 border-red-700 p-4"
+    >
       <p>{failure.message}</p>
       {#if stale}<p>
           Your input is kept below. Copy it if needed, then use “Reload library
@@ -428,7 +453,7 @@
         {#if selected}<p>
             Editing metadata revision {selected.editRevision}
           </p>{/if}
-        <p class="my-3" role="status">
+        <p class="my-3">
           {unsaved
             ? 'Unsaved input — kept while moving between steps.'
             : 'No unsaved input.'}
@@ -487,6 +512,10 @@
                 <label for="body-type">Body type</label><select
                   id="body-type"
                   bind:value={bodyType}
+                  aria-invalid={!!failure?.fieldErrors?.bodyType}
+                  aria-describedby={failure?.fieldErrors?.bodyType
+                    ? 'error-bodyType'
+                    : undefined}
                   >{#each bodyTypes as type (type)}<option value={type}
                       >{type}</option
                     >{/each}</select
@@ -764,7 +793,7 @@
                                         frozenArtworkLoading = true;
                                       }}
                                     >
-                                      {#each animationNames as name}<option
+                                      {#each animationNames as name (name)}<option
                                           value={name}>{name}</option
                                         >{/each}
                                     </select>
@@ -886,7 +915,7 @@
           <div hidden={step !== 1}>
             <section aria-label="Original art" class="my-6 space-y-3">
               <h3 class="text-lg font-semibold">Private original art</h3>
-              <p>
+              <p id="original-policy">
                 Still JPEG, PNG or WebP; up to 10 MiB and 20 megapixels.
                 Attaching replaces the selected original, retaining earlier art
                 immutably. Unsaved metadata is not submitted.
@@ -937,6 +966,7 @@
                   <input
                     bind:this={fileInput}
                     id="original-image"
+                    aria-describedby="original-policy"
                     type="file"
                     accept={originalUploadPolicy.mediaTypes.join(',')}
                     onchange={(event) => {
