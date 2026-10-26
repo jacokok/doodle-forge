@@ -1,5 +1,49 @@
 # 14 — Persistent implementation progress
 
+## Phase 6 — durable workflow foundation (2026-10-26)
+
+### Authorization and phase-gate exception
+
+- User explicitly authorizes Phase 6 and defers outstanding Phase 5 manual accessibility/screen-reader and observed child-usability acceptance. This is a **phase-gate exception, NOT passed verification**. Earlier Phase 5 feature/test evidence is retained below; manual checklist remains unaccepted. Phase 6 is now **in progress**, not complete.
+- Started with clean Git status. Read AGENTS, plan index/roadmap/progress, plans 05/07/08/10/11 and decisions; inspected worker health lifecycle, empty workflow/AI packages, Drizzle migration/repository boundaries and Studio/publication protocols. No existing changes discarded, staged or committed.
+
+### Bounded implementation
+
+- Added Drizzle migration `0004_lyrical_boom_boom.sql` and matching snapshot/journal: jobs, dependency-bearing steps and retained attempts, FK/JSON/state/lease/budget checks and scheduling/idempotency indexes. Previous migrations untouched. SQL guards make ended attempts and adopted checkpoints immutable.
+- `packages/database/src/workflow.ts` owns immediate transactional enqueue/claim/heartbeat/adoption/failure/expiry/cancel operations. Claims serialize dependency readiness, create attempt records and increment fences. Adoption requires matching running step/job, worker, attempt ID, fence and strictly unexpired lease. Heartbeats extend but cannot shorten/revive leases. Defaults: 60-second lease, request budget three attempts, deterministic exponential retry delay. Expired leases record an outcome before requeue; budget exhaustion fails the job. Cancellation atomically ends in-flight attempts, cancels pending work and prevents late adoption; completed upstream checkpoints survive.
+- `packages/workflow/src/index.ts` defines strict versioned shared envelopes, asset ID/hash refs, generic typed stage schemas/contracts, canonical input identities, bounded validated graph enqueue and output validation before fenced checkpoint adoption. Input/graph/implementation/parameter changes conflict with an existing idempotency key. Invalid/cyclic/cross-owner graphs cannot partially enqueue. Execution occurs outside transactions; no provider or filesystem work inside claims.
+- Added temporary real-SQLite tests for fresh/Phase-5 incremental migrations, graph/idempotency/rollback, simultaneous separate-process workers, wrong attempts/owners/fences, exact expiry, heartbeat, close/reopen recovery, **SIGKILL of an owning worker**, expired attempt accounting, stale completions, retry budget/permanent errors, sibling blocking, queued/running cancellation and schema/output/abort boundaries. Fault-injected attempt insertion/finalization failures roll back claim/checkpoint mutations together.
+- ADR-032 records this library-first boundary and fail-fast policy. Added `docs/phase-6-workflow.md`, roadmap and workflow plan annotations. Workflow now explicitly depends on existing database/contracts/Zod packages; no external package version upgrades.
+- Production worker remains health-only; generation remains genuinely unavailable. No new HTTP generation, implicit startup migrations/enqueue, fake progress, review snapshots, approval/gate transitions or publication job claims. Computation completion alone intentionally leaves a foundation job running until snapshot/gate orchestration exists; not exposed as a working factory. Existing bounded synchronous fixture publication stays runnable until its durable replacement increment.
+
+### Provider investigation (public documentation only)
+
+- Direct official model guidance and API model page identify the requested Luna as **`gpt-6-luna`**, with **text/image input and text output**, not native image output. Exact public model identity is now documented, but the user's actual entitlement is **unverified**; no model is selected or substituted.
+- Official authentication docs distinguish subscription ChatGPT sign-in from separately billed API keys, recommend API keys for programmatic CLI workflows, and describe admin-permitted Enterprise automation tokens. They do not verify personal subscription permission for this unattended backend or image tools. Plan 10 records source URLs and remaining terms/entitlement/image-tool/privacy/consent/budget gates.
+- Search retrieval was degraded/irrelevant; relied on direct official pages instead. No credentials/configuration read, authentication performed, provider invoked, private artwork transmitted or pi SDK installed. Pi conversation persistence remains explicitly separate from SQLite durability. Real-provider integration is still gated under plan 10/Phase 7.
+
+### Actual validation
+
+| Executed command | Result |
+|---|---|
+| `mise exec -- pnpm db:generate` (initial and recheck) | PASS: additive 0004 generated; recheck says no schema changes. Prior SQL migrations unchanged via `git diff --exit-code -- packages/database/migrations/000{0,1,2,3}_*.sql`. |
+| `mise exec -- pnpm install --no-frozen-lockfile`; `mise exec -- pnpm install --frozen-lockfile` | PASS: workspace links updated and frozen install verified. Initial frozen install correctly refused the changed workspace manifest before lock update. |
+| `mise exec -- pnpm exec vitest run packages/workflow/src/workflow.test.ts packages/database/src/database.test.ts` | PASS at restart/SIGKILL checkpoint: **33 tests / 2 files**; two subsequent transactional-fault tests also pass in the final full suite. |
+| `mise exec -- pnpm test` | PASS: **245 tests / 15 files** (218 previous + 27 new). |
+| `mise exec -- pnpm check`; `mise exec -- pnpm lint` | PASS: TypeScript/Svelte 0 errors / 0 warnings; ESLint clean. |
+| `mise exec -- pnpm test:e2e` | PASS: **21 Chromium tests**, built Studio and migrated temporary SQLite/storage; upload/edit/review/publication regressions unchanged. |
+| `mise exec -- pnpm build`; `mise exec -- pnpm test:smoke` | PASS: production Studio/worker, built HTTP publication/security/corruption/reconciliation and worker/dev lifecycle. Build restores normal local origin after browser suite. |
+| `mise exec -- pnpm test:startup` | PASS: **7** isolated startup/process tests. |
+| `mise exec -- node tools/godot-validation/run.mjs --published-api` | PASS: Godot 4.7.2 and matching Linux templates verified; **405 assertions** (3/57/26/102/69/13/47/88), real built Studio/SQLite publication and generic fighter/gameplay regressions. Existing intentional malformed PNG/Unicode diagnostics retained. |
+| `mise exec -- pnpm format:check`; `git diff --check` | PASS; final documentation checks rerun after progress update. |
+
+### Next increments / known limitations
+
+1. Compose actual worker polling/heartbeat/shutdown, provider/stage context and deterministic mock capability stages; keep all real calls disabled. Current executor surfaces errors to its future scheduler; no automatic heartbeat loop, retry classifier, jitter/Retry-After or provider request persistence API yet.
+2. Implement deterministic image processing/normalization/sheets, verified attempt-scoped artifacts/cache and frozen review snapshots, then persisted Studio progress and durable explicit publication jobs. Replace ADR-031's fixture-only synchronous path only alongside tested source registration/publication recovery; do not run generation in handlers.
+3. Add gate transitions, selective regeneration/manual retries and full two-character upload-to-game proof in roadmap order. A JSON checkpoint is not yet a verified image artifact; cache policy is a declaration, not implemented reuse. No Phase 6 acceptance/E2E claim.
+4. No manual accessibility/screen-reader/observed-child, remote-CI, power-loss, distributed-host clock or real-provider tests ran. Same-host UTC clock assumptions, local trust/privacy limits, immutable private orphan accumulation and publication operation-marker reconciliation remain. Deferred manual acceptance is still deferred, not passed.
+
 ## Phase 5 — authorized review/publication feature increment (2026-10-26)
 
 ### Scope and implementation

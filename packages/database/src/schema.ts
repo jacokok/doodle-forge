@@ -1,3 +1,8 @@
+export {
+  generationJobs,
+  generationSteps,
+  generationAttempts,
+} from './workflow-schema.js';
 import { sql } from 'drizzle-orm';
 import {
   check,

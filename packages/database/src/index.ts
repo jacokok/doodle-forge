@@ -60,6 +60,11 @@ export function assertDatabaseReady(connection: DatabaseConnection) {
   connection.sqlite.prepare('SELECT id FROM assets LIMIT 1').get();
   connection.sqlite.prepare('SELECT id FROM abilities LIMIT 1').get();
 }
+export {
+  WorkflowRepository,
+  type NewWorkflowJob,
+  type WorkflowClaim,
+} from './workflow.js';
 export { AssetRepository, type NewAsset } from './assets.js';
 export { ReleaseRepository, type ReleaseEntry } from './releases.js';
 export { CharacterRepository } from './repositories.js';

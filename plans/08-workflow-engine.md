@@ -42,6 +42,9 @@ flowchart LR
 ## Dependencies
 Database leases/attempts/indexes (plan 05), stage DAG (07), provider interface (10), publication transaction (09). Phase 1 worker only has a lifecycle smoke test; real execution is Phase 6.
 
+## Phase 6 foundation increment
+`packages/workflow` now defines validated envelopes, generic typed stages, canonical input identities, graph enqueue and fenced execution/adoption. `packages/database` owns additive job/step/attempt persistence and short immediate transactions for claims, heartbeat, retry/failure, expiry recovery and cancellation (ADR-032). This is an independently tested library, not yet a running scheduler. Job gate transitions, provider composition, output-file verification/cache, manual retry and worker lifecycle wiring remain unimplemented. Completed computation alone does not advertise a review snapshot or success of approval/publication gates.
+
 ## Implementation tasks
 - [ ] Implement transition guards, claim/heartbeat/sweeper and fence-aware completion.
 - [ ] Implement validated checkpoints, cache keys and dependency invalidation.

@@ -135,6 +135,18 @@ Installed engine `4.7.2.stable.arch_linux.ed1daf0bf` matches official Linux debu
 
 **Consequences:** No migration or workflow framework added. Source admission is intentionally narrow and must be replaced/extended by persistent generated-package registration and publication jobs in Phase 6. Manual accessibility/observed-child acceptance remains pending; authorization to implement is not evidence of acceptance.
 
+### ADR-032 — Durable Phase 6 foundation before mock execution (accepted)
+
+**Authorization:** The user explicitly defers Phase 5 manual accessibility/screen-reader and observed child-usability acceptance and authorizes Phase 6. This is a phase-gate exception, not evidence those checks passed.
+
+**Decision:** Add migration 0004 only; preserve prior SQL. SQLite owns jobs, immutable typed-input identities, dependency IDs, step selection and attempt history. Workflow owns shared-envelope validation, stage-specific input/output schemas, canonical hashes and handler execution outside transactions. Worker/AI remain composition/provider boundaries; no HTTP generation or production polling is introduced in this increment. Nullable job version supports pre-freeze generation; supplied version IDs must belong to the job character. Enqueue validates the entire acyclic same-job DAG and uses a canonical request/graph identity for idempotency.
+
+**Lease protocol:** Short `BEGIN IMMEDIATE` transactions serialize due/dependency-ready claims, increment persistent attempt/fence numbers, and insert an attempt. Default lease 60 seconds; heartbeat and completion require matching worker, step, attempt ID, fence, running uncancelled job and strictly unexpired lease. Heartbeat cannot shorten a lease. Expiry recovery records an expired attempt and requeues after deterministic exponential backoff, or fails at budget. Cancellation atomically ends running attempts and prevents further claims/adoption; adopted checkpoints remain immutable. Terminal failure is fail-fast for this increment: pending siblings/descendants become blocked and running sibling attempts cancelled. No exactly-once external side-effect promise.
+
+**Bounded increment:** Generic handler execution validates persisted input hashes and schema output, but no asset-producing handler, cache reuse or provider is connected. All-computation completion intentionally leaves the job running until snapshot/gate orchestration is implemented; no waiting-review/success inferred from file existence. Retry budget defaults to three via workflow request validation; basic retry delay is 2/4 seconds before remaining claims, no jitter/Retry-After classifier yet. Worker poll/heartbeat/shutdown loops, gate transitions, provider request bookkeeping, orphan verification, selective regeneration, progress API and durable publication remain next increments. Existing bounded Phase 5 synchronous fixture publication (ADR-031) stays runnable until an explicitly tested replacement; SQLite fences alone do not authorize bypassing the publisher's filesystem/activation protocol.
+
+**Alternatives rejected:** conversation persistence as queue durability, calling generation in routes, enabling a success-only mock, or replacing publication before restart/cancel tests. All clocks are same-host UTC milliseconds with an injected deterministic clock in tests; distributed clocks and power-loss testing are not claimed. Ended attempts and adopted checkpoints have SQL immutability guards; raw maintenance is not an application transition API.
+
 ## Dependencies
 Plans 01–11 contain detailed consequences. Roadmap orders implementations; progress records evidence. External source availability affects research, not local test status.
 

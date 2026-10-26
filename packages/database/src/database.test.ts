@@ -127,6 +127,58 @@ describe('SQLite foundation', () => {
       upgraded.close();
     }
   });
+  it('adds the workflow tables to Phase 5 without changing authoring or publication state', () => {
+    const historical = join(root, 'phase5');
+    mkdirSync(join(historical, 'meta'), { recursive: true });
+    const migrations = fileURLToPath(
+      new URL('../migrations/', import.meta.url),
+    );
+    const journal = JSON.parse(
+      readFileSync(join(migrations, 'meta/_journal.json'), 'utf8'),
+    ) as {
+      entries: { tag: string }[];
+    };
+    journal.entries = journal.entries.slice(0, 4);
+    for (const entry of journal.entries)
+      copyFileSync(
+        join(migrations, `${entry.tag}.sql`),
+        join(historical, `${entry.tag}.sql`),
+      );
+    writeFileSync(
+      join(historical, 'meta/_journal.json'),
+      JSON.stringify(journal),
+    );
+    const previous = openDatabase(path);
+    let before: ReturnType<CharacterRepository['list']>;
+    try {
+      migrate(previous.db, { migrationsFolder: historical });
+      seedDevelopment(previous);
+      before = new CharacterRepository(previous).list();
+    } finally {
+      previous.close();
+    }
+    migrateDatabase(path);
+    const upgraded = openDatabase(path);
+    try {
+      expect(new CharacterRepository(upgraded).list()).toEqual(before);
+      for (const table of [
+        'generation_jobs',
+        'generation_steps',
+        'generation_attempts',
+        'approvals',
+        'content_releases',
+      ]) {
+        expect(
+          upgraded.sqlite
+            .prepare(`SELECT count(*) AS count FROM ${table}`)
+            .get(),
+        ).toEqual({ count: 0 });
+      }
+      expect(upgraded.sqlite.pragma('foreign_key_check')).toEqual([]);
+    } finally {
+      upgraded.close();
+    }
+  });
   it('refuses a concurrent migration without stealing its lock', () => {
     const lock = openSync(`${path}.migrate.lock`, 'wx');
     closeSync(lock);

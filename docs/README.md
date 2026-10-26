@@ -23,7 +23,7 @@ Guides depend on relevant roadmap phases being implemented and tested.
 - [ ] Phase 2: `content-contract.md` — schema generation, fixtures, compatibility and validation CLI.
 - [ ] Phase 3–4: `game-development.md` — input/arena, headless tests, repositories, runtime decoding and refresh.
 - [ ] Phase 5–6: `character-creation.md` — upload, choices, preview, regeneration, approval and publish.
-- [ ] Phase 6: `worker-operations.md` — retries, cancellation, checkpoints, leases and failure diagnosis.
+- [ ] Phase 6: `worker-operations.md` — retries, cancellation, checkpoints, leases and failure diagnosis. The tested library-only increment is documented in [phase-6-workflow.md](phase-6-workflow.md); production scheduling/generation is not yet connected.
 - [ ] Phase 7: `providers.md` — consent, capability routing, credentials, budgets and opt-in tests.
 - [ ] Phase 8: `releases.md` and `backup-recovery.md` — bundles, exports, active release rollback, coordinated DB/files backups and orphan auditing.
 
