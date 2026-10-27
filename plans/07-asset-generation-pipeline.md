@@ -38,6 +38,9 @@ An animation regeneration reuses source/master and unaffected sheets; invalidate
 ## Dependencies
 Contract and fixture (Phase 2), publisher validation/API (Phase 4), studio approval flow (Phase 5), durable executor and mock provider (Phase 6). Real AI waits until mock end-to-end proof.
 
+## Current bounded implementation
+Capture is a library stage that verifies a pinned immutable original ID/hash/owner, strictly decodes source bytes, and stores its oriented preview as an attempt-scoped PNG. The executor revalidates declared files and their attempt identity before fenced checkpoint adoption (ADR-034). Offline mock analysis/cleanup/master stages now consume adopted same-job typed dependencies, reverify source artifacts, and persist provider/seed/style/content-hash/resolved-input provenance (ADR-035). Candidates are real nonempty transparent 256×256 PNGs; mock cleanup is a limited white-background heuristic and master is explicitly synthetic, not art-fidelity or safety evaluation. This is not production worker composition, automatic cache reuse, anchor normalization or a complete graph. Body/pose/frame stages and normalization/sheets remain next.
+
 ## Implementation tasks
 - [ ] Define stage input/output schemas, dependency graph and implementation versions.
 - [ ] Implement deterministic source processing, normalization and sheet packing.

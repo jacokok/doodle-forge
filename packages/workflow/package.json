@@ -3,8 +3,10 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@doodleforge/ai": "workspace:*",
     "@doodleforge/contracts": "workspace:*",
     "@doodleforge/database": "workspace:*",
+    "@doodleforge/image-processing": "workspace:*",
     "zod": "4.6.7"
   },
   "exports": {

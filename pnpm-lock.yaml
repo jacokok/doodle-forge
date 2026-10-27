@@ -118,7 +118,20 @@ importers:
         specifier: 13.0.3
         version: 13.0.3
 
-  packages/ai: {}
+  packages/ai:
+    dependencies:
+      '@doodleforge/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@doodleforge/image-processing':
+        specifier: workspace:*
+        version: link:../image-processing
+      sharp:
+        specifier: 0.34.5
+        version: 0.34.5
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
 
   packages/animation: {}
 
@@ -174,12 +187,18 @@ importers:
 
   packages/workflow:
     dependencies:
+      '@doodleforge/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@doodleforge/contracts':
         specifier: workspace:*
         version: link:../contracts
       '@doodleforge/database':
         specifier: workspace:*
         version: link:../database
+      '@doodleforge/image-processing':
+        specifier: workspace:*
+        version: link:../image-processing
       zod:
         specifier: 4.6.7
         version: 4.6.7

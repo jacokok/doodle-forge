@@ -1,5 +1,71 @@
 # 14 — Persistent implementation progress
 
+## Phase 6 — offline mock analysis, cleanup and master (2026-10-26)
+
+### Scope and implementation
+
+- Started with the prior artifact/capture increment's modified and untracked files; preserved all work, with no reset/discard/staging/commit. Read AGENTS, index/roadmap/live progress, relevant pipeline/workflow/provider/testing plans, ADRs 032/034 and current source. Continue the actual checkout baseline, not the absent ADR-033 implementation. Phase 6 remains **in progress**; Phase 5 manual accessibility/screen-reader/observed-child acceptance remains **deferred, not passed**.
+- Added an offline-only `DeterministicMockProvider` in `packages/ai`: shared bounded creative-choice validation, deterministic plain-text brief, white-background cleanup and source/design/style/seed-conditioned synthetic master. Styles are mock controls, not real art-fidelity promises; analysis explicitly warns it is not moderation. No descriptions become code/SVG/tools. Candidate checks pin provider/version/capability/source/hash, strict 256×256 PNG decode, <=2 MiB and nonempty visible/transparent alpha; adapter byte buffers are cloned.
+- Added typed `analyze-description`, `clean-image` and `character-master` library stages. The executor resolves declared same-job adopted checkpoints, validates owner/version/snapshot/input identity and successful attempt, and passes frozen metadata/JSON strings rather than repositories. Consumers require artifact step/attempt membership in the selected checkpoint and reverify bytes before provider execution. Only capture-adopted files feed analysis/cleanup; master joins adopted cleanup and analysis.
+- Provenance persists provider/version/style/seed, request/source-content hashes and a resolved input hash including dependency checkpoint hashes. The immutable declared input hash is unchanged. Retry/restart can reconstruct identity without rewriting rows; hashes conservatively include checkpoint UUID identities and are **not** automatic cross-job cache equivalence. Mock PNG content itself excludes attempt IDs/clocks and is deterministic on identical content inputs.
+- Outputs install and adopt through the existing attempt artifact protocol. No migrations, HTTP generation, production polling/enqueue, real provider, credentials, external artwork transfer, frozen/public source registration or publication change. Existing bounded fixture Studio/publication/game slice stays unchanged. Workspace links use existing pinned dependencies only.
+- Added 32 tests: provider determinism/source/design/style/seed binding; strict capabilities/choices/version/bounds; malformed/hash/dimension/provenance/empty/opaque candidate rejection; no network/tools; dependency lineage/version/target/snapshot guards; pipeline actual PNGs; DB/store reopen, transient retry with untouched upstream attempts, expiry/orphan/stale-adoption rejection, cancellation/abort and corrupt upstream bytes blocking calls. Original bytes remain unchanged and no versions/approvals/releases appear.
+- Updated plans 07/08/10/12, workflow docs and ADR-035. This is **not** anchor normalization or a completed generation graph: body/pose/frame capabilities and normalization/sheets remain separate increments. Production worker still truthfully reports generation unavailable.
+
+### Actual verification
+
+| Executed command | Result |
+|---|---|
+| `mise exec -- pnpm install --no-frozen-lockfile`; `mise exec -- pnpm install --frozen-lockfile` | PASS: existing workspace/dependency links only, no version upgrades. |
+| `mise exec -- pnpm exec vitest run packages/ai/src/mock.test.ts packages/workflow/src/mock-stages.test.ts` | Final PASS: **32 tests / 2 files**. Initial 8 failures caught Sharp's single-resize-per-pipeline behavior producing an oversized cleanup candidate; corrected to one contain resize plus padding, preserving strict validation. |
+| `mise exec -- pnpm test` | Final PASS: **298 tests / 18 files** (266 prior + 32 new). Earlier full checkpoint: 294 before four additional validation cases. |
+| `mise exec -- pnpm check`; `mise exec -- pnpm lint` | PASS: TypeScript/Svelte 0 errors / warnings; ESLint clean. |
+| `mise exec -- pnpm build`; `mise exec -- pnpm test:smoke` | PASS: production Studio/health-only worker, real HTTP publication/security/corruption/operator and worker/dev lifecycle regression checks. |
+| `mise exec -- pnpm test:startup` | PASS: **7** isolated process/startup tests. |
+| `mise exec -- pnpm format:check`; `git diff --check` | PASS; final documentation checks rerun after this entry. |
+
+### Remaining work and known limitations
+
+1. Next bounded increment: mock body/pose/frame stages, then deterministic anchor normalization/sheet packing with dimension/alpha/layout/hash tests, through this artifact/dependency boundary. Current dependency resolver supports one predecessor per declared stage key; explicit per-animation branch addressing needs a tested extension.
+2. Production worker polling/heartbeat/shutdown/provider request bookkeeping, automatic retry classification/cache, frozen review registration, Studio progress, approval/publication gates and full two-character generation-to-game proof remain unimplemented. Completing master computation leaves the job running, never review-ready or published.
+3. No Chromium or Godot suite rerun in this library-only increment. Previous browser focus/history failures remain unresolved; Godot validator previously lacked its expected binary/templates. Do not inherit prior pass totals as new evidence. No manual graphical/accessibility/child-usability, real-provider, external art transfer or remote-CI checks performed. Existing local trust/private orphan/no aggregate quota/power-loss limitations remain.
+
+## Phase 6 — immutable artifacts and pinned original capture (2026-10-26)
+
+### Baseline and scope
+
+- Initial Git status clean; no reset, discard, staging or commit. Read AGENTS, index/roadmap/progress, plans 05/07/08/10/11 and ADR-032. **Handoff discrepancy:** this checkout has no ADR-033, mock worker or description analysis; AI is empty and worker health-only. Existing full-suite evidence here is 245 Vitest, not the supplied 279. Did not fabricate missing work; ADR-034 leaves 033 reserved for reconciliation.
+- Phase 6 remains in progress. Phase 5 manual accessibility/screen-reader/observed-child checks remain **explicitly deferred, not passed**. No full generation/phase acceptance claim.
+
+### Implementation
+
+- Added `packages/workflow/src/artifacts.ts`: strict PNG references with UUID step/attempt/artifact identity, hash, bytes and dimensions; bounded confined no-follow/nonblocking reads with strict decode/dimension/hash verification. Exclusive temp writes, read-only mode, fsync, atomic no-replace hard-link installation and directory sync preserve distinct immutable files.
+- Executor accepts a composition-supplied store; producing stages declare references. Files and current step/attempt membership are reverified before the existing final SQLite lease/cancellation fence. Cancelled/expired outputs remain private orphans, never selected checkpoints. Reads reverify after restart; no automatic cache or destructive cleanup.
+- Added `capture.ts`: verify pinned original ID/hash/owner/kind/key, rehash original bytes, strictly decode/check dimensions, persist an oriented metadata-stripped PNG preview. Later attachment replacement cannot redirect capture; originals remain unchanged. Shared envelope schemas moved unchanged to `envelope.ts` to avoid an initialization cycle.
+- References persist in checkpoint JSON, not generated-asset rows or frozen/public sources. No migrations, routes, provider calls, credentials, external artwork transfers, HTTP generation, automatic enqueue or publication changes. Added the existing image-processing workspace link only; no version upgrades. Updated plans 07/08/12, ADR-034 and `docs/phase-6-workflow.md`.
+- Added 21 real-SQLite/temp-storage cases: deterministic hashes, original preservation/replacement, adopted-file reopen, abandoned-attempt restart/expiry, stale-artifact rejection/late completion, cancellation/abort after installation, pre-adoption corruption, missing/size/hash/dimension errors, traversal/symlink roots/ancestors/files, invalid original metadata/bytes, malformed PNG and size bounds. SQL immutability remains enabled; corrupt metadata is injected via a repository spy.
+
+### Actual verification
+
+| Executed command | Result |
+|---|---|
+| `mise exec -- pnpm install --no-frozen-lockfile` | PASS: workspace link only. |
+| `mise exec -- pnpm exec vitest run packages/workflow/src/artifacts.test.ts` | Corrected checkpoint PASS: 18 tests; three subsequent cases included in full suite. Initial failures exposed circular imports, a closed test repository and attempts to mutate SQL-immutable test metadata; corrected without weakening guards. |
+| `mise exec -- pnpm test` | PASS: **266 tests / 16 files**, including **21 new cases**. |
+| `mise exec -- pnpm check`; `mise exec -- pnpm lint` | PASS including final rerun: TS/Svelte 0 errors / warnings; ESLint clean. |
+| `mise exec -- pnpm build`; `mise exec -- pnpm test:smoke` | PASS: production Studio/worker, real HTTP publication/security/corruption/reconciliation and process lifecycle. Normal local build restored after browser runs. |
+| `mise exec -- pnpm test:startup` | PASS: **7** isolated process/startup tests. |
+| `mise exec -- pnpm test:e2e` | Initial FAIL: Chromium absent (20 launch failures, 1 HTTP pass). Installed via `mise exec -- pnpm exec playwright install chromium`. Full reruns: **20 pass / 1 fail**, then **19 pass / 2 fail**. Unchanged `characters.spec.ts:13` New-character/Name-focus failure on both; `history-review.spec.ts:77` also failed on second. No unrelated test/app assertions changed; no passing browser-suite claim. |
+| `mise exec -- pnpm test:godot:api` | BLOCKED/FAIL before assertions: expected `godot` 4.7.2-stable binary/templates unavailable to validator. **No Godot assertions ran**; prior 405 assertion evidence is historical only. |
+
+Final `mise exec -- pnpm exec vitest run packages/workflow/src/artifacts.test.ts`: **21 passed**. Final `mise exec -- pnpm install --frozen-lockfile`, `mise exec -- pnpm format:check`, `git diff --check` and normal-origin `mise exec -- pnpm build`: PASS. No application failures in artifact/capture tests; broader browser/Godot limitations above remain unresolved.
+
+### Remaining work / limitations
+
+1. Reconcile missing mock-worker/ADR-033 handoff with the branch before composing stages. Next: deterministic offline mock provider/image stages, then normalization/sheets, each through this boundary. Worker polling/heartbeat/shutdown composition remains absent here.
+2. Cache reuse, frozen source registration/review snapshots, Studio progress, gates/durable publication, selective regeneration and full two-character upload-to-game proof remain unimplemented. Files confer no publication authority.
+3. Current validation limitations: browser focus/history failures and unavailable Godot tooling. Local filesystem trust, private orphan accumulation/no aggregate quota, hard-link same-filesystem/Linux assumptions and untested power-loss/privileged directory replacement remain explicit. No real provider, remote CI or manual accessibility/child-usability acceptance performed.
+
 ## Phase 6 — durable workflow foundation (2026-10-26)
 
 ### Authorization and phase-gate exception

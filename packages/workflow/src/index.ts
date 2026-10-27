@@ -3,29 +3,43 @@ import { z } from 'zod';
 import { canonicalJson, sha256 } from '@doodleforge/contracts';
 import { WorkflowRepository, type WorkflowClaim } from '@doodleforge/database';
 
-const hashSchema = z.string().regex(/^[a-f0-9]{64}$/);
+import { ArtifactStore, type Artifact } from './artifacts.js';
+export { ArtifactStore, artifactSchema, type Artifact } from './artifacts.js';
+export { captureArtworkStage, captureOutputSchema } from './capture.js';
+export {
+  analysisStage,
+  cleanImageStage,
+  characterMasterStage,
+  analysisOutputSchema,
+  mockImageOutputSchema,
+} from './mock-stages.js';
+
+import { stageEnvelopeSchema, type StageEnvelope } from './envelope.js';
+export {
+  stageAssetSchema,
+  stageEnvelopeSchema,
+  type StageEnvelope,
+} from './envelope.js';
+
 const keySchema = z.string().regex(/^[a-z][a-z0-9_.-]{0,79}$/);
 
-/** Asset identifiers and hashes, never inline artwork or client-selected storage paths. */
-export const stageAssetSchema = z.strictObject({
-  assetId: z.uuid(),
-  sha256: hashSchema,
-});
-export const stageEnvelopeSchema = z.strictObject({
-  schemaVersion: z.literal(1),
-  characterId: z.uuid(),
-  characterVersion: z.number().int().positive(),
-  sourceSnapshotHash: hashSchema,
-  inputs: z.record(z.string(), z.json()),
-  parameters: z.record(z.string(), z.json()),
-});
-export type StageEnvelope = z.infer<typeof stageEnvelopeSchema>;
-
+export interface StageDependency {
+  readonly stepId: string;
+  readonly attemptId: string;
+  readonly stageKey: string;
+  readonly stageVersion: string;
+  readonly targetKey: string;
+  readonly outputJson: string;
+  readonly outputHash: string;
+}
 export interface StageContext {
   readonly claim: Readonly<WorkflowClaim>;
   readonly signal: AbortSignal;
   /** Attempt-scoped storage and capability providers are supplied by worker composition, not routes. */
   readonly log: (event: string) => void;
+  readonly artifacts?: ArtifactStore | undefined;
+  readonly dependencyOutputs?: readonly StageDependency[];
+  readonly resolvedInputHash?: string;
 }
 export interface Stage<I, O> {
   readonly key: string;
@@ -34,6 +48,8 @@ export interface Stage<I, O> {
   readonly outputSchema: z.ZodType<O>;
   readonly cachePolicy: 'disabled' | 'verified-assets';
   readonly dependencies: readonly string[];
+  /** All newly produced files must be declared for verification before adoption. */
+  readonly artifactRefs?: (output: O) => readonly Artifact[];
   execute(context: StageContext, input: I): Promise<O>;
 }
 
@@ -110,6 +126,67 @@ export function enqueueWorkflow(
   });
 }
 
+function resolveDependencies(
+  repository: WorkflowRepository,
+  work: NonNullable<ReturnType<WorkflowRepository['claim']>>,
+  required: readonly string[],
+  envelope: StageEnvelope,
+): readonly StageDependency[] {
+  const ids = z
+    .array(z.uuid())
+    .max(100)
+    .parse(JSON.parse(work.step.dependenciesJson));
+  if (new Set(ids).size !== ids.length || ids.length !== required.length)
+    throw new Error('Stage dependency mismatch');
+  const dependencies = ids.map((id) => {
+    const step = repository.step(id);
+    if (
+      !step ||
+      step.jobId !== work.step.jobId ||
+      step.status !== 'succeeded' ||
+      !step.outputJson
+    )
+      throw new Error('Dependency checkpoint unavailable');
+    const source = stageEnvelopeSchema.parse(JSON.parse(step.inputJson));
+    if (
+      source.characterId !== envelope.characterId ||
+      source.characterVersion !== envelope.characterVersion ||
+      source.sourceSnapshotHash !== envelope.sourceSnapshotHash ||
+      stageInputHash(step.stageKey, step.stageVersion, source) !==
+        step.inputHash
+    )
+      throw new Error('Dependency source identity mismatch');
+    const attempt = repository
+      .attempts(id)
+      .find(
+        (item) =>
+          item.outcome === 'succeeded' && item.leaseToken === step.leaseToken,
+      );
+    if (!attempt || Buffer.byteLength(step.outputJson) > 256 * 1024)
+      throw new Error('Invalid dependency checkpoint');
+    z.json().parse(JSON.parse(step.outputJson));
+    return Object.freeze({
+      stepId: id,
+      attemptId: attempt.id,
+      stageKey: step.stageKey,
+      stageVersion: step.stageVersion,
+      targetKey: step.targetKey,
+      outputJson: step.outputJson,
+      outputHash: sha256(step.outputJson),
+    });
+  });
+  if (
+    required.some(
+      (key) =>
+        dependencies.filter((item) => item.stageKey === key).length !== 1,
+    )
+  )
+    throw new Error('Stage dependency mismatch');
+  return Object.freeze(
+    dependencies.sort((a, b) => a.stageKey.localeCompare(b.stageKey)),
+  );
+}
+
 /** Validate before execution and again before fenced adoption; handlers cannot mutate scheduler state. */
 export async function executeStage<I, O>(
   repository: WorkflowRepository,
@@ -117,6 +194,7 @@ export async function executeStage<I, O>(
   stage: Stage<I, O>,
   signal: AbortSignal,
   log: StageContext['log'] = () => {},
+  artifacts?: ArtifactStore,
 ) {
   if (
     work.step.stageKey !== stage.key ||
@@ -131,12 +209,43 @@ export async function executeStage<I, O>(
   const input = stage.inputSchema.parse(envelope);
   signal.throwIfAborted();
   if (!repository.heartbeat(work.claim)) return false;
+  const dependencyOutputs = resolveDependencies(
+    repository,
+    work,
+    stage.dependencies,
+    envelope,
+  );
+  const resolvedInputHash = sha256(
+    canonicalJson({
+      inputHash: work.step.inputHash,
+      dependencies: dependencyOutputs.map(
+        ({ stageKey, stageVersion, targetKey, outputHash }) => ({
+          stageKey,
+          stageVersion,
+          targetKey,
+          outputHash,
+        }),
+      ),
+    }),
+  );
   const output = stage.outputSchema.parse(
     await stage.execute(
-      { claim: Object.freeze({ ...work.claim }), signal, log },
+      {
+        claim: Object.freeze({ ...work.claim }),
+        signal,
+        log,
+        artifacts,
+        dependencyOutputs,
+        resolvedInputHash,
+      },
       input,
     ),
   );
+  signal.throwIfAborted();
+  if (stage.artifactRefs) {
+    if (!artifacts) throw new Error('Artifact store required');
+    await artifacts.verifyAttempt(stage.artifactRefs(output), work.claim);
+  }
   signal.throwIfAborted();
   const outputJson = canonicalJson(z.json().parse(output));
   if (Buffer.byteLength(outputJson) > 256 * 1024)

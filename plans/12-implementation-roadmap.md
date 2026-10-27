@@ -144,7 +144,7 @@ Contract precedes game and factory. API integration precedes authoring UI. To re
 **Checklist:**
 - [ ] Implement typed stage interfaces, leases/heartbeats/fencing and attempt history. Persistence/library slice is locally tested (plan 14); production worker polling, heartbeat lifecycle and handler composition remain next.
 - [ ] Add checkpoint/cache/input hashing, retry policies, cancellation and recovery.
-- [ ] Implement capture/analysis/cleanup/master/body/pose/frame stages with mock adapter.
+- [ ] Implement capture/analysis/cleanup/master/body/pose/frame stages with mock adapter. Capture/artifact verification (ADR-034) and offline mock analysis/cleanup/master with adopted-dependency provenance (ADR-035) are tested library increments; body/pose/frame capabilities and production worker composition remain incomplete.
 - [ ] Implement anchor normalization, sheet packing, metadata/validation and review freeze.
 - [ ] Add per-animation branching and descendant invalidation into new versions.
 - [ ] Connect approval/waiting-publish gates to explicit publication jobs.

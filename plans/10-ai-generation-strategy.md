@@ -25,6 +25,9 @@ Define capability-based TypeScript adapter interfaces, not one required universa
 ## Dependencies
 Stable contract and normalization conventions (04/07), durable retries (08), review UI (06). Phase 6 mock end-to-end must pass before Phase 7 real-adapter work.
 
+## Current offline increment
+`packages/ai` now implements pinned `deterministic-mock` v1 description analysis, cleanup and master capabilities with bounded shared-contract inputs and strictly validated real PNG candidates (ADR-035). Stages persist artifact/content/provider/resolved-input provenance through the durable library. Cleanup/master are explicitly heuristic/synthetic; styles do not claim art fidelity, text normalization is not moderation, and fixed 256×256 candidates are not anchor-normalized frames. Body/pose/frame capabilities, worker composition, full mock E2E and all real-provider selection remain incomplete. No credentials, network artwork transfer or remote fallback.
+
 ## Implementation tasks
 - [ ] Implement capability schemas, routing config, mock and deterministic tests.
 - [ ] Add bounded downloads, credential isolation, error mapping and provenance records.

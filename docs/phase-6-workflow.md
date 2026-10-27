@@ -7,7 +7,10 @@ This is a library increment, not an available generation feature. Studio and wor
 - `packages/workflow/src/index.ts`: strict shared envelope, generic `Stage<I,O>` schemas, canonical input hash, validated acyclic graph enqueue, schema-checked execution and fenced checkpoint adoption.
 - `packages/database/src/workflow.ts`: job/step/attempt persistence, claim, heartbeat, completion, failure/retry, cancellation and expired-lease recovery.
 - `apps/worker`: existing health lifecycle only; actual scheduler composition is next.
-- `packages/ai`: still empty; deterministic mock provider comes before image processing, review snapshots, progress and durable publication.
+- `packages/ai`: offline-only deterministic mock analysis/cleanup/master provider, shared validated requests/briefs/candidates and strict candidate verification. No remote adapter or provider fallback.
+- `packages/workflow/src/mock-stages.ts`: analysis, cleanup and master stages consuming adopted typed dependencies and recording provenance. Review snapshots, progress and durable publication remain future work.
+- `packages/workflow/src/artifacts.ts`: private PNG storage, bounded confined reads, attempt-scoped immutable installation and verification.
+- `packages/workflow/src/capture.ts`: pinned original ID/hash/owner verification and deterministic oriented preview capture; library stage, not production worker wiring.
 
 Run explicit `pnpm db:migrate` before future workflow use. Migration 0004 is additive; no automatic production enqueue, seed or execution is added. A job may reference a version only if that version belongs to its character. Generation may start before a frozen version exists.
 
@@ -15,7 +18,7 @@ Run explicit `pnpm db:migrate` before future workflow use. Migration 0004 is add
 
 Claims use short immediate transactions and default 60-second leases. The future worker must heartbeat every 15 seconds and invoke recovery; no background sweeper is installed by importing a library. Every accepted mutation checks worker/attempt/fence plus unexpired lease and uncancelled job. Expiry does not become runnable until recovery records the attempt and sets its backoff due time. Default request budget is three attempts, bounded to ten.
 
-Handlers execute outside transactions, receive attempt identity and abort signal, and return validated JSON checkpoints (256 KiB bound). Handlers do not select outputs or change scheduler state. Cancellation blocks adoption even if the handler ignores its abort signal. Attempt-specific artifact paths, verified asset adoption and provider context are future work. Checkpoint JSON is not proof that an image file still exists or is valid.
+Handlers execute outside transactions, receive attempt identity, abort signal and frozen adopted-dependency metadata/JSON strings, and return validated JSON checkpoints (256 KiB bound). Handlers do not select outputs or change scheduler state. Cancellation blocks adoption even if the handler ignores its abort signal. Asset-producing stages declare `artifactRefs(output)` and require the worker-supplied `ArtifactStore`. Execution verifies each produced reference belongs to this step/attempt and rereads/decodes/hashes files before fenced completion. JSON alone still proves neither current file integrity nor availability: consumers must use `ArtifactStore.read` on every reuse. The mock provider is supplied by stage factory composition; automatic cache reuse remains future work.
 
 Permanent/budget-exhausted failure fails the job and blocks pending work, cancelling sibling in-flight attempts. Successful checkpoints and ended attempts are immutable. Regeneration will require new graph/version rows rather than rewriting history. Computation completion deliberately does not transition the job to review-ready or successful: snapshot/approval/publication orchestration is not wired yet.
 
@@ -23,8 +26,30 @@ Retries currently accept an explicit internal retryable boolean with determinist
 
 The existing bounded synchronous fixture-publication path remains until the durable publication increment replaces it; generation never runs in HTTP handlers.
 
+## Artifact/capture protocol
+
+Composition must provision a private artifact root separately from originals and public releases. References contain UUID step/attempt/artifact IDs, SHA-256, byte size, PNG media type and dimensions, never arbitrary paths or inline artwork. Files live under `<stepId>/<attemptId>/<artifactId>.png`; originals retain their existing immutable asset rows and flat keys. Artifact references are selected only in immutable step checkpoint JSON, not new `assets` rows; promotion into frozen versions remains future work.
+
+Writes validate/decode bounded PNG bytes, write an exclusive temporary file, make it read-only, fsync it, then install using a no-replace atomic hard link, remove the temp name and fsync the directory (including new parents). This same-filesystem Linux/local-storage protocol avoids overwrite races. Cancellation/crashes/expired attempts can leave private unreferenced files; these never imply a selected output. No destructive cleanup is added. File writes and SQLite adoption are not one transaction; power-loss durability is not established by process-restart tests.
+
+Read paths derive exclusively from validated UUIDs. Roots/ancestors must be real directories without symlinks, final files open no-follow/nonblocking, and descriptor reads bound exact size before hash and strict PNG decode/dimension verification. Limits: 10 MiB compressed, 20 million decoded pixels, 4096 per edge, 100 declared output artifacts per stage. This is the existing trusted local-process model, not protection against privileged concurrent directory replacement or a hosted tenancy/aggregate quota scheme.
+
+Capture accepts `inputs.original = {assetId, sha256}` and empty parameters. It checks immutable repository owner/kind/key/hash, reads/rehashes the preserved original, strictly decodes and checks source dimensions, and derives an oriented metadata-stripped PNG preview using the existing upload policy. Later original attachment changes do not change a queued capture's input. It does not generate, approve, publish or expose private bytes over HTTP.
+
+## Offline mock slice (ADR-035)
+
+Library composition now supports `capture-artwork` → parallel-ready `analyze-description` / `clean-image` → `character-master`. Each new stage takes strict parameters `{providerId: 'deterministic-mock', providerVersion: '1', seed, style}`; seed is an unsigned 32-bit integer and style is original/cartoon/pixel. Analysis inputs reuse bounded description/body/fighting-style/power definitions from shared authoring contracts. Image-stage inputs are empty objects: **upstream outputs come from the declared graph, not client artifact hints**. No production scheduler/API enqueue is wired.
+
+Executor resolves only declared same-job succeeded dependencies, matching owner/version/source snapshot and validated original input hash. The adopted successful attempt identifies selected files. This increment expects one dependency per declared stage key; mock stages require version 1 and empty target. Typed output schemas and artifact reads reject missing, unsupported, stale/orphan or corrupt upstream inputs before provider work. More general per-animation branch addressing remains future work.
+
+`input_hash` remains the immutable declared input identity. `resolvedInputHash` in new output provenance also binds sorted dependency checkpoint hashes; request/content source hashes, pinned provider/version, seed and style are persisted alongside it. Full checkpoint hashing includes UUID identity and is deliberately conservative, **not a cross-job content-cache key**. It is stable for a retry with unchanged adopted upstream checkpoints; generated PNG content depends on content hashes/creative inputs, not attempt UUIDs. Caching remains disabled.
+
+Mock analysis normalizes plain text without tools and preserves explicit choices. Cleanup uses a simple near-white-background heuristic and transparent padded canvas; master is a deliberately synthetic colored silhouette. Fixed 256×256 output is a candidate format, not verified foot-anchor normalization. Original/cartoon/pixel are hash/resampling controls here, not real-provider art-fidelity promises. Blank output is rejected. Candidate validation requires a single <=2 MiB PNG with strict 256×256 decode, correct identity/source/hash and both visible and transparent pixels; adapter buffers are cloned. Description output explicitly warns that it is not safety moderation. No untrusted text becomes code, SVG, shell or tool instructions.
+
+Next: body/pose/frame capabilities, normalization/sheet packing and separately tested worker polling/heartbeat/shutdown composition, followed by freeze/gates/progress. No generated review/publication authority is introduced by this slice. Phase 5 manual accessibility/child-usability checks remain deferred, not passed.
+
 ## Verification
 
-`mise exec -- pnpm exec vitest run packages/workflow/src/workflow.test.ts packages/database/src/database.test.ts`
+`mise exec -- pnpm exec vitest run packages/ai/src/mock.test.ts packages/workflow/src/mock-stages.test.ts packages/workflow/src/workflow.test.ts packages/workflow/src/artifacts.test.ts packages/database/src/database.test.ts`
 
 Tests use temporary migrated SQLite, injected time, competing connections and concurrent Node worker processes. They cover dependencies, fencing, heartbeat, restart/expiry, attempt budgets, cancellation and typed validation. They do not establish a running factory or power-loss durability.
