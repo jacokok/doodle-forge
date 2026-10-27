@@ -1,5 +1,11 @@
 # 14 — Persistent implementation progress
 
+## Phase 6 — mock pose library increment
+
+- Added `generate-pose@1`: an animation-targeted library stage that verifies adopted master/body/analysis lineage, adapts to the existing offline frame-capability provider, validates one 256×256 transparent PNG candidate and provider provenance, and installs/adopts it through the attempt artifact protocol. Executor context now exposes the step target for branch/input matching. ADR-039 records the adapter and limitations. The mock uses the master hash, not its pixels; it is not identity-preserving pose generation. No production registration, review or publication changes.
+- `mise exec -- pnpm test`: PASS, 339 tests / 21 files, including two-branch pose persistence across reopen and provider hash rejection. `mise exec -- pnpm check`: PASS, 0 Svelte errors/warnings. `mise exec -- pnpm lint`: PASS. No browser, Godot, full workflow E2E or manual tests ran in this increment.
+- Durable frame sequences, pose-specific cancellation/retry/stale-attempt fault tests, normalization/sheets, production worker graph composition and review/publication gates remain incomplete. Phase 5 manual accessibility and observed child-usability remain deferred, not passed.
+
 ## Phase 6 — body/master lineage hardening
 
 - Before pose/frame composition, body-type execution now reconstructs the master's provider request and checks its request hash against the supplied analysis brief. This rejects inconsistent analysis/master inputs without changing persisted graphs or the production worker. Added a fault-injected executor regression; the normal database also prohibits duplicate stage/target identities within a job.

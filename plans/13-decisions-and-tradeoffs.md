@@ -201,6 +201,10 @@ Stage implementations may declare a dependency as `{stageKey, targetKey}` to sel
 
 The library-only body stage consumes the adopted master and capture-first analysis, verifies the master bytes, and preserves the explicit body choice rather than inventing a provider suggestion. It reports the contract's (128,224) foot anchor as a target, not a measured or normalized position. No image alignment, body detection, user confirmation flow, worker registration or publication authority is implied. Pose/frame generation and image normalization must perform their own validation.
 
+### ADR-039 — Mock pose adapter and target identity (accepted)
+
+The library-only pose stage adapts the capture-first brief into ADR-033's separate mock frame-provider request and persists one candidate per animation branch. Its deterministic palette derives from the master hash; the mock frame provider conditions on that hash, not the master pixels, and cannot demonstrate visual identity preservation. Candidate PNG/hash/alpha and provider provenance are validated before attempt-scoped adoption. The executor supplies the claimed step target to stage context so the animation request cannot silently mismatch its branch. No provider interface merge, production registration, frame sequence, anchor normalization, approval or publication is implied. The image validator's internal synthetic wrapper is only a reuse mechanism and is not persisted as the actual provider provenance.
+
 ## Dependencies
 Plans 01–11 contain detailed consequences. Roadmap orders implementations; progress records evidence. External source availability affects research, not local test status.
 

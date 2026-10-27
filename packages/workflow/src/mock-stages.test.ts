@@ -18,12 +18,15 @@ import {
   WorkflowRepository,
 } from '@doodleforge/database';
 import { DeterministicMockProvider } from '@doodleforge/ai';
+import { DeterministicMockProvider as FrameMockProvider } from '@doodleforge/ai/capabilities';
 import { sha256 } from '@doodleforge/contracts';
 import {
   ArtifactStore,
   analysisStage,
   bodyTypeStage,
   bodyTypeOutputSchema,
+  poseStage,
+  poseOutputSchema,
   captureArtworkStage,
   characterMasterStage,
   cleanImageStage,
@@ -219,6 +222,24 @@ async function run(work: NonNullable<ReturnType<WorkflowRepository['claim']>>) {
         undefined,
         store,
       );
+    case 'determine-body-type':
+      return executeStage(
+        repo,
+        work,
+        bodyTypeStage(provider),
+        signal(),
+        undefined,
+        store,
+      );
+    case 'generate-pose':
+      return executeStage(
+        repo,
+        work,
+        poseStage(new FrameMockProvider()),
+        signal(),
+        undefined,
+        store,
+      );
     default:
       throw new Error('Unknown stage');
   }
@@ -305,6 +326,90 @@ it('adopts the selected body type and target anchor after verifying the master a
   expect(output.targetFootAnchor).toEqual({ x: 128, y: 224 });
   expect(output.provenance.sourceHashes).toHaveLength(1);
   expect(repo.job(jobId)?.status).toBe('running');
+});
+
+it('persists separate animation poses after restart and leaves the job running', async () => {
+  const graph = request();
+  graph.steps.push({
+    key: 'body',
+    stageKey: 'determine-body-type',
+    stageVersion: '1',
+    targetKey: '',
+    dependencies: ['master', 'analysis'],
+    input: { ...graph.steps[3]!.input, inputs: {}, parameters },
+  });
+  for (const animation of ['idle', 'walk'])
+    graph.steps.push({
+      key: `pose-${animation}`,
+      stageKey: 'generate-pose',
+      stageVersion: '1',
+      targetKey: animation,
+      dependencies: ['master', 'analysis', 'body'],
+      input: { ...graph.steps[3]!.input, inputs: { animation }, parameters },
+    });
+  const jobId = enqueueWorkflow(repo, graph);
+  for (let i = 0; i < 5; i++)
+    expect(await run(repo.claim('upstream')!)).toBe(true);
+  reopen();
+  const images = [];
+  for (let i = 0; i < 2; i++) {
+    const work = repo.claim('pose')!;
+    expect(await run(work)).toBe(true);
+    const output = poseOutputSchema.parse(
+      JSON.parse(repo.step(work.step.id)!.outputJson!),
+    );
+    expect(output.animation).toBe(work.step.targetKey);
+    expect(sha256(await store.read(output.image))).toBe(output.image.sha256);
+    images.push(output.image.sha256);
+  }
+  expect(new Set(images).size).toBe(2);
+  expect(repo.job(jobId)?.status).toBe('running');
+});
+
+it('rejects a pose with a provider hash mismatch without adopting a checkpoint', async () => {
+  const graph = request();
+  graph.steps.push({
+    key: 'body',
+    stageKey: 'determine-body-type',
+    stageVersion: '1',
+    targetKey: '',
+    dependencies: ['master', 'analysis'],
+    input: { ...graph.steps[3]!.input, inputs: {}, parameters },
+  });
+  graph.steps.push({
+    key: 'pose-idle',
+    stageKey: 'generate-pose',
+    stageVersion: '1',
+    targetKey: 'idle',
+    dependencies: ['master', 'analysis', 'body'],
+    input: {
+      ...graph.steps[3]!.input,
+      inputs: { animation: 'idle' },
+      parameters,
+    },
+  });
+  enqueueWorkflow(repo, graph);
+  for (let i = 0; i < 5; i++)
+    expect(await run(repo.claim('upstream')!)).toBe(true);
+  const adapter = new FrameMockProvider();
+  const generate = adapter.generate.bind(adapter);
+  vi.spyOn(adapter, 'generate').mockImplementation(async (...args) => {
+    const result = await generate(...args);
+    if (result.capability !== 'generate_frames')
+      throw new Error('Unexpected capability');
+    return {
+      ...result,
+      frames: result.frames.map((frame) => ({
+        ...frame,
+        sha256: '0'.repeat(64),
+      })),
+    };
+  });
+  const work = repo.claim('pose')!;
+  await expect(
+    executeStage(repo, work, poseStage(adapter), signal(), undefined, store),
+  ).rejects.toThrow('Candidate provenance/hash mismatch');
+  expect(repo.step(work.step.id)!.outputJson).toBeNull();
 });
 
 it('rejects a body stage paired with a different analysis than the master used', async () => {

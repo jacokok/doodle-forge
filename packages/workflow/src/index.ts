@@ -19,6 +19,8 @@ export {
   characterMasterStage,
   bodyTypeStage,
   bodyTypeOutputSchema,
+  poseStage,
+  poseOutputSchema,
   analysisOutputSchema,
   mockImageOutputSchema,
 } from './mock-stages.js';
@@ -49,6 +51,7 @@ export interface StageContext {
   readonly artifacts?: ArtifactStore | undefined;
   readonly dependencyOutputs?: readonly StageDependency[];
   readonly resolvedInputHash?: string;
+  readonly targetKey?: string;
 }
 export interface Stage<I, O> {
   readonly key: string;
@@ -259,6 +262,7 @@ export async function executeStage<I, O>(
         artifacts,
         dependencyOutputs,
         resolvedInputHash,
+        targetKey: work.step.targetKey,
       },
       input,
     ),
