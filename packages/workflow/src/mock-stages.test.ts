@@ -153,7 +153,7 @@ function request() {
       },
       {
         key: 'analysis',
-        stageKey: 'analyze-description',
+        stageKey: 'analyze-captured-description',
         stageVersion: '1',
         targetKey: '',
         dependencies: ['capture'],
@@ -190,7 +190,7 @@ async function run(work: NonNullable<ReturnType<WorkflowRepository['claim']>>) {
         undefined,
         store,
       );
-    case 'analyze-description':
+    case 'analyze-captured-description':
       return executeStage(
         repo,
         work,
@@ -247,7 +247,7 @@ it('adopts capture/analysis/cleanup/master with actual PNGs, lineage and no revi
   expect(cleaned.provenance.sourceHashes).toEqual([capture.preview.sha256]);
   const briefStep = upstream
     .map((id) => repo.step(id)!)
-    .find((item) => item.stageKey === 'analyze-description')!;
+    .find((item) => item.stageKey === 'analyze-captured-description')!;
   expect(
     analysisOutputSchema.parse(JSON.parse(briefStep.outputJson!)).brief
       .description,
@@ -413,7 +413,7 @@ it.each(['snapshot', 'version', 'missing-dependency'] as const)(
     if (capture.step.stageKey === 'capture-artwork')
       expect(await run(capture)).toBe(true);
     const analysis =
-      capture.step.stageKey === 'analyze-description'
+      capture.step.stageKey === 'analyze-captured-description'
         ? capture
         : repo.claim('analysis')!;
     const analyze = vi.spyOn(provider, 'analyze');

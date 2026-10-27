@@ -29,7 +29,7 @@ Stable contract and normalization conventions (04/07), durable retries (08), rev
 `packages/ai` now implements pinned `deterministic-mock` v1 description analysis, cleanup and master capabilities with bounded shared-contract inputs and strictly validated real PNG candidates (ADR-035). Stages persist artifact/content/provider/resolved-input provenance through the durable library. Cleanup/master are explicitly heuristic/synthetic; styles do not claim art fidelity, text normalization is not moderation, and fixed 256×256 candidates are not anchor-normalized frames. Body/pose/frame capabilities, worker composition, full mock E2E and all real-provider selection remain incomplete. No credentials, network artwork transfer or remote fallback.
 
 ## Implementation tasks
-- [ ] Implement capability schemas, routing config, mock and deterministic tests.
+- [ ] Implement capability schemas, routing config, mock and deterministic tests. Initial mock-only analysis/frame-candidate capability schemas, zero-cost provenance, deterministic Sharp candidate tests and durable analysis-stage composition are implemented (ADR-033; plan 14). Cleanup/master/pose/effects and the full mock pipeline remain pending; no real adapter/routing is enabled.
 - [ ] Add bounded downloads, credential isolation, error mapping and provenance records.
 - [ ] Evaluate real providers against an explicit comparison matrix; record choice in plan 13.
 - [ ] Implement one chosen capability adapter first; gate live smoke tests behind opt-in secrets/budget.

@@ -90,7 +90,7 @@ export function analysisStage(
   z.infer<typeof analysisOutputSchema>
 > {
   return {
-    key: 'analyze-description',
+    key: 'analyze-captured-description',
     version: '1',
     inputSchema: analysisInputSchema,
     outputSchema: analysisOutputSchema,
@@ -137,7 +137,7 @@ function imageStage(
     dependencies:
       capability === 'clean-image'
         ? ['capture-artwork']
-        : ['clean-image', 'analyze-description'],
+        : ['clean-image', 'analyze-captured-description'],
     cachePolicy: 'disabled',
     artifactRefs: (output) => [output.image],
     async execute(context, input) {
@@ -155,7 +155,9 @@ function imageStage(
       const brief =
         capability === 'character-master'
           ? analysisOutputSchema.parse(
-              JSON.parse(dependency(context, 'analyze-description').outputJson),
+              JSON.parse(
+                dependency(context, 'analyze-captured-description').outputJson,
+              ),
             ).brief
           : undefined;
       const request = imageRequestSchema.parse({

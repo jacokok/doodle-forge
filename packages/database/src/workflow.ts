@@ -154,8 +154,15 @@ export class WorkflowRepository {
     });
   }
 
-  claim(workerId: string, leaseMs = 60_000) {
+  claim(
+    workerId: string,
+    leaseMs = 60_000,
+    supportedStages?: readonly { key: string; version: string }[],
+  ) {
     this.validateLease(workerId, leaseMs);
+    const supportedJson = supportedStages
+      ? JSON.stringify(supportedStages)
+      : null;
     return this.transaction((now) => {
       const candidate = this.connection.sqlite
         .prepare(
@@ -163,12 +170,15 @@ export class WorkflowRepository {
         JOIN generation_jobs j ON j.id = s.job_id
         WHERE s.status = 'queued' AND s.available_at <= ? AND s.attempt_count < s.max_attempts
           AND j.status IN ('queued','running') AND j.cancel_requested_at IS NULL
+          AND (? IS NULL OR EXISTS (SELECT 1 FROM json_each(?) supported
+            WHERE json_extract(supported.value, '$.key') = s.stage_key
+              AND json_extract(supported.value, '$.version') = s.stage_version))
           AND NOT EXISTS (SELECT 1 FROM json_each(s.dependencies_json) d
             LEFT JOIN generation_steps upstream ON upstream.id = d.value AND upstream.job_id = s.job_id
             WHERE upstream.id IS NULL OR upstream.status != 'succeeded')
         ORDER BY s.available_at, j.created_at, s.id LIMIT 1`,
         )
-        .get(now) as { id: string } | undefined;
+        .get(now, supportedJson, supportedJson) as { id: string } | undefined;
       if (!candidate) return undefined;
       this.connection.sqlite
         .prepare(
@@ -234,6 +244,23 @@ export class WorkflowRepository {
           claim.attemptId,
         ) !== undefined
     );
+  }
+  isCurrent(claim: WorkflowClaim) {
+    return this.owns(claim, this.clock());
+  }
+  relinquish(claim: WorkflowClaim) {
+    return this.transaction((now) => {
+      if (!this.owns(claim, now)) return false;
+      const errorJson = JSON.stringify({ code: 'WORKER_STOPPED' });
+      const step = this.step(claim.stepId)!;
+      this.connection.sqlite
+        .prepare(
+          "UPDATE generation_attempts SET outcome='cancelled',error_json=?,ended_at=? WHERE id=?",
+        )
+        .run(errorJson, now, claim.attemptId);
+      this.retryOrFail(step, now, errorJson, true);
+      return true;
+    });
   }
   heartbeat(claim: WorkflowClaim, leaseMs = 60_000) {
     this.validateLease(claim.workerId, leaseMs);
@@ -334,6 +361,7 @@ export class WorkflowRepository {
             lte(generationSteps.leaseExpiresAt, now),
           ),
         )
+        .limit(100)
         .all();
       let recovered = 0;
       for (const step of expired) {

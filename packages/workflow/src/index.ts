@@ -5,6 +5,13 @@ import { WorkflowRepository, type WorkflowClaim } from '@doodleforge/database';
 
 import { ArtifactStore, type Artifact } from './artifacts.js';
 export { ArtifactStore, artifactSchema, type Artifact } from './artifacts.js';
+export {
+  WorkflowRunner,
+  stageHandler,
+  RetryableStageError,
+  type StageHandler,
+  type RunnerOptions,
+} from './runner.js';
 export { captureArtworkStage, captureOutputSchema } from './capture.js';
 export {
   analysisStage,
@@ -195,6 +202,7 @@ export async function executeStage<I, O>(
   signal: AbortSignal,
   log: StageContext['log'] = () => {},
   artifacts?: ArtifactStore,
+  leaseMs = 60_000,
 ) {
   if (
     work.step.stageKey !== stage.key ||
@@ -208,7 +216,7 @@ export async function executeStage<I, O>(
     throw new Error('Corrupt stage input');
   const input = stage.inputSchema.parse(envelope);
   signal.throwIfAborted();
-  if (!repository.heartbeat(work.claim)) return false;
+  if (!repository.heartbeat(work.claim, leaseMs)) return false;
   const dependencyOutputs = resolveDependencies(
     repository,
     work,

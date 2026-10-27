@@ -80,7 +80,7 @@ try {
     console.log(
       studioOnly
         ? 'Studio only; worker not started. Ctrl-C stops the studio.'
-        : 'Studio + worker health ready (no generation jobs). Ctrl-C stops both.',
+        : 'Studio + mock-analysis worker ready; full generation unavailable. Ctrl-C stops both.',
     );
   }
   const first = await exited;

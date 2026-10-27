@@ -9,6 +9,7 @@
     "zod": "4.6.7"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./capabilities": "./src/capabilities.ts"
   }
 }

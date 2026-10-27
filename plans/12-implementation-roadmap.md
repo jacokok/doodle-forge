@@ -133,7 +133,7 @@ Contract precedes game and factory. API integration precedes authoring UI. To re
 **Acceptance criteria:** Real upload/edit/review/publish interactions work on available valid versions, invalid uploads are rejected and original hashes unchanged. **Test requirements:** Vitest route/upload/version tests; Playwright wizard, keyboard navigation, previews and approval/publish gate; do not claim full upload-to-generation E2E yet.
 
 ### Phase 6 — Asset factory
-**Authorization/status:** User explicitly authorizes Phase 6 and defers outstanding Phase 5 manual accessibility/screen-reader and observed child-usability acceptance as a **phase-gate exception, not passed verification**. Review/publication features retain their recorded local verification. Phase 6 is in progress with a bounded durable-library foundation (plan 14, ADR-032); no production generation or real provider is enabled. Remaining Phase 5 manual checkboxes remain unaccepted.
+**Authorization/status:** User explicitly authorizes Phase 6 and defers outstanding Phase 5 manual accessibility/screen-reader and observed child-usability acceptance as a **phase-gate exception, not passed verification**. Review/publication features retain their recorded local verification. Phase 6 is in progress with the reconciled metadata-only mock worker and artifact/capture-first libraries (plan 14, ADRs 032–036); no complete generation feature or real provider is enabled. Remaining Phase 5 manual checkboxes remain unaccepted.
 
 **Goal:** Complete local upload-to-game flow with no paid APIs.
 
@@ -142,9 +142,9 @@ Contract precedes game and factory. API integration precedes authoring UI. To re
 **Dependencies:** Phases 1–5, plans 07/08/10.
 
 **Checklist:**
-- [ ] Implement typed stage interfaces, leases/heartbeats/fencing and attempt history. Persistence/library slice is locally tested (plan 14); production worker polling, heartbeat lifecycle and handler composition remain next.
+- [ ] Implement typed stage interfaces, leases/heartbeats/fencing and attempt history. Persistence, runner and metadata-only production worker polling/heartbeat/shutdown are locally tested (plan 14); capture-first handlers remain unregistered.
 - [ ] Add checkpoint/cache/input hashing, retry policies, cancellation and recovery.
-- [ ] Implement capture/analysis/cleanup/master/body/pose/frame stages with mock adapter. Capture/artifact verification (ADR-034) and offline mock analysis/cleanup/master with adopted-dependency provenance (ADR-035) are tested library increments; body/pose/frame capabilities and production worker composition remain incomplete.
+- [ ] Implement capture/analysis/cleanup/master/body/pose/frame stages with mock adapter. Capture/artifact verification (ADR-034) and offline mock analysis/cleanup/master with adopted-dependency provenance (ADR-035) are tested library increments; frame candidates also exist in the capability provider but are not persisted by a stage. Capture-first worker registration and body/pose/durable-frame stages remain incomplete (ADR-036).
 - [ ] Implement anchor normalization, sheet packing, metadata/validation and review freeze.
 - [ ] Add per-animation branching and descendant invalidation into new versions.
 - [ ] Connect approval/waiting-publish gates to explicit publication jobs.

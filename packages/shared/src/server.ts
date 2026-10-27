@@ -23,6 +23,12 @@ const environmentSchema = z.object({
   HOST: z.enum(['127.0.0.1', 'localhost', '::1']).default('127.0.0.1'),
   PORT: port.default(5173),
   WORKER_PORT: port.default(5174),
+  DOODLEFORGE_WORKER_CONCURRENCY: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(4)
+    .default(1),
   ORIGIN: z.url().default('http://127.0.0.1:5173'),
 });
 
@@ -58,6 +64,7 @@ export function loadConfig(
     host: env.HOST,
     port: env.PORT,
     workerPort: env.WORKER_PORT,
+    workerConcurrency: env.DOODLEFORGE_WORKER_CONCURRENCY,
     origin: origin.origin,
     storageRoot,
     databasePath: env.DOODLEFORGE_DATABASE_PATH

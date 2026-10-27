@@ -108,15 +108,30 @@ importers:
 
   apps/worker:
     dependencies:
+      '@doodleforge/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
+      '@doodleforge/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@doodleforge/database':
         specifier: workspace:*
         version: link:../../packages/database
       '@doodleforge/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@doodleforge/workflow':
+        specifier: workspace:*
+        version: link:../../packages/workflow
       better-sqlite3:
         specifier: 13.0.3
         version: 13.0.3
+      sharp:
+        specifier: 0.34.5
+        version: 0.34.5
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
 
   packages/ai:
     dependencies:
