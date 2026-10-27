@@ -26,6 +26,11 @@ export const mockImageOutputSchema = z.strictObject({
   image: artifactSchema,
   provenance: provenanceSchema,
 });
+export const bodyTypeOutputSchema = z.strictObject({
+  bodyType: designBriefSchema.shape.bodyType,
+  targetFootAnchor: z.strictObject({ x: z.literal(128), y: z.literal(224) }),
+  provenance: provenanceSchema,
+});
 const analysisInputSchema = stageEnvelopeSchema.extend({
   inputs: designInputSchema,
   parameters: mockParametersSchema,
@@ -186,6 +191,64 @@ function imageStage(
     },
   };
 }
+/** Preserve the explicitly selected body type; the anchor is a target, not measured art. */
+export function bodyTypeStage(
+  provider: MockGenerationProvider,
+): Stage<
+  z.infer<typeof imageInputSchema>,
+  z.infer<typeof bodyTypeOutputSchema>
+> {
+  return {
+    key: 'determine-body-type',
+    version: '1',
+    inputSchema: imageInputSchema,
+    outputSchema: bodyTypeOutputSchema,
+    dependencies: ['character-master', 'analyze-captured-description'],
+    cachePolicy: 'disabled',
+    async execute(context, input) {
+      assertProvider(provider, input.parameters);
+      const masterParent = dependency(context, 'character-master');
+      const master = mockImageOutputSchema.parse(
+        JSON.parse(masterParent.outputJson),
+      );
+      const analysis = analysisOutputSchema.parse(
+        JSON.parse(
+          dependency(context, 'analyze-captured-description').outputJson,
+        ),
+      );
+      const sourceHash = master.provenance.sourceHashes[0];
+      if (master.provenance.sourceHashes.length !== 1 || !sourceHash)
+        throw new Error('Invalid master provenance');
+      const masterRequest = imageRequestSchema.parse({
+        providerId: master.provenance.providerId,
+        providerVersion: master.provenance.providerVersion,
+        style: master.provenance.style,
+        seed: master.provenance.seed,
+        capability: 'character-master',
+        sourceSha256: sourceHash,
+        brief: analysis.brief,
+      });
+      if (
+        sha256(canonicalJson(masterRequest)) !== master.provenance.requestHash
+      )
+        throw new Error('Master analysis lineage mismatch');
+      await selectedArtifact(context, masterParent, master.image);
+      context.signal.throwIfAborted();
+      const request = {
+        bodyType: analysis.brief.bodyType,
+        masterSha256: master.image.sha256,
+      };
+      return {
+        bodyType: analysis.brief.bodyType,
+        targetFootAnchor: { x: 128, y: 224 },
+        provenance: provenance(context, input.parameters, request, [
+          master.image.sha256,
+        ]),
+      };
+    },
+  };
+}
+
 export const cleanImageStage = (provider: MockGenerationProvider) =>
   imageStage(provider, 'clean-image');
 export const characterMasterStage = (provider: MockGenerationProvider) =>

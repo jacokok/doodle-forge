@@ -1,5 +1,17 @@
 # 14 — Persistent implementation progress
 
+## Phase 6 — body/master lineage hardening
+
+- Before pose/frame composition, body-type execution now reconstructs the master's provider request and checks its request hash against the supplied analysis brief. This rejects inconsistent analysis/master inputs without changing persisted graphs or the production worker. Added a fault-injected executor regression; the normal database also prohibits duplicate stage/target identities within a job.
+- `mise exec -- pnpm exec vitest run packages/workflow/src/mock-stages.test.ts`: PASS, 17 tests; `mise exec -- pnpm check`, `mise exec -- pnpm lint`, and `git diff --check`: PASS. An initial attempted integration test failed at the database's unique stage/target constraint; replaced it with explicit fault injection rather than weakening the constraint. No full suite, browser or Godot tests ran.
+- Pose and durable frame generation, normalization/sheets and the remaining Phase 6 gates are still unimplemented. Phase 5 manual checks remain deferred, not passed.
+
+## Phase 6 — mock body-type library increment
+
+- Added `determine-body-type@1` as a library stage. It verifies the adopted master artifact and analysis checkpoint, preserves the explicitly selected body type, and records a fixed (128,224) target foot anchor and resolved-input provenance. The anchor is a normalization target, not a measured anchor or evidence that the image is aligned. ADR-038 records this boundary. No production registration or publication behavior changed.
+- `mise exec -- pnpm install --frozen-lockfile`: PASS (restored workspace links). `mise exec -- pnpm exec vitest run packages/workflow/src/mock-stages.test.ts`: PASS, 16 tests, including restart and rejected master-read cases. `mise exec -- pnpm check`: PASS, 0 Svelte errors/warnings. `mise exec -- pnpm lint`: PASS. Initial test invocation failed because workspace links were absent; the first check then found test TypeScript errors, corrected before the passing reruns.
+- Phase 6 remains incomplete: pose and durable frame stages, real corrupt-file and cancellation/stale-attempt coverage specific to this stage, normalization/sheets, worker composition and review/publication gates remain. No full suite, browser or Godot tests ran. Phase 5 manual accessibility and observed child-usability remain deferred, not passed.
+
 ## Phase 6 — branch addressing prerequisite
 
 - Started with a clean `main` worktree synchronized with `origin/main`. Phase 6 remains incomplete; Phase 5 manual accessibility and child-usability checks remain deferred, not passed.

@@ -22,6 +22,8 @@ import { sha256 } from '@doodleforge/contracts';
 import {
   ArtifactStore,
   analysisStage,
+  bodyTypeStage,
+  bodyTypeOutputSchema,
   captureArtworkStage,
   characterMasterStage,
   cleanImageStage,
@@ -269,6 +271,120 @@ it('adopts capture/analysis/cleanup/master with actual PNGs, lineage and no revi
     expect(
       connection.sqlite.prepare(`SELECT count(*) n FROM ${table}`).get(),
     ).toEqual({ n: 0 });
+});
+
+it('adopts the selected body type and target anchor after verifying the master across restart', async () => {
+  const graph = request();
+  graph.steps.push({
+    key: 'body',
+    stageKey: 'determine-body-type',
+    stageVersion: '1',
+    targetKey: '',
+    dependencies: ['master', 'analysis'],
+    input: { ...graph.steps[3]!.input, inputs: {}, parameters },
+  });
+  const jobId = enqueueWorkflow(repo, graph);
+  for (let i = 0; i < 4; i++)
+    expect(await run(repo.claim('upstream')!)).toBe(true);
+  reopen();
+  const work = repo.claim('body')!;
+  expect(
+    await executeStage(
+      repo,
+      work,
+      bodyTypeStage(provider),
+      signal(),
+      undefined,
+      store,
+    ),
+  ).toBe(true);
+  const output = bodyTypeOutputSchema.parse(
+    JSON.parse(repo.step(work.step.id)!.outputJson!),
+  );
+  expect(output.bodyType).toBe('humanoid');
+  expect(output.targetFootAnchor).toEqual({ x: 128, y: 224 });
+  expect(output.provenance.sourceHashes).toHaveLength(1);
+  expect(repo.job(jobId)?.status).toBe('running');
+});
+
+it('rejects a body stage paired with a different analysis than the master used', async () => {
+  const graph = request();
+  graph.steps.push({
+    key: 'body',
+    stageKey: 'determine-body-type',
+    stageVersion: '1',
+    targetKey: '',
+    dependencies: ['master', 'analysis'],
+    input: { ...graph.steps[3]!.input, inputs: {}, parameters },
+  });
+  enqueueWorkflow(repo, graph);
+  for (let i = 0; i < 4; i++)
+    expect(await run(repo.claim('upstream')!)).toBe(true);
+  const work = repo.claim('body')!;
+  const stage = bodyTypeStage(provider);
+  const mismatched = {
+    ...stage,
+    async execute(
+      context: Parameters<typeof stage.execute>[0],
+      input: Parameters<typeof stage.execute>[1],
+    ) {
+      const dependencyOutputs = context.dependencyOutputs!.map((item) => {
+        if (item.stageKey !== 'analyze-captured-description') return item;
+        const output = analysisOutputSchema.parse(JSON.parse(item.outputJson));
+        return {
+          ...item,
+          outputJson: JSON.stringify({
+            ...output,
+            brief: { ...output.brief, bodyType: 'floating' },
+          }),
+        };
+      });
+      return stage.execute({ ...context, dependencyOutputs }, input);
+    },
+  };
+  await expect(
+    executeStage(repo, work, mismatched, signal(), undefined, store),
+  ).rejects.toThrow('Master analysis lineage mismatch');
+  expect(repo.step(work.step.id)!.outputJson).toBeNull();
+});
+
+it('refuses body type adoption when the master artifact is corrupt', async () => {
+  const graph = request();
+  graph.steps.push({
+    key: 'body',
+    stageKey: 'determine-body-type',
+    stageVersion: '1',
+    targetKey: '',
+    dependencies: ['master', 'analysis'],
+    input: { ...graph.steps[3]!.input, inputs: {}, parameters },
+  });
+  enqueueWorkflow(repo, graph);
+  let masterWork:
+    NonNullable<ReturnType<WorkflowRepository['claim']>> | undefined;
+  for (let i = 0; i < 4; i++) {
+    const work = repo.claim('upstream')!;
+    expect(await run(work)).toBe(true);
+    if (work.step.stageKey === 'character-master') masterWork = work;
+  }
+  const master = mockImageOutputSchema.parse(
+    JSON.parse(repo.step(masterWork!.step.id)!.outputJson!),
+  );
+  const read = vi
+    .spyOn(store, 'read')
+    .mockRejectedValueOnce(new Error('corrupt master'));
+  const work = repo.claim('body')!;
+  await expect(
+    executeStage(
+      repo,
+      work,
+      bodyTypeStage(provider),
+      signal(),
+      undefined,
+      store,
+    ),
+  ).rejects.toThrow('corrupt master');
+  expect(read).toHaveBeenCalledWith(master.image);
+  expect(repo.step(work.step.id)!.outputJson).toBeNull();
 });
 
 it('transient master failure/restart retries without recomputing adopted capture/analysis/cleaned art', async () => {

@@ -17,6 +17,8 @@ export {
   analysisStage,
   cleanImageStage,
   characterMasterStage,
+  bodyTypeStage,
+  bodyTypeOutputSchema,
   analysisOutputSchema,
   mockImageOutputSchema,
 } from './mock-stages.js';

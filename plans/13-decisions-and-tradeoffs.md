@@ -197,6 +197,10 @@ Installed engine `4.7.2.stable.arch_linux.ed1daf0bf` matches official Linux debu
 
 Stage implementations may declare a dependency as `{stageKey, targetKey}` to select a particular adopted branch. Existing string declarations retain their original unambiguous stage-key-only semantics. Each requirement must match exactly one distinct predecessor; duplicate, missing or ambiguous matches fail before execution. Resolved input identity orders dependencies by stage key and target key, independent of enqueue order. Existing same-job, snapshot, successful-attempt and artifact fences remain unchanged. This is a library boundary only; no new stages, worker registrations, persistence schema or publication authority are introduced.
 
+### ADR-038 — Explicit body choice and provisional target anchor (accepted)
+
+The library-only body stage consumes the adopted master and capture-first analysis, verifies the master bytes, and preserves the explicit body choice rather than inventing a provider suggestion. It reports the contract's (128,224) foot anchor as a target, not a measured or normalized position. No image alignment, body detection, user confirmation flow, worker registration or publication authority is implied. Pose/frame generation and image normalization must perform their own validation.
+
 ## Dependencies
 Plans 01–11 contain detailed consequences. Roadmap orders implementations; progress records evidence. External source availability affects research, not local test status.
 
