@@ -14,6 +14,10 @@ export {
 } from './runner.js';
 export { captureArtworkStage, captureOutputSchema } from './capture.js';
 export {
+  normalizeFramesStage,
+  normalizedFramesOutputSchema,
+} from './normalize.js';
+export {
   analysisStage,
   cleanImageStage,
   characterMasterStage,
@@ -21,6 +25,8 @@ export {
   bodyTypeOutputSchema,
   poseStage,
   poseOutputSchema,
+  framesStage,
+  framesOutputSchema,
   analysisOutputSchema,
   mockImageOutputSchema,
 } from './mock-stages.js';

@@ -1,5 +1,76 @@
 import sharp from 'sharp';
 
+/** Fit all nonzero-alpha pixels without cropping, then align their bottom center to (128,224). */
+export async function normalizeFrame(
+  bytes: Buffer,
+  style: 'original' | 'cartoon' | 'pixel',
+) {
+  if (!['original', 'cartoon', 'pixel'].includes(style))
+    throw new Error('Unsupported frame style');
+  if (
+    !Buffer.isBuffer(bytes) ||
+    !bytes.length ||
+    bytes.length > 2 * 1024 * 1024
+  )
+    throw new Error('Invalid frame size');
+  const source = await prepareOriginal(bytes, 'image/png', {
+    maxPixels: 256 * 256,
+    previewEdge: 256,
+  });
+  if (source.width !== 256 || source.height !== 256)
+    throw new Error('Frame must be 256x256');
+  const { data, info } = await sharp(bytes, {
+    failOn: 'warning',
+    limitInputPixels: 256 * 256,
+  })
+    .toColourspace('srgb')
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  let minX = 256,
+    minY = 256,
+    maxX = -1,
+    maxY = -1;
+  for (let y = 0; y < 256; y++)
+    for (let x = 0; x < 256; x++) {
+      if (data[(y * 256 + x) * info.channels + 3] === 0) continue;
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+    }
+  if (maxX < 0) throw new Error('Frame has no visible pixels');
+  if (minX === 0 || minY === 0 || maxX === 255 || maxY === 255)
+    throw new Error('Frame may be clipped');
+  const width = maxX - minX + 1,
+    height = maxY - minY + 1;
+  const scale = Math.min(1, 224 / width, 208 / height);
+  const scaledWidth = Math.max(1, Math.floor(width * scale));
+  const scaledHeight = Math.max(1, Math.floor(height * scale));
+  const sprite = await sharp(data, { raw: info })
+    .extract({ left: minX, top: minY, width, height })
+    .resize(scaledWidth, scaledHeight, {
+      fit: 'fill',
+      kernel: style === 'pixel' ? 'nearest' : 'lanczos3',
+    })
+    .png()
+    .toBuffer();
+  const left = 128 - Math.floor(scaledWidth / 2);
+  const top = 224 - scaledHeight;
+  const output = await sharp({
+    create: { width: 256, height: 256, channels: 4, background: '#00000000' },
+  })
+    .composite([{ input: sprite, left, top }])
+    .png({ compressionLevel: 9, adaptiveFiltering: false, palette: false })
+    .toBuffer();
+  return {
+    bytes: output,
+    sourceBounds: { x: minX, y: minY, width, height },
+    placedBounds: { x: left, y: top, width: scaledWidth, height: scaledHeight },
+    footAnchor: { x: 128, y: 224 } as const,
+  };
+}
+
 // Transport/domain callers supply shared policy limits; no storage or HTTP here.
 export async function prepareOriginal(
   bytes: Buffer,

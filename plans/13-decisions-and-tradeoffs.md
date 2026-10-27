@@ -205,6 +205,18 @@ The library-only body stage consumes the adopted master and capture-first analys
 
 The library-only pose stage adapts the capture-first brief into ADR-033's separate mock frame-provider request and persists one candidate per animation branch. Its deterministic palette derives from the master hash; the mock frame provider conditions on that hash, not the master pixels, and cannot demonstrate visual identity preservation. Candidate PNG/hash/alpha and provider provenance are validated before attempt-scoped adoption. The executor supplies the claimed step target to stage context so the animation request cannot silently mismatch its branch. No provider interface merge, production registration, frame sequence, anchor normalization, approval or publication is implied. The image validator's internal synthetic wrapper is only a reuse mechanism and is not persisted as the actual provider provenance.
 
+### ADR-040 — Durable raw-frame branch with mock pose boundary (accepted)
+
+The library frame stage addresses the matching pose by stage and animation target, revalidates adopted pose/master files, and installs an ordered bounded sequence as attempt-scoped artifacts before fenced adoption. Its provenance includes master and pose hashes and the dependency-resolved input identity. The existing mock frame provider accepts a master hash but no pose image or pose hash: the pose is verified and recorded as a workflow dependency, not a conditioning input to generated pixels. This does not claim pose-conditioned generation, normalization, sheets, cache reuse, production worker support or publication. Replacing the mock with genuine reference conditioning requires an explicit provider-contract change.
+
+### ADR-041 — Conservative mock-frame normalization bounds (accepted)
+
+The first standalone normalizer uses every nonzero-alpha pixel for bounds rather than plan 07's proposed threshold: this conservatively retains faint visible pixels instead of silently clipping them. It rejects source art touching an input edge as potentially clipped, never enlarges, fits within a 224×208 area, and aligns the resulting bounding-box bottom center to the (128,224) target using nearest-neighbor for pixel style and Lanczos for others. Bounding-box bottom center is a provisional heuristic, not an anatomically measured foot; per-frame downscaling can affect temporal consistency and needs review. This is a standalone image operation, not yet a workflow stage, a sheet, or approval evidence.
+
+### ADR-042 — Attempt-scoped frame normalization (accepted)
+
+The library normalization stage consumes a specific adopted animation frame branch, revalidates each selected frame and persists ordered normalized images through the existing attempt artifact and lease-fencing protocol. Checkpoints retain source hashes, placement diagnostics, style and resolved input identity. Completion grants no review or publication authority; this stage is not registered in the production worker. ADR-041's bounding-box anchor and per-frame fit limitations still apply.
+
 ## Dependencies
 Plans 01–11 contain detailed consequences. Roadmap orders implementations; progress records evidence. External source availability affects research, not local test status.
 

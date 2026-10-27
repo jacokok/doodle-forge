@@ -27,6 +27,10 @@ import {
   bodyTypeOutputSchema,
   poseStage,
   poseOutputSchema,
+  framesStage,
+  framesOutputSchema,
+  normalizeFramesStage,
+  normalizedFramesOutputSchema,
   captureArtworkStage,
   characterMasterStage,
   cleanImageStage,
@@ -255,6 +259,81 @@ async function prepareMaster() {
   return { jobId, upstream, work: repo.claim('master')! };
 }
 
+async function prepareFrameBranch(
+  frameAnimation = 'walk',
+  withNormalization = false,
+) {
+  const graph = request();
+  graph.steps.push({
+    key: 'body',
+    stageKey: 'determine-body-type',
+    stageVersion: '1',
+    targetKey: '',
+    dependencies: ['master', 'analysis'],
+    input: { ...graph.steps[3]!.input, inputs: {}, parameters },
+  });
+  graph.steps.push({
+    key: 'pose-walk',
+    stageKey: 'generate-pose',
+    stageVersion: '1',
+    targetKey: 'walk',
+    dependencies: ['master', 'analysis', 'body'],
+    input: {
+      ...graph.steps[3]!.input,
+      inputs: { animation: 'walk' },
+      parameters,
+    },
+  });
+  graph.steps.push({
+    key: 'frames-walk',
+    stageKey: 'generate-frames',
+    stageVersion: '1',
+    targetKey: 'walk',
+    dependencies: ['master', 'analysis', 'body', 'pose-walk'],
+    input: {
+      ...graph.steps[3]!.input,
+      inputs: { animation: frameAnimation, frameCount: 3 },
+      parameters,
+    },
+  });
+  if (withNormalization)
+    graph.steps.push({
+      key: 'normalize-walk',
+      stageKey: 'normalize-frames',
+      stageVersion: '1',
+      targetKey: 'walk',
+      dependencies: ['frames-walk'],
+      input: {
+        ...graph.steps[3]!.input,
+        inputs: { animation: 'walk' },
+        parameters,
+      },
+    });
+  const jobId = enqueueWorkflow(repo, graph);
+  for (let i = 0; i < 6; i++)
+    expect(await run(repo.claim('upstream')!)).toBe(true);
+  return { jobId, work: repo.claim('frames')! };
+}
+
+async function prepareNormalization() {
+  const { jobId, work } = await prepareFrameBranch('walk', true);
+  expect(
+    await executeStage(
+      repo,
+      work,
+      framesStage(new FrameMockProvider(), 'walk'),
+      signal(),
+      undefined,
+      store,
+    ),
+  ).toBe(true);
+  const source = framesOutputSchema.parse(
+    JSON.parse(repo.step(work.step.id)!.outputJson!),
+  );
+  reopen();
+  return { jobId, source, work: repo.claim('normalizer')! };
+}
+
 it('adopts capture/analysis/cleanup/master with actual PNGs, lineage and no review/publication side effects', async () => {
   const { jobId, upstream, work } = await prepareMaster();
   expect(work.step.stageKey).toBe('character-master');
@@ -364,6 +443,387 @@ it('persists separate animation poses after restart and leaves the job running',
   }
   expect(new Set(images).size).toBe(2);
   expect(repo.job(jobId)?.status).toBe('running');
+});
+
+it('retries and persists ordered frames without recomputing the adopted pose', async () => {
+  const graph = request();
+  graph.steps.push({
+    key: 'body',
+    stageKey: 'determine-body-type',
+    stageVersion: '1',
+    targetKey: '',
+    dependencies: ['master', 'analysis'],
+    input: { ...graph.steps[3]!.input, inputs: {}, parameters },
+  });
+  graph.steps.push({
+    key: 'pose-walk',
+    stageKey: 'generate-pose',
+    stageVersion: '1',
+    targetKey: 'walk',
+    dependencies: ['master', 'analysis', 'body'],
+    input: {
+      ...graph.steps[3]!.input,
+      inputs: { animation: 'walk' },
+      parameters,
+    },
+  });
+  graph.steps.push({
+    key: 'frames-walk',
+    stageKey: 'generate-frames',
+    stageVersion: '1',
+    targetKey: 'walk',
+    dependencies: ['master', 'analysis', 'body', 'pose-walk'],
+    input: {
+      ...graph.steps[3]!.input,
+      inputs: { animation: 'walk', frameCount: 4 },
+      parameters,
+    },
+  });
+  const jobId = enqueueWorkflow(repo, graph);
+  let poseId = '';
+  for (let i = 0; i < 6; i++) {
+    const work = repo.claim('upstream')!;
+    expect(await run(work)).toBe(true);
+    if (work.step.stageKey === 'generate-pose') poseId = work.step.id;
+  }
+  const poseJson = repo.step(poseId)!.outputJson;
+  const adapter = new FrameMockProvider();
+  vi.spyOn(adapter, 'generate').mockRejectedValueOnce(new Error('transient'));
+  const work = repo.claim('frames')!;
+  await expect(
+    executeStage(
+      repo,
+      work,
+      framesStage(adapter, 'walk'),
+      signal(),
+      undefined,
+      store,
+    ),
+  ).rejects.toThrow('transient');
+  expect(
+    repo.fail(work.claim, JSON.stringify({ code: 'TRANSIENT' }), true),
+  ).toBe(true);
+  reopen();
+  now += 2000;
+  const retry = repo.claim('frames-retry')!;
+  expect(
+    await executeStage(
+      repo,
+      retry,
+      framesStage(adapter, 'walk'),
+      signal(),
+      undefined,
+      store,
+    ),
+  ).toBe(true);
+  const result = framesOutputSchema.parse(
+    JSON.parse(repo.step(retry.step.id)!.outputJson!),
+  );
+  expect(result.frames).toHaveLength(4);
+  expect(new Set(result.frames.map((frame) => frame.sha256)).size).toBe(4);
+  for (const frame of result.frames)
+    expect(sha256(await store.read(frame))).toBe(frame.sha256);
+  expect(repo.step(poseId)!.outputJson).toBe(poseJson);
+  expect(repo.attempts(poseId)).toHaveLength(1);
+  expect(repo.job(jobId)?.status).toBe('running');
+});
+
+it('does not adopt a partial frame sequence when cancellation interrupts installation', async () => {
+  const graph = request();
+  graph.steps.push({
+    key: 'body',
+    stageKey: 'determine-body-type',
+    stageVersion: '1',
+    targetKey: '',
+    dependencies: ['master', 'analysis'],
+    input: { ...graph.steps[3]!.input, inputs: {}, parameters },
+  });
+  graph.steps.push({
+    key: 'pose-idle',
+    stageKey: 'generate-pose',
+    stageVersion: '1',
+    targetKey: 'idle',
+    dependencies: ['master', 'analysis', 'body'],
+    input: {
+      ...graph.steps[3]!.input,
+      inputs: { animation: 'idle' },
+      parameters,
+    },
+  });
+  graph.steps.push({
+    key: 'frames-idle',
+    stageKey: 'generate-frames',
+    stageVersion: '1',
+    targetKey: 'idle',
+    dependencies: ['master', 'analysis', 'body', 'pose-idle'],
+    input: {
+      ...graph.steps[3]!.input,
+      inputs: { animation: 'idle', frameCount: 3 },
+      parameters,
+    },
+  });
+  enqueueWorkflow(repo, graph);
+  for (let i = 0; i < 6; i++)
+    expect(await run(repo.claim('upstream')!)).toBe(true);
+  const work = repo.claim('frames')!;
+  const controller = new AbortController();
+  const put = store.putPng.bind(store);
+  const spy = vi.spyOn(store, 'putPng').mockImplementation(async (...args) => {
+    const artifact = await put(...args);
+    controller.abort();
+    return artifact;
+  });
+  await expect(
+    executeStage(
+      repo,
+      work,
+      framesStage(new FrameMockProvider(), 'idle'),
+      controller.signal,
+      undefined,
+      store,
+    ),
+  ).rejects.toThrow();
+  expect(spy).toHaveBeenCalledTimes(1);
+  expect(repo.step(work.step.id)!.outputJson).toBeNull();
+});
+
+it('normalizes adopted frames in order across restart without altering upstream files', async () => {
+  const { jobId, source, work } = await prepareNormalization();
+  const before = await Promise.all(
+    source.frames.map((frame) => store.read(frame)),
+  );
+  expect(
+    await executeStage(
+      repo,
+      work,
+      normalizeFramesStage('walk'),
+      signal(),
+      undefined,
+      store,
+    ),
+  ).toBe(true);
+  reopen();
+  const output = normalizedFramesOutputSchema.parse(
+    JSON.parse(repo.step(work.step.id)!.outputJson!),
+  );
+  expect(output.frames.map((frame) => frame.sourceSha256)).toEqual(
+    source.frames.map((frame) => frame.sha256),
+  );
+  expect(output.footAnchor).toEqual({ x: 128, y: 224 });
+  for (const item of output.frames) {
+    expect(item.image).toMatchObject({
+      width: 256,
+      height: 256,
+      attemptId: work.claim.attemptId,
+    });
+    expect(sha256(await store.read(item.image))).toBe(item.image.sha256);
+    expect(item.placedBounds.y + item.placedBounds.height).toBe(224);
+  }
+  expect(
+    await Promise.all(source.frames.map((frame) => store.read(frame))),
+  ).toEqual(before);
+  expect(repo.job(jobId)?.status).toBe('running');
+});
+
+it('does not adopt partially normalized frames after cancellation', async () => {
+  const { work } = await prepareNormalization();
+  const controller = new AbortController();
+  const put = store.putPng.bind(store);
+  const spy = vi.spyOn(store, 'putPng').mockImplementation(async (...args) => {
+    const result = await put(...args);
+    controller.abort();
+    return result;
+  });
+  await expect(
+    executeStage(
+      repo,
+      work,
+      normalizeFramesStage('walk'),
+      controller.signal,
+      undefined,
+      store,
+    ),
+  ).rejects.toThrow();
+  expect(spy).toHaveBeenCalledTimes(1);
+  expect(repo.step(work.step.id)!.outputJson).toBeNull();
+});
+
+it('rejects expired normalized artifacts from an older attempt', async () => {
+  const { work } = await prepareNormalization();
+  const stage = normalizeFramesStage('walk');
+  let stale: Awaited<ReturnType<typeof stage.execute>> | undefined;
+  const expiring = {
+    ...stage,
+    async execute(...args: Parameters<typeof stage.execute>) {
+      stale = await stage.execute(...args);
+      now += 60_000;
+      repo.recoverExpired();
+      return stale;
+    },
+  };
+  expect(
+    await executeStage(repo, work, expiring, signal(), undefined, store),
+  ).toBe(false);
+  reopen();
+  now += 2000;
+  const replacement = repo.claim('replacement')!;
+  await expect(
+    executeStage(
+      repo,
+      replacement,
+      { ...stage, execute: async () => stale! },
+      signal(),
+      undefined,
+      store,
+    ),
+  ).rejects.toThrow('attempt mismatch');
+  expect(
+    await executeStage(repo, replacement, stage, signal(), undefined, store),
+  ).toBe(true);
+  const adopted = normalizedFramesOutputSchema.parse(
+    JSON.parse(repo.step(work.step.id)!.outputJson!),
+  );
+  expect(adopted.frames.map((frame) => frame.image.sha256)).toEqual(
+    stale!.frames.map((frame) => frame.image.sha256),
+  );
+  expect(
+    adopted.frames.every(
+      (frame) => frame.image.attemptId === replacement.claim.attemptId,
+    ),
+  ).toBe(true);
+});
+
+it('rejects a corrupt upstream frame and does not adopt the normalized checkpoint', async () => {
+  const { source, work } = await prepareNormalization();
+  const file = join(
+    root,
+    'artifacts',
+    source.frames[1]!.stepId,
+    source.frames[1]!.attemptId,
+    `${source.frames[1]!.artifactId}.png`,
+  );
+  chmodSync(file, 0o600);
+  writeFileSync(file, Buffer.alloc(source.frames[1]!.bytes));
+  await expect(
+    executeStage(
+      repo,
+      work,
+      normalizeFramesStage('walk'),
+      signal(),
+      undefined,
+      store,
+    ),
+  ).rejects.toThrow('Artifact hash mismatch');
+  expect(repo.step(work.step.id)!.outputJson).toBeNull();
+});
+
+it('fences expired frame artifacts and rejects their adoption by a replacement attempt', async () => {
+  const { work } = await prepareFrameBranch();
+  const stage = framesStage(new FrameMockProvider(), 'walk');
+  let stale: Awaited<ReturnType<typeof stage.execute>> | undefined;
+  const expiring = {
+    ...stage,
+    async execute(...args: Parameters<typeof stage.execute>) {
+      stale = await stage.execute(...args);
+      now += 60_000;
+      repo.recoverExpired();
+      return stale;
+    },
+  };
+  expect(
+    await executeStage(repo, work, expiring, signal(), undefined, store),
+  ).toBe(false);
+  expect(repo.step(work.step.id)!.outputJson).toBeNull();
+  reopen();
+  now += 2000;
+  const replacement = repo.claim('replacement')!;
+  await expect(
+    executeStage(
+      repo,
+      replacement,
+      { ...stage, execute: async () => stale! },
+      signal(),
+      undefined,
+      store,
+    ),
+  ).rejects.toThrow('attempt mismatch');
+  expect(
+    await executeStage(repo, replacement, stage, signal(), undefined, store),
+  ).toBe(true);
+  const adopted = framesOutputSchema.parse(
+    JSON.parse(repo.step(work.step.id)!.outputJson!),
+  );
+  expect(adopted.frames.map((item) => item.sha256)).toEqual(
+    stale!.frames.map((item) => item.sha256),
+  );
+  expect(
+    adopted.frames.every(
+      (item) => item.attemptId === replacement.claim.attemptId,
+    ),
+  ).toBe(true);
+  expect(
+    stale!.frames.every(
+      (item) => item.attemptId !== replacement.claim.attemptId,
+    ),
+  ).toBe(true);
+});
+
+it('rejects malformed later frames without adopting earlier installed artifacts', async () => {
+  const { work } = await prepareFrameBranch();
+  const adapter = new FrameMockProvider();
+  const generate = adapter.generate.bind(adapter);
+  vi.spyOn(adapter, 'generate').mockImplementation(async (...args) => {
+    const result = await generate(...args);
+    if (result.capability !== 'generate_frames')
+      throw new Error('Unexpected capability');
+    return {
+      ...result,
+      frames: result.frames.map((frame, index) =>
+        index === 1 ? { ...frame, sha256: '0'.repeat(64) } : frame,
+      ),
+    };
+  });
+  const put = vi.spyOn(store, 'putPng');
+  await expect(
+    executeStage(
+      repo,
+      work,
+      framesStage(adapter, 'walk'),
+      signal(),
+      undefined,
+      store,
+    ),
+  ).rejects.toThrow('Candidate provenance/hash mismatch');
+  expect(put).toHaveBeenCalledTimes(1);
+  expect(repo.step(work.step.id)!.outputJson).toBeNull();
+});
+
+it('rejects mismatched frame animation and pose branch before provider execution', async () => {
+  const { work } = await prepareFrameBranch('idle');
+  const adapter = new FrameMockProvider();
+  const generate = vi.spyOn(adapter, 'generate');
+  await expect(
+    executeStage(
+      repo,
+      work,
+      framesStage(adapter, 'walk'),
+      signal(),
+      undefined,
+      store,
+    ),
+  ).rejects.toThrow('Frame target mismatch');
+  await expect(
+    executeStage(
+      repo,
+      work,
+      framesStage(adapter, 'idle'),
+      signal(),
+      undefined,
+      store,
+    ),
+  ).rejects.toThrow('Stage dependency mismatch');
+  expect(generate).not.toHaveBeenCalled();
+  expect(repo.step(work.step.id)!.outputJson).toBeNull();
 });
 
 it('rejects a pose with a provider hash mismatch without adopting a checkpoint', async () => {

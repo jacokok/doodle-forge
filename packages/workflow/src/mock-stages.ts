@@ -36,7 +36,13 @@ export const bodyTypeOutputSchema = z.strictObject({
   targetFootAnchor: z.strictObject({ x: z.literal(128), y: z.literal(224) }),
   provenance: provenanceSchema,
 });
-const poseAnimationSchema = z.enum(['idle', 'walk', 'attack', 'hurt', 'ko']);
+export const poseAnimationSchema = z.enum([
+  'idle',
+  'walk',
+  'attack',
+  'hurt',
+  'ko',
+]);
 export const poseOutputSchema = z.strictObject({
   animation: poseAnimationSchema,
   image: artifactSchema,
@@ -46,6 +52,19 @@ export const poseOutputSchema = z.strictObject({
 const poseInputSchema = stageEnvelopeSchema.extend({
   inputs: z.strictObject({ animation: poseAnimationSchema }),
   parameters: mockParametersSchema,
+});
+const framesInputSchema = stageEnvelopeSchema.extend({
+  inputs: z.strictObject({
+    animation: poseAnimationSchema,
+    frameCount: z.number().int().min(1).max(8),
+  }),
+  parameters: mockParametersSchema,
+});
+export const framesOutputSchema = z.strictObject({
+  animation: poseAnimationSchema,
+  frames: z.array(artifactSchema).min(1).max(8),
+  provenance: provenanceSchema,
+  providerProvenance: frameProviderProvenanceSchema,
 });
 const analysisInputSchema = stageEnvelopeSchema.extend({
   inputs: designInputSchema,
@@ -374,6 +393,148 @@ export function poseStage(
         animation: input.inputs.animation,
         image,
         provenance: provenance(context, input.parameters, request, [hash]),
+        providerProvenance,
+      };
+    },
+  };
+}
+
+/** Bounded raw frames; the current mock records but does not consume pose pixels. */
+export function framesStage(
+  provider: FrameProvider,
+  animation: z.infer<typeof poseAnimationSchema>,
+): Stage<
+  z.infer<typeof framesInputSchema>,
+  z.infer<typeof framesOutputSchema>
+> {
+  const target = poseAnimationSchema.parse(animation);
+  return {
+    key: 'generate-frames',
+    version: '1',
+    inputSchema: framesInputSchema,
+    outputSchema: framesOutputSchema,
+    dependencies: [
+      'character-master',
+      'analyze-captured-description',
+      'determine-body-type',
+      { stageKey: 'generate-pose', targetKey: target },
+    ],
+    cachePolicy: 'disabled',
+    artifactRefs: (output) => output.frames,
+    async execute(context, input) {
+      if (!context.artifacts) throw new Error('Artifact store required');
+      if (
+        provider.id !== input.parameters.providerId ||
+        provider.version !== input.parameters.providerVersion
+      )
+        throw new Error('Unsupported provider identity');
+      if (context.targetKey !== target || input.inputs.animation !== target)
+        throw new Error('Frame target mismatch');
+      const parent = dependency(context, 'character-master');
+      const master = mockImageOutputSchema.parse(JSON.parse(parent.outputJson));
+      const analysis = analysisOutputSchema.parse(
+        JSON.parse(
+          dependency(context, 'analyze-captured-description').outputJson,
+        ),
+      );
+      const body = bodyTypeOutputSchema.parse(
+        JSON.parse(dependency(context, 'determine-body-type').outputJson),
+      );
+      const poseParent = context.dependencyOutputs?.find(
+        (item) =>
+          item.stageKey === 'generate-pose' &&
+          item.targetKey === target &&
+          item.stageVersion === '1',
+      );
+      if (!poseParent) throw new Error('Required pose dependency unavailable');
+      const pose = poseOutputSchema.parse(JSON.parse(poseParent.outputJson));
+      const hash = master.image.sha256;
+      if (
+        pose.animation !== target ||
+        pose.provenance.sourceHashes.length !== 1 ||
+        pose.provenance.sourceHashes[0] !== hash ||
+        body.bodyType !== analysis.brief.bodyType ||
+        body.provenance.sourceHashes.length !== 1 ||
+        body.provenance.sourceHashes[0] !== hash
+      )
+        throw new Error('Frame dependency lineage mismatch');
+      await selectedArtifact(context, parent, master.image);
+      await selectedArtifact(context, poseParent, pose.image);
+      context.signal.throwIfAborted();
+      const request = framesRequestSchema.parse({
+        capability: 'generate_frames',
+        brief: {
+          summary: analysis.brief.description,
+          bodyType: body.bodyType,
+          fightingStyle: analysis.brief.fightingStyle,
+          specialPower: analysis.brief.specialPower,
+          style: input.parameters.style,
+          palette: [0, 6, 12].map(
+            (offset) => `#${hash.slice(offset, offset + 6)}`,
+          ),
+        },
+        masterSha256: hash,
+        animation: target,
+        facing: 'right',
+        frameCount: input.inputs.frameCount,
+        width: 256,
+        height: 256,
+        seed: input.parameters.seed,
+      });
+      const result = await provider.generate(request, {
+        signal: context.signal,
+      });
+      if (
+        result.capability !== 'generate_frames' ||
+        result.frames.length !== request.frameCount
+      )
+        throw new Error('Invalid frame provider result');
+      const providerProvenance = frameProviderProvenanceSchema.parse(
+        result.provenance,
+      );
+      if (
+        providerProvenance.providerId !== provider.id ||
+        providerProvenance.modelVersion !== provider.version ||
+        providerProvenance.seed !== request.seed
+      )
+        throw new Error('Invalid frame provider provenance');
+      const validationRequest = imageRequestSchema.parse({
+        ...input.parameters,
+        capability: 'clean-image',
+        sourceSha256: hash,
+      });
+      const frames: Artifact[] = [];
+      for (const frame of result.frames) {
+        const candidate = await validateImageCandidate(
+          {
+            providerId: provider.id,
+            providerVersion: provider.version,
+            capability: 'clean-image',
+            sourceSha256: hash,
+            sha256: frame.sha256,
+            mediaType: frame.mediaType,
+            width: frame.width,
+            height: frame.height,
+            bytes: Buffer.from(frame.bytes),
+          },
+          validationRequest,
+        );
+        context.signal.throwIfAborted();
+        frames.push(
+          await context.artifacts.putPng(
+            context.claim,
+            candidate.bytes,
+            context.signal,
+          ),
+        );
+      }
+      return {
+        animation: target,
+        frames,
+        provenance: provenance(context, input.parameters, request, [
+          hash,
+          pose.image.sha256,
+        ]),
         providerProvenance,
       };
     },

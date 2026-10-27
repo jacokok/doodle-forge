@@ -1,5 +1,29 @@
 # 14 — Persistent implementation progress
 
+## Phase 6 — durable frame normalization increment
+
+- Added library-only `normalize-frames@1`: it selects the exact animation frame branch, verifies each adopted source file and attempt identity, applies the standalone normalizer in order, and adopts attempt-scoped normalized PNGs under the executor fence. Checkpoints record source hashes, source/placed bounds, style, target anchor and resolved input identity. No production worker registration, review, sheet or publication changes. ADR-042 records the boundary; ADR-041's provisional anchor and frame-scaling limitations remain.
+- `mise exec -- pnpm test`: PASS, 351 tests / 22 files, including reopen, ordered hashes/unchanged source files, mid-install abort, upstream corruption, expired lease and stale-attempt rejection. `mise exec -- pnpm check`: PASS, 0 Svelte errors/warnings; `mise exec -- pnpm lint`: PASS. `mise exec -- pnpm format:check` failed on the harness-generated `.thinkrail/context/todos/01a17d9c-8599-73f1-a31c-74f0fc73db1d.baselines.json`; targeted Prettier checks of changed TypeScript files and `git diff --check` passed. No browser, Godot, full upload-to-game E2E or manual tests ran.
+- Next: deterministic sheet packing and metadata with layout/hash tests, then production graph composition and gates. Phase 6 remains incomplete; Phase 5 manual accessibility and observed child-usability remain deferred, not passed.
+
+## Phase 6 — standalone frame normalization increment
+
+- Added `normalizeFrame` in `packages/image-processing`: strict bounded 256×256 PNG decode, nonzero-alpha bounds, rejection of empty or potentially edge-clipped input, conservative fit without enlargement, target bottom-center alignment, style-specific resampling and deterministic 256×256 transparent PNG output. ADR-041 records the nonzero-alpha policy and provisional anchor heuristic. This is standalone and not yet connected to persisted workflow artifacts or sheet packing.
+- `mise exec -- pnpm exec vitest run packages/image-processing/src/normalize.test.ts`: PASS, 3 tests (determinism, placement/alpha, scaling/faint pixels and invalid/empty/clipped inputs). `mise exec -- pnpm check`: PASS, 0 Svelte errors/warnings. `mise exec -- pnpm lint`: PASS. No full suite, browser, Godot or manual tests ran.
+- Next: integrate normalization with adopted per-branch frame artifacts and cancellation/fencing, then implement deterministic sheet packing and layout/hash checks. Target anchor is a bounding-box heuristic, not measured feet; independent per-frame fitting can affect temporal consistency. Phase 6 and deferred Phase 5 manual checks remain incomplete.
+
+## Phase 6 — frame-stage fault coverage
+
+- Added real-SQLite/artifact tests for expired frame attempts and rejection of their artifacts by a replacement attempt, a malformed later frame after an earlier artifact was installed, and mismatched animation/pose branch rejection before provider execution. Tests verify no partial checkpoint is adopted and a fresh replacement can adopt its own deterministic frames. No production behavior or architecture changed.
+- `mise exec -- pnpm exec vitest run packages/workflow/src/mock-stages.test.ts`: PASS, 24 tests. `mise exec -- pnpm check`: PASS, 0 Svelte errors/warnings. `mise exec -- pnpm lint`: PASS. No full suite, browser, Godot or manual tests ran for this increment.
+- Next: deterministic frame normalization and sheet packing with bounds/alpha/layout/hash tests. Production worker composition, review/publication gates and Phase 6 E2E remain incomplete. Phase 5 manual checks remain deferred, not passed.
+
+## Phase 6 — durable mock frame library increment
+
+- Added library-only `generate-frames@1` with explicit matching animation pose dependency, master/pose file revalidation, 1–8 ordered candidate validation and attempt-scoped artifact adoption. Provenance records both source hashes; the existing mock provider does not consume pose pixels or hash, so this is not pose-conditioned generation (ADR-040). No production worker registration, sheet/normalization, review or publication changes.
+- `mise exec -- pnpm test`: PASS, 341 tests / 21 files, including transient frame retry across DB reopen without recomputing pose and cancellation after first artifact installation with no checkpoint adoption. `mise exec -- pnpm check`: PASS, 0 Svelte errors/warnings; `mise exec -- pnpm lint` and `git diff --check`: PASS. No browser, Godot, full workflow E2E or manual tests ran.
+- Stage-specific stale-attempt and additional malformed-frame/branch tests remain needed; normalization/sheet packing, production graph composition, review/publication gates and Phase 6 E2E remain incomplete. Phase 5 manual accessibility and observed child-usability remain deferred, not passed.
+
 ## Phase 6 — mock pose library increment
 
 - Added `generate-pose@1`: an animation-targeted library stage that verifies adopted master/body/analysis lineage, adapts to the existing offline frame-capability provider, validates one 256×256 transparent PNG candidate and provider provenance, and installs/adopts it through the attempt artifact protocol. Executor context now exposes the step target for branch/input matching. ADR-039 records the adapter and limitations. The mock uses the master hash, not its pixels; it is not identity-preserving pose generation. No production registration, review or publication changes.
