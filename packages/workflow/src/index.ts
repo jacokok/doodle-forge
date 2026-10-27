@@ -54,7 +54,10 @@ export interface Stage<I, O> {
   readonly inputSchema: z.ZodType<I>;
   readonly outputSchema: z.ZodType<O>;
   readonly cachePolicy: 'disabled' | 'verified-assets';
-  readonly dependencies: readonly string[];
+  /** Strings retain stage-key-only matching; descriptors pin a specific branch. */
+  readonly dependencies: readonly (
+    string | { readonly stageKey: string; readonly targetKey: string }
+  )[];
   /** All newly produced files must be declared for verification before adoption. */
   readonly artifactRefs?: (output: O) => readonly Artifact[];
   execute(context: StageContext, input: I): Promise<O>;
@@ -136,7 +139,7 @@ export function enqueueWorkflow(
 function resolveDependencies(
   repository: WorkflowRepository,
   work: NonNullable<ReturnType<WorkflowRepository['claim']>>,
-  required: readonly string[],
+  required: Stage<unknown, unknown>['dependencies'],
   envelope: StageEnvelope,
 ): readonly StageDependency[] {
   const ids = z
@@ -182,15 +185,24 @@ function resolveDependencies(
       outputHash: sha256(step.outputJson),
     });
   });
-  if (
-    required.some(
-      (key) =>
-        dependencies.filter((item) => item.stageKey === key).length !== 1,
-    )
-  )
-    throw new Error('Stage dependency mismatch');
+  const matched = new Set<string>();
+  for (const requirement of required) {
+    const matches = dependencies.filter((item) =>
+      typeof requirement === 'string'
+        ? item.stageKey === requirement
+        : item.stageKey === requirement.stageKey &&
+          item.targetKey === requirement.targetKey,
+    );
+    if (matches.length !== 1 || matched.has(matches[0]!.stepId))
+      throw new Error('Stage dependency mismatch');
+    matched.add(matches[0]!.stepId);
+  }
   return Object.freeze(
-    dependencies.sort((a, b) => a.stageKey.localeCompare(b.stageKey)),
+    dependencies.sort(
+      (a, b) =>
+        a.stageKey.localeCompare(b.stageKey) ||
+        a.targetKey.localeCompare(b.targetKey),
+    ),
   );
 }
 

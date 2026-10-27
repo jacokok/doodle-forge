@@ -193,6 +193,10 @@ Installed engine `4.7.2.stable.arch_linux.ed1daf0bf` matches official Linux debu
 
 **Consequences:** Both branches' tests remain (renaming the add/add provider test instead of discarding it). No migrations, credentials, external transfers, publication changes or phase advancement. Production worker is metadata-only, frame candidates remain in memory, artifact/capture/master libraries remain separately tested, and full generation remains unavailable. Phase 5 manual checks remain deferred, not passed.
 
+### ADR-037 — Explicit workflow dependency branch addresses (accepted)
+
+Stage implementations may declare a dependency as `{stageKey, targetKey}` to select a particular adopted branch. Existing string declarations retain their original unambiguous stage-key-only semantics. Each requirement must match exactly one distinct predecessor; duplicate, missing or ambiguous matches fail before execution. Resolved input identity orders dependencies by stage key and target key, independent of enqueue order. Existing same-job, snapshot, successful-attempt and artifact fences remain unchanged. This is a library boundary only; no new stages, worker registrations, persistence schema or publication authority are introduced.
+
 ## Dependencies
 Plans 01–11 contain detailed consequences. Roadmap orders implementations; progress records evidence. External source availability affects research, not local test status.
 

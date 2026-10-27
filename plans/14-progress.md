@@ -1,5 +1,12 @@
 # 14 — Persistent implementation progress
 
+## Phase 6 — branch addressing prerequisite
+
+- Started with a clean `main` worktree synchronized with `origin/main`. Phase 6 remains incomplete; Phase 5 manual accessibility and child-usability checks remain deferred, not passed.
+- Added explicit stage-key/target-key dependency declarations while preserving existing string matching. Duplicate, ambiguous and missing matches fail before execution; resolved dependency ordering is deterministic. ADR-037 records the boundary. No production handlers, providers, database schema, review or publication behavior changed.
+- Executed `mise exec -- pnpm exec vitest run packages/workflow/src/workflow.test.ts`: PASS, 27 tests. Executed `mise exec -- pnpm check`: PASS, TypeScript/Svelte, 0 errors and warnings.
+- This is only a prerequisite, not the requested body/pose/frame increment: those stages, provider adaptation, frame persistence and their restart/cancellation/stale-attempt tests remain unimplemented. Anchor normalization and sheet packing also remain unimplemented and must follow separately. No browser, Godot, manual or full-suite verification was performed for this change.
+
 ## Phase 6 — reconcile worker/artifact branches (2026-10-27)
 
 - Initial worktree was clean with local `60b5fca` and remote `7a8a709` each one commit ahead of the common foundation. Fetch and a non-mutating merge preview found ten conflicting paths. Saved local branch `backup/pre-merge-60b5fca`, then started a normal non-fast-forward merge. Both branch implementations/tests and historical progress/ADR entries are retained, not discarded or force-pushed.

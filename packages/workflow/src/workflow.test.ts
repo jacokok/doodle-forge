@@ -427,6 +427,82 @@ describe('typed stage boundaries', () => {
       execute: async () => ({ value: 42 }),
     };
   }
+  it('addresses multiple adopted branches explicitly and rejects ambiguous requirements', async () => {
+    const input = request(3);
+    input.steps[0]!.targetKey = 'walk';
+    input.steps[1]!.targetKey = 'idle';
+    input.steps[1]!.dependencies = [];
+    input.steps[2]!.dependencies = ['step-0', 'step-1'];
+    enqueueWorkflow(repo, input);
+    for (let i = 0; i < 2; i++) {
+      const parent = work();
+      expect(
+        repo.complete(
+          parent.claim,
+          JSON.stringify({ target: parent.step.targetKey }),
+        ),
+      ).toBe(true);
+    }
+    const join = work();
+    const signal = new AbortController().signal;
+    const base = stage();
+    await expect(
+      executeStage(
+        repo,
+        join,
+        { ...base, dependencies: ['test', 'test'] },
+        signal,
+      ),
+    ).rejects.toThrow('Stage dependency mismatch');
+    await expect(
+      executeStage(
+        repo,
+        join,
+        {
+          ...base,
+          dependencies: [
+            { stageKey: 'test', targetKey: 'idle' },
+            { stageKey: 'test', targetKey: 'idle' },
+          ],
+        },
+        signal,
+      ),
+    ).rejects.toThrow('Stage dependency mismatch');
+    await expect(
+      executeStage(
+        repo,
+        join,
+        {
+          ...base,
+          dependencies: [
+            { stageKey: 'test', targetKey: 'idle' },
+            { stageKey: 'test', targetKey: 'missing' },
+          ],
+        },
+        signal,
+      ),
+    ).rejects.toThrow('Stage dependency mismatch');
+    let seen: string[] = [];
+    expect(
+      await executeStage(
+        repo,
+        join,
+        {
+          ...base,
+          dependencies: [
+            { stageKey: 'test', targetKey: 'walk' },
+            { stageKey: 'test', targetKey: 'idle' },
+          ],
+          execute: async (context) => {
+            seen = context.dependencyOutputs!.map((item) => item.targetKey);
+            return { value: 42 };
+          },
+        },
+        signal,
+      ),
+    ).toBe(true);
+    expect(seen).toEqual(['idle', 'walk']);
+  });
   it('hashes canonical validated input with stage and provider versions/seed', () => {
     const input = envelope();
     expect(stageInputHash('test', '1', input)).toBe(
