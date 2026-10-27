@@ -181,6 +181,18 @@ Installed engine `4.7.2.stable.arch_linux.ed1daf0bf` matches official Linux debu
 
 **Scope:** Library stages compose capture → analysis/cleanup → master with restart/retry/cancel/fencing tests. Production worker remains health-only, Studio generation unavailable, and fixture review/publication/game protocols unchanged. Body/pose/frame stages, normalization/sheets, review freeze, progress/gates and full generation E2E remain incomplete. No credentials, artwork transfer, paid calls, new migration or phase acceptance.
 
+### ADR-036 — Reconcile worker and artifact branches without ambiguous dispatch (accepted)
+
+**Context:** Local `60b5fca` and remote `7a8a709` independently extended the same foundation. The remote commit supplies ADR-033 and its worker/runtime/frame-provider implementation that was genuinely absent from the local checkout when ADRs 034/035 were recorded. Preserve both commits and their historical verification; those absence statements describe the earlier branch, not the merged state. Use a normal merge, not force-push or replacement of either implementation.
+
+**Provider contracts:** Keep the capture-first analysis/cleanup/master provider at `@doodleforge/ai`. Preserve ADR-033's capability-discriminated metadata/frame provider and tests at explicit `@doodleforge/ai/capabilities` (`capabilities.ts`, `mock.ts`, `frame-provider.test.ts`). Their brief schemas and generate signatures differ, so do not silently union/reinterpret outputs or export two classes under one root name. Both remain pinned offline mocks; there is no remote routing/fallback. A future unified provider API needs its own tested transition.
+
+**Stage identity:** Preserve existing production metadata `analyze-description@1` and its schema/registry behavior. Rename the capture-first library stage to `analyze-captured-description@1`, including its master dependency. Shared key/version with incompatible parameters, output schemas and dependency requirements would let the production worker claim and permanently fail the wrong graph. Test that runtime processes metadata while leaving capture-first work unclaimed. No public capture-first enqueue existed; any manually queued pre-merge internal capture-first graph using the old key needs explicit re-enqueue/reconciliation, not mutation of immutable checkpoint history. Do not register artifact stages in production merely as a merge side effect.
+
+**Executor/runner:** Retain artifact verification/dependency resolution and remote polling/heartbeat/cancel/relinquish behavior. `executeStage` preserves the local optional sixth artifact-store argument and takes the runner lease duration seventh; `stageHandler` explicitly forwards both. A real artifact/SQLite test verifies correct custom lease duration and fenced file adoption, preventing a silent 60-second lease extension or treating a number as storage.
+
+**Consequences:** Both branches' tests remain (renaming the add/add provider test instead of discarding it). No migrations, credentials, external transfers, publication changes or phase advancement. Production worker is metadata-only, frame candidates remain in memory, artifact/capture/master libraries remain separately tested, and full generation remains unavailable. Phase 5 manual checks remain deferred, not passed.
+
 ## Dependencies
 Plans 01–11 contain detailed consequences. Roadmap orders implementations; progress records evidence. External source availability affects research, not local test status.
 

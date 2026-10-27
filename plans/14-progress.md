@@ -1,5 +1,26 @@
 # 14 — Persistent implementation progress
 
+## Phase 6 — reconcile worker/artifact branches (2026-10-27)
+
+- Initial worktree was clean with local `60b5fca` and remote `7a8a709` each one commit ahead of the common foundation. Fetch and a non-mutating merge preview found ten conflicting paths. Saved local branch `backup/pre-merge-60b5fca`, then started a normal non-fast-forward merge. Both branch implementations/tests and historical progress/ADR entries are retained, not discarded or force-pushed.
+- Reconciled incompatible provider interfaces using explicit exports: capture-first analysis/cleanup/master at `@doodleforge/ai`, ADR-033 metadata/frame provider at `@doodleforge/ai/capabilities`. Renamed the remote add/add test to `frame-provider.test.ts` so both provider suites execute. Updated worker imports; regenerated workspace lockfile without version upgrades.
+- Fixed an otherwise hidden dispatch collision: production metadata retains `analyze-description@1`; capture-first library analysis now uses `analyze-captured-description@1`, with its master dependency/tests updated. These differ in parameters, schemas and required predecessors, so must not share a registry identity. Existing manually queued pre-merge internal capture-first graphs need explicit reconciliation/re-enqueue, not edits to immutable rows. No public enqueue existed and no user database was changed.
+- Combined executor artifact verification/adopted dependency resolution with the remote runner. `stageHandler` now forwards optional storage plus the correct custom lease duration into `executeStage`; added a real PNG/SQLite regression. Extended actual-worker restart coverage to verify metadata succeeds while capture-first keys remain unclaimed. No capture-first handlers were enabled in production.
+- Updated workflow docs/plans and recorded ADR-036. Earlier local entries correctly described ADR-033's absence on that branch; the reconciled branch now includes it. Production worker runs metadata-only scheduling/heartbeat/cancellation/shutdown; full generation, persisted frames, normalization/sheets/freeze/gates remain incomplete. Phase 5 manual accessibility/child-usability checks remain deferred, not passed.
+- During validation, another process committed and pushed the prepared merge as `4734c26` (`Add durable mock workflow worker and deterministic AI provider`); observed local `main` and `origin/main` synchronized with both original commits retained as merge parents. The remaining reconciliation decision/progress notes are a separate follow-up documentation change; no force-push or history rewrite.
+
+### Executed validation
+
+| Command | Result |
+|---|---|
+| `mise exec -- pnpm test` | PASS: **333 tests / 21 files**, including both branches' provider/runner/artifact/process suites and merge regressions. |
+| `mise exec -- pnpm install --no-frozen-lockfile`; `mise exec -- pnpm install --frozen-lockfile` | PASS: combined workspace links, no dependency version upgrades. |
+| `mise exec -- pnpm check`; `mise exec -- pnpm lint` | PASS: TS/Svelte 0 errors / warnings; ESLint clean. |
+| `mise exec -- pnpm build`; `mise exec -- pnpm test:smoke` | PASS: Studio/worker production builds; real HTTP publication/security/corruption/operator and worker/dev lifecycle regressions. |
+| `mise exec -- pnpm test:startup` | PASS: **7** isolated startup/process tests. |
+
+Chromium/Godot were not rerun for this merge; previous local browser focus/history failures and Godot tooling limitation remain historical/unresolved, not new passed evidence. No manual accessibility/observed-child, real-provider, credentials, artwork transfers or remote-CI checks performed. Next implementation remains durable body/pose/frame stages, normalization/sheets and separately tested capture-first production registration. Final formatting/whitespace and Git synchronization are checked after these notes.
+
 ## Phase 6 — deterministic mock provider and running worker increment (2026-10-26)
 
 ### Scope and implementation
