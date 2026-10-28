@@ -1,5 +1,11 @@
 # 14 — Persistent implementation progress
 
+## Phase 6 — durable sprite-sheet increment
+
+- Added library-only `pack-sheet@1`: selects the matching adopted normalized animation branch, checks style and artifact attempt identity, revalidates source files, packs deterministic PNG bytes and adopts the sheet through the existing executor fence. Checkpoints retain ordered source hashes, layout, anchor, style and resolved input identity. ADR-043 records the boundary. No production registration, metadata, review or publication changes.
+- `pnpm exec vitest run packages/workflow/src/mock-stages.test.ts packages/animation/src`: PASS, 35 tests / 2 files. `mise exec -- pnpm test`: PASS, 358 tests / 23 files; `mise exec -- pnpm check`: PASS, 0 Svelte errors/warnings; `mise exec -- pnpm lint`: PASS. An initial parallel full test failed because SvelteKit configuration had not yet been generated; it passed after the check's sync completed. No browser, Godot, full upload-to-game E2E or manual tests ran.
+- Next: metadata/validation and production graph composition/gates. Phase 6 remains incomplete; Phase 5 manual accessibility and observed child-usability remain deferred, not passed. The anchor remains provisional.
+
 ## Phase 6 — standalone sprite sheet packing increment
 
 - Added `packSheet` in `packages/animation`: bounded v1 row-major packing of 1–64 strictly decoded 256×256 PNG frames into up to 16 columns and 4096×4096 pixels, transparent unused cells, deterministic PNG bytes and SHA-256/layout metadata. Rejects malformed, empty, opaque and oversized inputs. It uses existing image-processing validation and pinned Sharp; no production worker registration, durable sheet stage, manifest, review or publication changes. It validates visible pixels and transparency but does not independently prove normalization or anchor consistency.

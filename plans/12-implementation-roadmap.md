@@ -145,7 +145,7 @@ Contract precedes game and factory. API integration precedes authoring UI. To re
 - [ ] Implement typed stage interfaces, leases/heartbeats/fencing and attempt history. Persistence, runner and metadata-only production worker polling/heartbeat/shutdown are locally tested (plan 14); capture-first handlers remain unregistered.
 - [ ] Add checkpoint/cache/input hashing, retry policies, cancellation and recovery.
 - [ ] Implement capture/analysis/cleanup/master/body/pose/frame stages with mock adapter. Tested library stages persist attempt-scoped artifacts (ADRs 034–040); the synthetic frame provider does not condition pixels on the pose. Capture-first worker registration and full generation remain incomplete.
-- [ ] Implement anchor normalization, sheet packing, metadata/validation and review freeze. A tested library normalization stage persists branch outputs (ADRs 041/042); its anchor is provisional, and sheet packing, metadata and review freeze remain.
+- [ ] Implement anchor normalization, sheet packing, metadata/validation and review freeze. Tested library normalization and sheet stages persist branch outputs (ADRs 041–043); the anchor is provisional, and metadata and review freeze remain.
 - [ ] Add per-animation branching and descendant invalidation into new versions.
 - [ ] Connect approval/waiting-publish gates to explicit publication jobs.
 - [ ] Wire real progress/errors/previews/regeneration in studio.
