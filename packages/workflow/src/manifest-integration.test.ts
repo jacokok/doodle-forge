@@ -27,6 +27,8 @@ import {
   executeStage,
   manifestStage,
   manifestOutputSchema,
+  validationStage,
+  validationOutputSchema,
 } from './index.js';
 
 const branches = ['idle', 'walk', 'attack', 'hurt', 'ko'] as const;
@@ -143,6 +145,14 @@ async function prepare() {
           },
           parameters: { style: artStyle },
         },
+      },
+      {
+        key: 'validation',
+        stageKey: 'validate-assets',
+        stageVersion: '1',
+        targetKey: '',
+        dependencies: ['manifest', ...branches],
+        input: envelope,
       },
     ],
   });
@@ -267,4 +277,158 @@ it('rejects a corrupted selected sheet without a manifest checkpoint', async () 
     executeStage(repo, work, manifestStage(), signal(), undefined, store),
   ).rejects.toThrow('Artifact hash mismatch');
   expect(repo.step(work.step.id)!.outputJson).toBeNull();
+});
+
+async function prepareValidation() {
+  const prepared = await prepare();
+  expect(
+    await executeStage(
+      repo,
+      prepared.work,
+      manifestStage(),
+      signal(),
+      undefined,
+      store,
+    ),
+  ).toBe(true);
+  reopen();
+  return { ...prepared, validation: repo.claim('validation')! };
+}
+
+it('validates the adopted package across restart without review or publication', async () => {
+  const { validation } = await prepareValidation();
+  expect(
+    await executeStage(
+      repo,
+      validation,
+      validationStage(),
+      signal(),
+      undefined,
+      store,
+    ),
+  ).toBe(true);
+  reopen();
+  expect(
+    validationOutputSchema.parse(
+      JSON.parse(repo.step(validation.step.id)!.outputJson!),
+    ).manifestSha256,
+  ).toHaveLength(64);
+  for (const table of ['character_versions', 'approvals', 'content_releases'])
+    expect(
+      connection.sqlite.prepare(`SELECT count(*) n FROM ${table}`).get(),
+    ).toEqual({ n: 0 });
+});
+
+it('rejects corruption after manifest adoption', async () => {
+  const { validation, sheets } = await prepareValidation();
+  const image = sheets[0]!.image;
+  const file = join(
+    root,
+    'artifacts',
+    image.stepId,
+    image.attemptId,
+    `${image.artifactId}.png`,
+  );
+  chmodSync(file, 0o600);
+  writeFileSync(file, Buffer.alloc(image.bytes));
+  await expect(
+    executeStage(
+      repo,
+      validation,
+      validationStage(),
+      signal(),
+      undefined,
+      store,
+    ),
+  ).rejects.toThrow();
+  expect(repo.step(validation.step.id)!.outputJson).toBeNull();
+});
+
+it('rejects tampered manifest provenance and hash', async () => {
+  const { validation, work } = await prepareValidation();
+  const output = JSON.parse(repo.step(work.step.id)!.outputJson!);
+  // Simulate database corruption beyond the normal immutable-checkpoint trigger.
+  connection.sqlite.exec('DROP TRIGGER generation_checkpoint_update');
+  output.sheets[0].attemptId = randomUUID();
+  connection.sqlite
+    .prepare('UPDATE generation_steps SET output_json = ? WHERE id = ?')
+    .run(canonicalJson(output), work.step.id);
+  await expect(
+    executeStage(
+      repo,
+      validation,
+      validationStage(),
+      signal(),
+      undefined,
+      store,
+    ),
+  ).rejects.toThrow('provenance');
+  output.sha256 = '0'.repeat(64);
+  connection.sqlite
+    .prepare('UPDATE generation_steps SET output_json = ? WHERE id = ?')
+    .run(canonicalJson(output), work.step.id);
+  await expect(
+    executeStage(
+      repo,
+      validation,
+      validationStage(),
+      signal(),
+      undefined,
+      store,
+    ),
+  ).rejects.toThrow('hash');
+});
+
+it('does not adopt validation after lease expiry', async () => {
+  const { validation } = await prepareValidation();
+  const stage = validationStage();
+  const expiring = {
+    ...stage,
+    async execute(...args: Parameters<typeof stage.execute>) {
+      const output = await stage.execute(...args);
+      now += 60_000;
+      repo.recoverExpired();
+      return output;
+    },
+  };
+  expect(
+    await executeStage(repo, validation, expiring, signal(), undefined, store),
+  ).toBe(false);
+  expect(repo.step(validation.step.id)!.outputJson).toBeNull();
+  reopen();
+  now += 2000;
+  const replacement = repo.claim('replacement')!;
+  expect(replacement.step.id).toBe(validation.step.id);
+  expect(
+    await executeStage(repo, replacement, stage, signal(), undefined, store),
+  ).toBe(true);
+});
+
+it('does not adopt validation after cancellation or abort', async () => {
+  const { validation, jobId } = await prepareValidation();
+  const stage = validationStage();
+  const cancelling = {
+    ...stage,
+    async execute(...args: Parameters<typeof stage.execute>) {
+      const output = await stage.execute(...args);
+      repo.cancel(jobId);
+      return output;
+    },
+  };
+  expect(
+    await executeStage(
+      repo,
+      validation,
+      cancelling,
+      signal(),
+      undefined,
+      store,
+    ),
+  ).toBe(false);
+  expect(repo.step(validation.step.id)!.outputJson).toBeNull();
+  const controller = new AbortController();
+  controller.abort();
+  await expect(
+    executeStage(repo, validation, stage, controller.signal, undefined, store),
+  ).rejects.toThrow();
 });

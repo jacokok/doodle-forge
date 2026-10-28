@@ -17,6 +17,11 @@ export {
   manifestInputSchema,
   manifestOutputSchema,
 } from './manifest.js';
+export {
+  validationStage,
+  validationInputSchema,
+  validationOutputSchema,
+} from './validation.js';
 export { packSheetStage, sheetOutputSchema } from './sheet.js';
 export { captureArtworkStage, captureOutputSchema } from './capture.js';
 export {

@@ -1,5 +1,11 @@
 # 14 — Persistent implementation progress
 
+## Phase 6 — generated asset validation increment
+
+- Added library-only `validate-assets@1`: joins the selected manifest and five sheet checkpoints, checks identity, canonical hash, provenance and metadata, re-reads private PNGs and applies the publisher's shared full byte/hash/decode validation before fenced checkpoint adoption. Publisher continues staging the same validated buffers. ADR-046 records the boundary. No review freeze, production registration, approval or publication changes.
+- `mise exec -- pnpm test`: PASS, 372 tests / 27 files. `mise exec -- pnpm check`: PASS, 0 Svelte errors/warnings; `mise exec -- pnpm lint` and `git diff --check`: PASS. Tests include selected provenance, corrupt assets, cancellation and expired lease/retry. No browser, Godot or manual tests ran.
+- The requested private freeze remains blocked on a safe database visibility/approval boundary: existing review snapshots appear in Studio history and can receive decisions, and ordinary checkpoint completion must not bypass atomic freeze. A validation checkpoint does not guarantee later file integrity; freeze must revalidate. Phase 6 remains incomplete; Phase 5 manual accessibility and observed child-usability remain deferred, not passed.
+
 ## Phase 6 — fenced manifest checkpoint increment
 
 - Added library-only `assemble-manifest@1`: joins five selected sheet branches, checks attempt identity, style, layout and anchor, re-reads verified PNGs and produces canonical manifest metadata and sheet provenance under the existing executor fence. Asset paths are hash-addressed; no files are installed as a package. Gameplay and timing remain explicit. ADR-045 records the boundary. No production registration, review freeze, approval or publication changes.
