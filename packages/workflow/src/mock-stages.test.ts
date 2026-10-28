@@ -29,6 +29,8 @@ import {
   poseOutputSchema,
   framesStage,
   framesOutputSchema,
+  packSheetStage,
+  sheetOutputSchema,
   normalizeFramesStage,
   normalizedFramesOutputSchema,
   captureArtworkStage,
@@ -262,6 +264,7 @@ async function prepareMaster() {
 async function prepareFrameBranch(
   frameAnimation = 'walk',
   withNormalization = false,
+  withSheet = false,
 ) {
   const graph = request();
   graph.steps.push({
@@ -306,6 +309,19 @@ async function prepareFrameBranch(
       input: {
         ...graph.steps[3]!.input,
         inputs: { animation: 'walk' },
+        parameters,
+      },
+    });
+  if (withSheet)
+    graph.steps.push({
+      key: 'sheet-walk',
+      stageKey: 'pack-sheet',
+      stageVersion: '1',
+      targetKey: 'walk',
+      dependencies: ['normalize-walk'],
+      input: {
+        ...graph.steps[3]!.input,
+        inputs: { animation: 'walk', columns: 2 },
         parameters,
       },
     });
@@ -1179,4 +1195,170 @@ it('rejects provider changes to the explicitly selected body type', async () => 
   await expect(run(repo.claim('analysis')!)).rejects.toThrow(
     'explicit creative choices',
   );
+});
+
+async function prepareSheet() {
+  const { work: frames } = await prepareFrameBranch('walk', true, true);
+  expect(
+    await executeStage(
+      repo,
+      frames,
+      framesStage(new FrameMockProvider(), 'walk'),
+      signal(),
+      undefined,
+      store,
+    ),
+  ).toBe(true);
+  const normalization = repo.claim('normalizer')!;
+  expect(
+    await executeStage(
+      repo,
+      normalization,
+      normalizeFramesStage('walk'),
+      signal(),
+      undefined,
+      store,
+    ),
+  ).toBe(true);
+  const source = normalizedFramesOutputSchema.parse(
+    JSON.parse(repo.step(normalization.step.id)!.outputJson!),
+  );
+  reopen();
+  return { source, work: repo.claim('packer')! };
+}
+
+it('adopts a deterministic sheet from the selected normalized branch', async () => {
+  const { source, work } = await prepareSheet();
+  expect(
+    await executeStage(
+      repo,
+      work,
+      packSheetStage('walk'),
+      signal(),
+      undefined,
+      store,
+    ),
+  ).toBe(true);
+  reopen();
+  const output = sheetOutputSchema.parse(
+    JSON.parse(repo.step(work.step.id)!.outputJson!),
+  );
+  expect(output.sourceSha256s).toEqual(
+    source.frames.map((frame) => frame.image.sha256),
+  );
+  expect(output).toMatchObject({
+    animation: 'walk',
+    frameCount: 3,
+    columns: 2,
+    frameWidth: 256,
+    frameHeight: 256,
+    footAnchor: source.footAnchor,
+  });
+  expect(output.image).toMatchObject({
+    width: 512,
+    height: 512,
+    attemptId: work.claim.attemptId,
+  });
+  expect(sha256(await store.read(output.image))).toBe(output.image.sha256);
+});
+
+it('refuses corrupt normalized artifacts without adopting a sheet', async () => {
+  const { source, work } = await prepareSheet();
+  const image = source.frames[1]!.image;
+  const file = join(
+    root,
+    'artifacts',
+    image.stepId,
+    image.attemptId,
+    `${image.artifactId}.png`,
+  );
+  chmodSync(file, 0o600);
+  writeFileSync(file, Buffer.alloc(image.bytes));
+  await expect(
+    executeStage(
+      repo,
+      work,
+      packSheetStage('walk'),
+      signal(),
+      undefined,
+      store,
+    ),
+  ).rejects.toThrow('Artifact hash mismatch');
+  expect(repo.step(work.step.id)!.outputJson).toBeNull();
+});
+
+it('fences expired sheet attempts and rejects stale artifact adoption', async () => {
+  const { work } = await prepareSheet();
+  const stage = packSheetStage('walk');
+  let stale: Awaited<ReturnType<typeof stage.execute>> | undefined;
+  const expiring = {
+    ...stage,
+    async execute(...args: Parameters<typeof stage.execute>) {
+      stale = await stage.execute(...args);
+      now += 60000;
+      repo.recoverExpired();
+      return stale;
+    },
+  };
+  expect(
+    await executeStage(repo, work, expiring, signal(), undefined, store),
+  ).toBe(false);
+  reopen();
+  now += 2000;
+  const replacement = repo.claim('replacement')!;
+  await expect(
+    executeStage(
+      repo,
+      replacement,
+      { ...stage, execute: async () => stale! },
+      signal(),
+      undefined,
+      store,
+    ),
+  ).rejects.toThrow('attempt mismatch');
+  expect(
+    await executeStage(repo, replacement, stage, signal(), undefined, store),
+  ).toBe(true);
+  const output = sheetOutputSchema.parse(
+    JSON.parse(repo.step(work.step.id)!.outputJson!),
+  );
+  expect(output.image.sha256).toBe(stale!.image.sha256);
+  expect(output.image.attemptId).toBe(replacement.claim.attemptId);
+});
+
+it('does not adopt a sheet cancelled after artifact creation', async () => {
+  const { work } = await prepareSheet();
+  const controller = new AbortController();
+  const put = store.putPng.bind(store);
+  vi.spyOn(store, 'putPng').mockImplementation(async (...args) => {
+    const result = await put(...args);
+    controller.abort();
+    return result;
+  });
+  await expect(
+    executeStage(
+      repo,
+      work,
+      packSheetStage('walk'),
+      controller.signal,
+      undefined,
+      store,
+    ),
+  ).rejects.toThrow();
+  expect(repo.step(work.step.id)!.outputJson).toBeNull();
+});
+
+it('rejects a handler for a different branch', async () => {
+  const { work } = await prepareSheet();
+  await expect(
+    executeStage(
+      repo,
+      work,
+      packSheetStage('idle'),
+      signal(),
+      undefined,
+      store,
+    ),
+  ).rejects.toThrow();
+  expect(repo.step(work.step.id)!.outputJson).toBeNull();
 });

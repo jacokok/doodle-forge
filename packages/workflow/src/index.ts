@@ -12,6 +12,7 @@ export {
   type StageHandler,
   type RunnerOptions,
 } from './runner.js';
+export { packSheetStage, sheetOutputSchema } from './sheet.js';
 export { captureArtworkStage, captureOutputSchema } from './capture.js';
 export {
   normalizeFramesStage,

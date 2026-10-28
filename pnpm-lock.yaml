@@ -212,6 +212,9 @@ importers:
       '@doodleforge/ai':
         specifier: workspace:*
         version: link:../ai
+      '@doodleforge/animation':
+        specifier: workspace:*
+        version: link:../animation
       '@doodleforge/contracts':
         specifier: workspace:*
         version: link:../contracts

@@ -4,6 +4,7 @@
   "type": "module",
   "dependencies": {
     "@doodleforge/ai": "workspace:*",
+    "@doodleforge/animation": "workspace:*",
     "@doodleforge/contracts": "workspace:*",
     "@doodleforge/database": "workspace:*",
     "@doodleforge/image-processing": "workspace:*",
