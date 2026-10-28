@@ -1,5 +1,11 @@
 # 14 — Persistent implementation progress
 
+## Phase 6 — fenced manifest checkpoint increment
+
+- Added library-only `assemble-manifest@1`: joins five selected sheet branches, checks attempt identity, style, layout and anchor, re-reads verified PNGs and produces canonical manifest metadata and sheet provenance under the existing executor fence. Asset paths are hash-addressed; no files are installed as a package. Gameplay and timing remain explicit. ADR-045 records the boundary. No production registration, review freeze, approval or publication changes.
+- `mise exec -- pnpm exec vitest run packages/workflow/src/manifest.test.ts packages/workflow/src/manifest-integration.test.ts packages/contracts/src/assembly.test.ts`: PASS, 7 tests / 3 files. `mise exec -- pnpm test`: PASS, 365 tests / 26 files. `mise exec -- pnpm check`: PASS, 0 Svelte errors/warnings; `mise exec -- pnpm lint`: PASS. Tests cover SQLite checkpoint adoption, expired lease/retry and corrupt source rejection; no browser, Godot or manual tests ran.
+- Next: full package validation and safe review freeze, then production graph and gates. A verified checkpoint is not an approved package; gameplay catalog policy remains open. Phase 6 is incomplete; Phase 5 manual accessibility and observed child-usability remain deferred, not passed.
+
 ## Phase 6 — pure manifest assembly increment
 
 - Added a library-only v1 manifest assembler for the five existing sheet branches. Character data, sheet metadata, animation timing and gameplay configuration are explicit inputs; no fixture or AI gameplay defaults are adopted. It checks schema and semantic constraints and returns publisher-compatible canonical bytes and their SHA-256. ADR-044 records the boundary. It does not read or verify assets, create a review snapshot, register a worker stage or publish content.

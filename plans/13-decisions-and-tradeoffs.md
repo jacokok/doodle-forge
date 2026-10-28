@@ -217,6 +217,10 @@ The first standalone normalizer uses every nonzero-alpha pixel for bounds rather
 
 The library normalization stage consumes a specific adopted animation frame branch, revalidates each selected frame and persists ordered normalized images through the existing attempt artifact and lease-fencing protocol. Checkpoints retain source hashes, placement diagnostics, style and resolved input identity. Completion grants no review or publication authority; this stage is not registered in the production worker. ADR-041's bounding-box anchor and per-frame fit limitations still apply.
 
+### ADR-045 — Fenced manifest checkpoint (accepted)
+
+A library-only manifest stage joins the five selected sheet checkpoints and revalidates their private PNG artifacts before assembling metadata. It records the manifest, canonical hash and selected-sheet provenance in bounded fenced checkpoint JSON; the PNG-only artifact store is not extended to store JSON. Manifest paths use content hashes but do not imply that package files have been installed. This is neither full package validation nor a review snapshot, and does not authorize approval or publication. Gameplay and timing remain explicit inputs pending a separately approved catalog.
+
 ### ADR-044 — Explicit metadata assembly (accepted)
 
 The pure manifest assembler requires caller-supplied character, gameplay, animation timing and sheet metadata; it does not infer gameplay from mock AI or fixture values. It maps the five existing workflow branches to v1 animation names, validates schema and semantics, and hashes the publisher's canonical JSON bytes. Declared asset metadata is not evidence that files exist or are valid; asset verification, review freeze, approval and publication remain separate boundaries. An approved gameplay catalog and production composition remain future work.
