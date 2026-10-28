@@ -4,5 +4,9 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@doodleforge/image-processing": "workspace:*",
+    "sharp": "0.34.5"
   }
 }

@@ -1,5 +1,11 @@
 # 14 — Persistent implementation progress
 
+## Phase 6 — standalone sprite sheet packing increment
+
+- Added `packSheet` in `packages/animation`: bounded v1 row-major packing of 1–64 strictly decoded 256×256 PNG frames into up to 16 columns and 4096×4096 pixels, transparent unused cells, deterministic PNG bytes and SHA-256/layout metadata. Rejects malformed, empty, opaque and oversized inputs. It uses existing image-processing validation and pinned Sharp; no production worker registration, durable sheet stage, manifest, review or publication changes. It validates visible pixels and transparency but does not independently prove normalization or anchor consistency.
+- `mise exec -- pnpm install --no-frozen-lockfile`: PASS (workspace links updated, no new external versions). `mise exec -- pnpm test`: PASS, 353 tests / 23 files, including packing layout, byte/hash determinism and rejection cases. `mise exec -- pnpm check`: PASS, 0 Svelte errors/warnings; `mise exec -- pnpm lint` and `git diff --check`: PASS. No browser, Godot, full upload-to-game E2E or manual tests ran.
+- Next: integrate packing as a fenced branch-addressed artifact stage, then metadata and production graph composition/gates. Phase 6 remains incomplete; Phase 5 manual accessibility and observed child-usability remain deferred, not passed.
+
 ## Phase 6 — durable frame normalization increment
 
 - Added library-only `normalize-frames@1`: it selects the exact animation frame branch, verifies each adopted source file and attempt identity, applies the standalone normalizer in order, and adopts attempt-scoped normalized PNGs under the executor fence. Checkpoints record source hashes, source/placed bounds, style, target anchor and resolved input identity. No production worker registration, review, sheet or publication changes. ADR-042 records the boundary; ADR-041's provisional anchor and frame-scaling limitations remain.
