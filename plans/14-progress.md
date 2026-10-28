@@ -1,5 +1,11 @@
 # 14 — Persistent implementation progress
 
+## Phase 6 — pure manifest assembly increment
+
+- Added a library-only v1 manifest assembler for the five existing sheet branches. Character data, sheet metadata, animation timing and gameplay configuration are explicit inputs; no fixture or AI gameplay defaults are adopted. It checks schema and semantic constraints and returns publisher-compatible canonical bytes and their SHA-256. ADR-044 records the boundary. It does not read or verify assets, create a review snapshot, register a worker stage or publish content.
+- `mise exec -- pnpm exec vitest run packages/contracts/src/assembly.test.ts packages/contracts/src/contracts.test.ts`: PASS, 11 tests / 2 files. `mise exec -- pnpm check`: PASS, 0 Svelte errors/warnings; `mise exec -- pnpm lint`: PASS. No full suite, browser, Godot or manual tests ran for this increment. A subagent reported frozen installation failed due to unavailable node-gyp; it used `--ignore-scripts` to install dependencies before verification.
+- Next: integrate selected, verified sheet artifacts with metadata, establish an approved gameplay catalog and full asset validation, then review freeze and production composition. Phase 6 remains incomplete; Phase 5 manual accessibility and observed child-usability remain deferred, not passed.
+
 ## Phase 6 — durable sprite-sheet increment
 
 - Added library-only `pack-sheet@1`: selects the matching adopted normalized animation branch, checks style and artifact attempt identity, revalidates source files, packs deterministic PNG bytes and adopts the sheet through the existing executor fence. Checkpoints retain ordered source hashes, layout, anchor, style and resolved input identity. ADR-043 records the boundary. No production registration, metadata, review or publication changes.

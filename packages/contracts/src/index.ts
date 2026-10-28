@@ -4,6 +4,8 @@ import path from 'node:path';
 import { z } from 'zod';
 import {
   characterManifestSchema,
+  animationSchema,
+  assetSchema,
   releaseIndexSchema,
   type CharacterManifest,
 } from './manifest.js';
@@ -199,3 +201,102 @@ export const characterManifestJsonSchema = z.toJSONSchema(
 export const releaseIndexJsonSchema = z.toJSONSchema(releaseIndexSchema, {
   target: 'draft-2020-12',
 });
+
+/** Metadata only: does not read, verify, install, approve, or publish assets. */
+export type ManifestSheet = {
+  branch: 'idle' | 'walk' | 'attack' | 'hurt' | 'ko';
+  assetId: string;
+  asset: CharacterManifest['assets'][string];
+  animation: Omit<CharacterManifest['animations'][string], 'assetId'>;
+};
+export type ManifestAssemblyInput = {
+  character: Pick<
+    CharacterManifest,
+    | 'characterId'
+    | 'characterVersion'
+    | 'name'
+    | 'description'
+    | 'bodyType'
+    | 'artStyle'
+  >;
+  gameplay: Pick<
+    CharacterManifest,
+    | 'stats'
+    | 'facing'
+    | 'anchors'
+    | 'attacks'
+    | 'hitboxes'
+    | 'hurtboxes'
+    | 'abilities'
+    | 'effects'
+  >;
+  sheets: ManifestSheet[];
+};
+
+export function assembleManifest(input: ManifestAssemblyInput): {
+  manifest: CharacterManifest;
+  bytes: Uint8Array;
+  sha256: string;
+} {
+  const names = {
+    idle: 'idle',
+    walk: 'walk',
+    attack: 'attack_light',
+    hurt: 'hurt',
+    ko: 'knockout',
+  } as const;
+  const sheetSchema = z
+    .object({
+      branch: z.enum(['idle', 'walk', 'attack', 'hurt', 'ko']),
+      assetId: z.string().min(1).max(64),
+      asset: assetSchema,
+      animation: animationSchema.omit({ assetId: true }),
+    })
+    .strict();
+  const parsed = z
+    .object({
+      character: characterManifestSchema.pick({
+        characterId: true,
+        characterVersion: true,
+        name: true,
+        description: true,
+        bodyType: true,
+        artStyle: true,
+      }),
+      gameplay: characterManifestSchema.pick({
+        stats: true,
+        facing: true,
+        anchors: true,
+        attacks: true,
+        hitboxes: true,
+        hurtboxes: true,
+        abilities: true,
+        effects: true,
+      }),
+      sheets: z.array(sheetSchema).length(5),
+    })
+    .strict()
+    .parse(input);
+  const animations: CharacterManifest['animations'] = Object.create(null);
+  const assets: CharacterManifest['assets'] = Object.create(null);
+  for (const sheet of parsed.sheets) {
+    const name = names[sheet.branch];
+    if (Object.hasOwn(animations, name))
+      throw new Error(`sheets.${sheet.branch}: duplicate branch`);
+    if (Object.hasOwn(assets, sheet.assetId))
+      throw new Error(`sheets.${sheet.branch}.assetId: duplicate asset ID`);
+    animations[name] = { ...sheet.animation, assetId: sheet.assetId };
+    assets[sheet.assetId] = sheet.asset;
+  }
+  const manifest = characterManifestSchema.parse({
+    schemaVersion: 1,
+    ...parsed.character,
+    ...parsed.gameplay,
+    animations,
+    assets,
+  });
+  const errors = validateManifestSemantics(manifest);
+  if (errors.length) throw new Error(`Invalid manifest: ${errors.join('; ')}`);
+  const bytes = Buffer.from(canonicalJson(manifest), 'utf8');
+  return { manifest, bytes, sha256: sha256(bytes) };
+}
