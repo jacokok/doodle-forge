@@ -13,6 +13,8 @@ export {
   type RunnerOptions,
 } from './runner.js';
 export { captureArtworkStage, captureOutputSchema } from './capture.js';
+export { buildSheetStage, sheetOutputSchema } from './sheet.js';
+export { generateMetadataStage, metadataOutputSchema } from './metadata.js';
 export {
   normalizeFramesStage,
   normalizedFramesOutputSchema,

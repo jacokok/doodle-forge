@@ -17,6 +17,8 @@ export {
   type ReleaseIndex,
 } from './manifest.js';
 
+export { lightMeleeCatalogV1 } from './gameplay-catalog.js';
+
 export function validateManifestSemantics(m: CharacterManifest): string[] {
   const errors: string[] = [];
   const required = ['idle', 'walk', 'attack_light', 'hurt', 'knockout'];

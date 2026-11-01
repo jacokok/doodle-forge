@@ -50,6 +50,16 @@ Mock analysis normalizes plain text without tools and preserves explicit choices
 
 Next: persisted body/pose/frame stages using the provider candidates, normalization/sheet packing and explicit capture-first worker registration, followed by freeze/gates/progress. No generated review/publication authority is introduced by this slice. Phase 5 manual accessibility/child-usability checks remain deferred, not passed.
 
+## Durable normalization and sheet libraries (ADRs 042/043)
+
+Branch-addressed `normalize-frames@1` and `build-sheet@1` now consume adopted upstream checkpoints and reverify selected attempt-scoped files. Sheet input has `inputs: {animation}` and `parameters: {columns}` (1–8). It depends on the matching normalization target, packs 1–8 ordered 256×256 frames, and records the new sheet artifact, dimensions/layout, ordered normalized hashes, style, provisional target anchor and resolved input hash. Packing does not independently prove foot alignment or temporal consistency. The executor verifies the produced file before lease-fenced adoption. Restart, corrupt input, post-install cancellation and stale-attempt tests use real SQLite/storage. Neither stage is production-registered; cache reuse, manifests, frozen review, gates and complete generation remain pending.
+
+## Canonical metadata library (ADR-044)
+
+`generate-metadata@1` uses empty target, `inputs: {name}` and `parameters: {catalog: 'light-melee@1'}`. Required predecessors are capture-first analysis and all five `build-sheet@1` targets. It checks branch/style consistency and selected artifact attempt identity, then revalidates every PNG through the artifact store. Provider targets `attack` and `ko` become `attack_light` and `knockout`. The contracts-owned catalog supplies fixed gameplay defaults only for explicit light-melee/no-power intent; neither creative text nor provider values supply combat numbers. Idle is 8 FPS; other clips are 10 FPS; only idle/walk loop.
+
+The fenced JSON checkpoint contains the shared-schema/semantic-validated manifest, SHA-256 of its canonical UTF-8 bytes, sheet artifact bindings, catalog identity and resolved input identity. Package asset paths are hash-derived; private attempt paths are never exposed in the manifest. No manifest file, source registration, frozen review, approval, publication or production worker handler is created. Validation/freeze must reverify files and coordinate snapshot adoption with the job fence/cancellation before review is enabled. Metadata tests use synthetic upstream checkpoint producers and real PNGs/SQLite/storage, not the full capture-to-game flow.
+
 ## Verification
 
 `mise exec -- pnpm exec vitest run packages/ai/src/mock.test.ts packages/workflow/src/mock-stages.test.ts packages/workflow/src/workflow.test.ts packages/workflow/src/artifacts.test.ts packages/database/src/database.test.ts`

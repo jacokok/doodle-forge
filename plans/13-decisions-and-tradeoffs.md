@@ -217,6 +217,16 @@ The first standalone normalizer uses every nonzero-alpha pixel for bounds rather
 
 The library normalization stage consumes a specific adopted animation frame branch, revalidates each selected frame and persists ordered normalized images through the existing attempt artifact and lease-fencing protocol. Checkpoints retain source hashes, placement diagnostics, style and resolved input identity. Completion grants no review or publication authority; this stage is not registered in the production worker. ADR-041's bounding-box anchor and per-frame fit limitations still apply.
 
+### ADR-043 — Attempt-scoped animation sheet packing (accepted)
+
+The library-only `build-sheet@1` stage consumes exactly one adopted `normalize-frames@1` animation branch. It revalidates ordered source files and selected attempt identity, packs with the deterministic animation library, and installs a new attempt-scoped PNG before fenced checkpoint adoption. Strict layout metadata, ordered source hashes, inherited style/target anchor and resolved input identity are persisted; column count is an explicit hashed input. This bounded mock stage supports 1–8 frames and 1–8 columns, narrower than the standalone packer. It preserves ADR-041's provisional anchor limitations and does not independently establish temporal/anchor consistency. Cache reuse remains disabled; no production registration, manifest, frozen review or publication authority is introduced. Interrupted/stale installations remain private orphans under the existing artifact policy.
+
+### ADR-044 — Canonical metadata join and trusted light-melee catalog (accepted)
+
+The library-only `generate-metadata@1` stage joins all five adopted sheet targets plus capture-first analysis. It revalidates selected attempt identity and PNG bytes, rejects branch/style mismatches, maps provider `attack`/`ko` targets to public `attack_light`/`knockout`, and emits a shared-v1 manifest with its canonical UTF-8 SHA-256 and private sheet references in a fenced JSON checkpoint. Package paths are derived only as `assets/<sha256>.png`; attempt paths never enter game content. Gameplay comes from the contracts-owned `light-melee@1` catalog, using the existing fixture's fixed stats, boxes, anchors and melee timings for every body type. Only explicit `light_melee`/`none` intent is supported; unselected/unsupported choices fail rather than silently selecting gameplay. Idle runs at 8 FPS, other animations at 10 FPS; only idle/walk loop. Text, provider output and image dimensions cannot override combat values. Future tuning requires a new catalog/stage identity for immutable input/cache compatibility.
+
+This checkpoint is not a frozen review version, source registration or a manifest file in a package directory. It grants no review/publication authority, holds no approval state and introduces no production registration or cache reuse. A later validation/freeze increment must reverify all referenced files and adopt the snapshot under job cancellation/lease fencing. Existing provisional anchor, synthetic-art and orphan-retention limitations remain.
+
 ## Dependencies
 Plans 01–11 contain detailed consequences. Roadmap orders implementations; progress records evidence. External source availability affects research, not local test status.
 
