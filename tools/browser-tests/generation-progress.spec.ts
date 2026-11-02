@@ -8,7 +8,7 @@ async function openGenerated(page: import('@playwright/test').Page) {
     .click();
 }
 
-test('shows actual bounded job/step states without enabling generation or leaking provider data', async ({
+test('shows actual bounded job/step states without leaking provider data', async ({
   page,
 }) => {
   await openGenerated(page);
@@ -41,7 +41,7 @@ test('shows actual bounded job/step states without enabling generation or leakin
     jobs.getByRole('button', { name: 'Refresh generation progress' }),
   ).toHaveCount(1);
   await expect(
-    jobs.getByRole('button', { name: /^(Generate|Retry|Cancel)/ }),
+    jobs.getByRole('button', { name: /^(Retry|Cancel)/ }),
   ).toHaveCount(0);
   await page
     .getByLabel('Library')

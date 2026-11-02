@@ -107,7 +107,7 @@ test('studio-only starts without worker, serves empty library, and restarts with
   assert.match(instance.output(), new RegExp(`${env.ORIGIN}/characters`));
   assert.match(
     instance.output(),
-    /Studio generation remains unavailable; no jobs are created at startup/,
+    /Offline mock generation can be queued in Studio or the CLI; no jobs are created at startup/,
   );
   assert.equal((await fetch(`${env.ORIGIN}/characters`)).status, 200);
   assert.deepEqual(await (await fetch(`${env.ORIGIN}/api/characters`)).json(), {
@@ -143,7 +143,7 @@ test('combined dev announces both healthy services and stops both on Ctrl-C', as
   await ready(instance, env.ORIGIN);
   assert.match(
     instance.output(),
-    /Studio \+ mock factory worker ready; generation CLI-only/,
+    /Studio \+ mock factory worker ready; offline mock generation available/,
   );
   assert.equal(
     (await fetch(`http://127.0.0.1:${env.WORKER_PORT}/health`)).status,

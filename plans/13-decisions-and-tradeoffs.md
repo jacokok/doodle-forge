@@ -283,6 +283,12 @@ Add a same-app, same-origin-guarded remote command backed by a server-only enque
 
 No UI invokes the command yet: safe pending/uncertain-result recovery must retain and reuse the same key and captured command, rather than silently creating duplicate jobs. Retry/cancel, generated approval/publication and comprehensive browser/origin coverage remain separate work. Existing local-trust and quota limitations remain.
 
+### ADR-055 — Session-scoped mock enqueue recovery (accepted)
+
+The Review step explicitly enqueues only saved input with an attached original, a selected mock style and bounded seed. Before sending, the browser persists the exact revision/parameters and random idempotency key in per-character session storage; an uncertain transport or server result blocks new requests for that character in that tab and offers only replay of the same command. Known pre-commit domain rejections clear the pending record; success clears it and refreshes persisted progress. Storage failure or malformed pending state fails closed. The worker must be started separately; no request approves or publishes. Studio health reports `mock-enqueue`, not full factory availability.
+
+Session storage survives reload in the same tab but not tab closure, clearing storage or all browser failure modes; separate tabs/CLI can create separate jobs. Users must inspect persisted progress before starting a new request after losing the recovery handle. This is not cross-tab deduplication, a job retry/cancel function, authentication or a quota. Unsaved editor fields/files are never implicitly submitted.
+
 ## Dependencies
 Plans 01–11 contain detailed consequences. Roadmap orders implementations; progress records evidence. External source availability affects research, not local test status.
 

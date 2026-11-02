@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('studio shell explains unavailable features and has a keyboard-accessible health link', async ({
+test('studio shell explains mock generation and has a keyboard-accessible health link', async ({
   page,
 }) => {
   await page.goto('/');
@@ -10,7 +10,7 @@ test('studio shell explains unavailable features and has a keyboard-accessible h
   );
   await expect(
     page.getByText(
-      'Generation remains unavailable in Studio; no factory jobs are started by this page.',
+      'Offline mock generation can be explicitly queued in the library; no factory jobs are started by this page.',
       { exact: false },
     ),
   ).toBeVisible();
@@ -20,5 +20,5 @@ test('studio shell explains unavailable features and has a keyboard-accessible h
   ).toBeFocused();
   const response = await page.request.get('/api/health');
   expect(response.ok()).toBe(true);
-  expect((await response.json()).generation).toBe('unavailable');
+  expect((await response.json()).generation).toBe('mock-enqueue');
 });

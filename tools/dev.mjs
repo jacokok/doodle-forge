@@ -63,7 +63,7 @@ try {
           (result, index) =>
             result.status !== 'ok' ||
             result.service !== (index === 0 ? 'studio' : 'worker') ||
-            result.generation !== (index === 0 ? 'unavailable' : 'mock-cli'),
+            result.generation !== (index === 0 ? 'mock-enqueue' : 'mock-cli'),
         )
       )
         throw new Error('Unexpected local service health response');
@@ -75,12 +75,12 @@ try {
   if (!stopping) {
     console.log(`\nDoodleForge ready: ${config.origin}/characters`);
     console.log(
-      'Create/edit characters, attach private originals, and review/publish supported frozen fixtures. Studio generation remains unavailable; no jobs are created at startup. Offline mock generation is CLI-only.',
+      'Create/edit characters, attach private originals, and review/publish supported frozen fixtures. Offline mock generation can be queued in Studio or the CLI; no jobs are created at startup.',
     );
     console.log(
       studioOnly
         ? 'Studio only; worker not started. Ctrl-C stops the studio.'
-        : 'Studio + mock factory worker ready; generation CLI-only; Studio generation unavailable. Ctrl-C stops both.',
+        : 'Studio + mock factory worker ready; offline mock generation available. Ctrl-C stops both.',
     );
   }
   const first = await exited;

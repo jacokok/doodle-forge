@@ -41,7 +41,7 @@ try {
   assert.deepEqual(await waitForHealth(`${env.ORIGIN}/api/health`, studio), {
     status: 'ok',
     service: 'studio',
-    generation: 'unavailable',
+    generation: 'mock-enqueue',
   });
   assert.deepEqual(
     await waitForHealth(`http://127.0.0.1:${workerPort}/health`, worker),
@@ -51,7 +51,7 @@ try {
   assert.equal(page.status, 200);
   assert.match(
     (await page.text()).replace(/\s+/g, ' '),
-    /Generation remains unavailable in Studio; no factory jobs are started by this page/,
+    /Offline mock generation can be explicitly queued in the library; no factory jobs are started by this page/,
   );
   assert.equal(
     (await fetch(`${env.ORIGIN}/storage/originals/private.png`)).status,

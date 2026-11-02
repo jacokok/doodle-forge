@@ -5,7 +5,7 @@ export function GET() {
   try {
     checkDatabase();
     return json(
-      { status: 'ok', service: 'studio', generation: 'unavailable' },
+      { status: 'ok', service: 'studio', generation: 'mock-enqueue' },
       { headers: { 'cache-control': 'no-store' } },
     );
   } catch {

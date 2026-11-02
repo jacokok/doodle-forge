@@ -87,9 +87,8 @@
 >
   <h3 class="text-lg font-semibold">Generation and jobs</h3>
   <p>
-    Generation starts through the CLI. This panel reads persisted job progress;
-    retry/cancel and Studio enqueue are not connected. Completion does not
-    approve or publish a character.
+    This panel reads persisted job progress. Job retry and cancellation are not
+    connected. Completion does not approve or publish a character.
   </p>
   <button
     type="button"

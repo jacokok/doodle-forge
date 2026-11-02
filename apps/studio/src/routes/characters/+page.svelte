@@ -2,6 +2,7 @@
   import { onMount, tick } from 'svelte';
   import VersionActions from '../../lib/VersionActions.svelte';
   import GenerationProgress from '../../lib/GenerationProgress.svelte';
+  import GenerationEnqueue from '../../lib/GenerationEnqueue.svelte';
   import { resolve } from '$app/paths';
   import { beforeNavigate } from '$app/navigation';
   import { characterManifestSchema } from '@doodleforge/contracts/manifest';
@@ -391,9 +392,9 @@
   <p class="my-3">
     Save character details, optionally attach a private original, then inspect
     frozen history, then explicitly review and publish supported fixture
-    versions. Creative choices are authoring intent only. Generation is
-    CLI-only. Persisted job progress and generated previews are read-only here;
-    generated approval and publication are not connected.
+    versions. Creative choices are authoring intent only. Offline mock
+    generation can be explicitly queued from saved input. Generated previews are
+    read-only; generated approval and publication are not connected.
   </p>
   <div class="my-5 flex flex-wrap gap-3">
     <button
@@ -616,6 +617,12 @@
               </p>
             </section>
             {#key selected.id}
+              <GenerationEnqueue
+                characterId={selected.id}
+                revision={selected.editRevision}
+                {unsaved}
+                hasOriginal={!!selected.originalAssetId}
+              />
               <GenerationProgress
                 characterId={selected.id}
                 active={step === 2}
