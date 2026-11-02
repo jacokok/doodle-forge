@@ -43,6 +43,25 @@ export interface GenerationReservation {
 }
 
 /** Persistence only: no stage handlers, filesystem writes or provider calls in transactions. */
+export class GenerationEnqueueError extends Error {
+  constructor(
+    public readonly code:
+      | 'idempotency_conflict'
+      | 'stale_revision'
+      | 'original_required'
+      | 'version_limit',
+  ) {
+    super(
+      {
+        idempotency_conflict: 'Idempotency conflict',
+        stale_revision: 'Active character and matching edit revision required',
+        original_required: 'Attached immutable original required',
+        version_limit: 'Character version limit reached',
+      }[code],
+    );
+  }
+}
+
 export class WorkflowRepository {
   constructor(
     private readonly connection: DatabaseConnection,
@@ -242,14 +261,14 @@ export class WorkflowRepository {
           !Number.isSafeInteger(identity.version) ||
           identity.version! < 1
         )
-          throw new Error('Idempotency conflict');
+          throw new GenerationEnqueueError('idempotency_conflict');
         return { jobId: existing.id, characterVersion: identity.version! };
       }
       const character = new CharacterRepository(this.connection).get(
         command.characterId,
       );
       if (!character || character.editRevision !== command.expectedRevision)
-        throw new Error('Active character and matching edit revision required');
+        throw new GenerationEnqueueError('stale_revision');
       const original = character.originalAssetId
         ? new AssetRepository(this.connection).get(character.originalAssetId)
         : undefined;
@@ -258,7 +277,7 @@ export class WorkflowRepository {
         original.kind !== 'original' ||
         original.characterId !== character.id
       )
-        throw new Error('Attached immutable original required');
+        throw new GenerationEnqueueError('original_required');
       const row = this.connection.sqlite
         .prepare(
           `SELECT MAX(version) AS maximum FROM (
@@ -270,7 +289,7 @@ export class WorkflowRepository {
         .get(character.id, character.id) as { maximum: number | null };
       const version = (row.maximum ?? 0) + 1;
       if (!Number.isSafeInteger(version) || version < 1)
-        throw new Error('Character version limit reached');
+        throw new GenerationEnqueueError('version_limit');
       const request = build({ character, original, version });
       if (
         request.characterId !== character.id ||

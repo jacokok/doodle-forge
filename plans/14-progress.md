@@ -1,5 +1,11 @@
 # 14 — Persistent implementation progress
 
+## Phase 6 — Studio enqueue server boundary
+
+- Started clean and synchronized after fetch. Added a validated same-app remote mock enqueue command using the existing same-origin mutation guard, active-owner check and atomic factory reservation. Typed database reservation conflicts allow sanitized actionable errors without matching arbitrary exception text. Identical commands retain the existing idempotent replay semantics; no image work, approval or publication runs in Studio. ADR-054 records the boundary. No UI invokes this command yet; uncertain-result/key retention must be designed and tested before adding a button. Retry/cancel and generated approval/publication remain unwired.
+- `mise exec -- pnpm exec vitest run apps/studio/src/lib/server/generation-enqueue.test.ts apps/worker/src/factory.test.ts`: PASS, 9 tests / 2 files, including real SQLite reservation, identical replay, conflicting key, invalid input and stale revision. `mise exec -- pnpm check`: PASS, 0 Svelte errors/warnings. No browser/origin integration, full suite, Godot or manual tests ran for this increment. Phase 6 remains incomplete and Phase 5 manual acceptance remains deferred.
+- Next: implement and browser-test a deliberate Studio enqueue interaction with durable-in-session command/key retention across uncertain responses, unsaved-edit handling and explicit progress refresh; then retry/cancel and generated approval/publication gates.
+
 ## Phase 6 — read-only persisted Studio generation progress
 
 - After verifying the private-preview increment, committed/pushed `fe17b70` before starting this second requested increment. Fetched and confirmed clean synchronized history. Added a browser-safe shared progress DTO/state vocabulary, bounded coherent repository read snapshot for the ten newest owner-scoped mock-factory jobs, validated/sanitized domain projection and same-app remote query. DTOs omit raw inputs/outputs/source registries, artifact/worker IDs, paths and provider messages; unknown error codes map to a generic failure. Missing/archived owners and corrupt data fail closed. Shared state arrays now feed Drizzle without changing SQL; `mise exec -- pnpm db:generate` reports no schema changes. ADR-053 records the protocol.

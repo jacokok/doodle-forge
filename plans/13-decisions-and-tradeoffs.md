@@ -277,6 +277,12 @@ Expose read-only same-app remote progress for the ten newest mock-factory@1 gene
 
 The separate progress component uses remote queries, explicit refresh and best-effort 1/2/4/5-second polling. It stops scheduling outside Review/history or while the document is hidden and prevents manual/poll overlap; query failures are recoverable and never rewrite editor fields/files. New frozen-version discoveries refresh history without automatically selecting/replacing a user's inspected version. Completion is labeled unapproved/unpublished, not pipeline/publication success. Enqueue/retry/cancel and generated decision/publication mutations remain disabled. SSR editor controls are inert until hydration so keyboard events cannot be lost before handlers exist; keyboard tests wait for actual step-focus completion before interacting with selects. Manual accessibility/child-usability acceptance is still deferred.
 
+### ADR-054 — Explicit Studio mock enqueue boundary (accepted)
+
+Add a same-app, same-origin-guarded remote command backed by a server-only enqueue service and the existing transactional mock-factory reservation. The caller supplies the saved revision, style, seed and idempotency key; repeated identical requests return the reserved job, while changed requests conflict. The service requires an active owner before replay, validates the command, and maps typed reservation conflicts to sanitized errors. The database remains authoritative for revision, original and idempotency checks inside its write transaction. No provider work occurs in the Studio request. The command does not imply review approval or publication and is not a public jobs API.
+
+No UI invokes the command yet: safe pending/uncertain-result recovery must retain and reuse the same key and captured command, rather than silently creating duplicate jobs. Retry/cancel, generated approval/publication and comprehensive browser/origin coverage remain separate work. Existing local-trust and quota limitations remain.
+
 ## Dependencies
 Plans 01–11 contain detailed consequences. Roadmap orders implementations; progress records evidence. External source availability affects research, not local test status.
 

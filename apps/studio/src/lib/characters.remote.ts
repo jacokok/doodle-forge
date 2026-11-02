@@ -4,9 +4,14 @@ import {
   characterService,
   reviewActionService,
   generationProgressService,
+  generationEnqueueService,
 } from './server/runtime.js';
 import { CharacterError } from './server/characters.js';
 import { characterResult } from './server/character-result.js';
+
+export const enqueueGeneration = command(z.unknown(), (input) =>
+  mutation(() => generationEnqueueService().enqueue(input)),
+);
 
 export const decideVersion = command(z.unknown(), (input) =>
   mutation(() => reviewActionService().decide(input)),

@@ -62,6 +62,7 @@ export function assertDatabaseReady(connection: DatabaseConnection) {
 }
 export {
   WorkflowRepository,
+  GenerationEnqueueError,
   type NewWorkflowJob,
   type WorkflowClaim,
 } from './workflow.js';
