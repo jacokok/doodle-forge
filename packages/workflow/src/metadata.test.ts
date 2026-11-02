@@ -29,7 +29,7 @@ import {
   executeStage,
   generateMetadataStage,
   metadataOutputSchema,
-  sheetOutputSchema,
+  buildSheetOutputSchema,
   stageEnvelopeSchema,
   type Stage,
 } from './index.js';
@@ -75,7 +75,7 @@ afterEach(() => {
   connection.close();
   rmSync(root, { recursive: true, force: true });
 });
-type Sheet = ReturnType<typeof sheetOutputSchema.parse>;
+type Sheet = ReturnType<typeof buildSheetOutputSchema.parse>;
 
 // Synthetic upstream producers isolate the metadata boundary; not a generation E2E.
 async function prepare(
@@ -179,7 +179,7 @@ async function prepare(
         key: 'build-sheet',
         version: '1',
         inputSchema: stageEnvelopeSchema,
-        outputSchema: sheetOutputSchema,
+        outputSchema: buildSheetOutputSchema,
         dependencies: [],
         cachePolicy: 'disabled',
         artifactRefs: (output) => [output.image],

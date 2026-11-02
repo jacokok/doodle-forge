@@ -215,6 +215,9 @@ importers:
       '@doodleforge/animation':
         specifier: workspace:*
         version: link:../animation
+      '@doodleforge/content-publisher':
+        specifier: workspace:*
+        version: link:../content-publisher
       '@doodleforge/contracts':
         specifier: workspace:*
         version: link:../contracts

@@ -6,6 +6,7 @@
     "@doodleforge/ai": "workspace:*",
     "@doodleforge/animation": "workspace:*",
     "@doodleforge/contracts": "workspace:*",
+    "@doodleforge/content-publisher": "workspace:*",
     "@doodleforge/database": "workspace:*",
     "@doodleforge/image-processing": "workspace:*",
     "zod": "4.6.7"

@@ -12,8 +12,19 @@ export {
   type StageHandler,
   type RunnerOptions,
 } from './runner.js';
+export {
+  manifestStage,
+  manifestInputSchema,
+  manifestOutputSchema,
+} from './manifest.js';
+export {
+  validationStage,
+  validationInputSchema,
+  validationOutputSchema,
+} from './validation.js';
+export { packSheetStage, sheetOutputSchema } from './sheet.js';
 export { captureArtworkStage, captureOutputSchema } from './capture.js';
-export { buildSheetStage, sheetOutputSchema } from './sheet.js';
+export { buildSheetStage, buildSheetOutputSchema } from './build-sheet.js';
 export { generateMetadataStage, metadataOutputSchema } from './metadata.js';
 export {
   normalizeFramesStage,

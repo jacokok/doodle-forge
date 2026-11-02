@@ -29,10 +29,10 @@ import {
   poseOutputSchema,
   framesStage,
   framesOutputSchema,
+  packSheetStage,
+  sheetOutputSchema,
   normalizeFramesStage,
   normalizedFramesOutputSchema,
-  buildSheetStage,
-  sheetOutputSchema,
   captureArtworkStage,
   characterMasterStage,
   cleanImageStage,
@@ -141,7 +141,7 @@ function request() {
     characterVersion: 1,
     sourceSnapshotHash: sha256('captured source snapshot'),
     inputs: {},
-    parameters: parameters as Record<string, string | number>,
+    parameters,
   };
   return {
     schemaVersion: 1,
@@ -315,14 +315,14 @@ async function prepareFrameBranch(
   if (withSheet)
     graph.steps.push({
       key: 'sheet-walk',
-      stageKey: 'build-sheet',
+      stageKey: 'pack-sheet',
       stageVersion: '1',
       targetKey: 'walk',
       dependencies: ['normalize-walk'],
       input: {
         ...graph.steps[3]!.input,
-        inputs: { animation: 'walk' },
-        parameters: { columns: 2 },
+        inputs: { animation: 'walk', columns: 2 },
+        parameters,
       },
     });
   const jobId = enqueueWorkflow(repo, graph);
@@ -349,181 +349,6 @@ async function prepareNormalization() {
   reopen();
   return { jobId, source, work: repo.claim('normalizer')! };
 }
-
-async function prepareSheet() {
-  const { jobId, work } = await prepareFrameBranch('walk', true, true);
-  expect(
-    await executeStage(
-      repo,
-      work,
-      framesStage(new FrameMockProvider(), 'walk'),
-      signal(),
-      undefined,
-      store,
-    ),
-  ).toBe(true);
-  const normalized = repo.claim('normalizer')!;
-  expect(
-    await executeStage(
-      repo,
-      normalized,
-      normalizeFramesStage('walk'),
-      signal(),
-      undefined,
-      store,
-    ),
-  ).toBe(true);
-  const source = normalizedFramesOutputSchema.parse(
-    JSON.parse(repo.step(normalized.step.id)!.outputJson!),
-  );
-  reopen();
-  return { jobId, source, work: repo.claim('packer')! };
-}
-
-it('packs the selected normalized branch across restart with ordered hashes and deterministic bytes', async () => {
-  const { work, source } = await prepareSheet();
-  const before = await Promise.all(
-    source.frames.map(({ image }) => store.read(image)),
-  );
-  const stage = buildSheetStage('walk');
-  let first: Awaited<ReturnType<typeof stage.execute>> | undefined;
-  expect(
-    await executeStage(
-      repo,
-      work,
-      {
-        ...stage,
-        async execute(...args: Parameters<typeof stage.execute>) {
-          first = await stage.execute(...args);
-          const second = await stage.execute(...args);
-          expect(second.image.sha256).toBe(first.image.sha256);
-          expect(await store.read(second.image)).toEqual(
-            await store.read(first.image),
-          );
-          return second;
-        },
-      },
-      signal(),
-      undefined,
-      store,
-    ),
-  ).toBe(true);
-  reopen();
-  const output = sheetOutputSchema.parse(
-    JSON.parse(repo.step(work.step.id)!.outputJson!),
-  );
-  expect(output.sourceHashes).toEqual(
-    source.frames.map(({ image }) => image.sha256),
-  );
-  expect(output).toMatchObject({
-    animation: 'walk',
-    frameCount: 3,
-    columns: 2,
-    footAnchor: { x: 128, y: 224 },
-    image: { width: 512, height: 512, attemptId: work.claim.attemptId },
-  });
-  expect(
-    await Promise.all(source.frames.map(({ image }) => store.read(image))),
-  ).toEqual(before);
-  expect(
-    sheetOutputSchema.safeParse({ ...output, frameCount: 2 }).success,
-  ).toBe(false);
-});
-
-it('rejects corrupt normalized input before installing a sheet', async () => {
-  const { work, source } = await prepareSheet();
-  const image = source.frames[1]!.image;
-  const file = join(
-    root,
-    'artifacts',
-    image.stepId,
-    image.attemptId,
-    `${image.artifactId}.png`,
-  );
-  chmodSync(file, 0o600);
-  writeFileSync(file, Buffer.alloc(image.bytes));
-  const put = vi.spyOn(store, 'putPng');
-  await expect(
-    executeStage(
-      repo,
-      work,
-      buildSheetStage('walk'),
-      signal(),
-      undefined,
-      store,
-    ),
-  ).rejects.toThrow('Artifact hash mismatch');
-  expect(put).not.toHaveBeenCalled();
-  expect(repo.step(work.step.id)!.outputJson).toBeNull();
-});
-
-it('does not adopt a sheet cancelled after artifact installation', async () => {
-  const { work } = await prepareSheet();
-  const controller = new AbortController();
-  const original = store.putPng.bind(store);
-  vi.spyOn(store, 'putPng').mockImplementation(async (...args) => {
-    const image = await original(...args);
-    repo.cancel(work.step.jobId);
-    controller.abort();
-    return image;
-  });
-  await expect(
-    executeStage(
-      repo,
-      work,
-      buildSheetStage('walk'),
-      controller.signal,
-      undefined,
-      store,
-    ),
-  ).rejects.toThrow();
-  expect(repo.step(work.step.id)!.outputJson).toBeNull();
-});
-
-it('fences expired sheets and rejects old artifacts on a replacement attempt', async () => {
-  const { work } = await prepareSheet();
-  const stage = buildSheetStage('walk');
-  let stale: Awaited<ReturnType<typeof stage.execute>> | undefined;
-  expect(
-    await executeStage(
-      repo,
-      work,
-      {
-        ...stage,
-        async execute(...args: Parameters<typeof stage.execute>) {
-          stale = await stage.execute(...args);
-          now += 60_000;
-          repo.recoverExpired();
-          return stale;
-        },
-      },
-      signal(),
-      undefined,
-      store,
-    ),
-  ).toBe(false);
-  reopen();
-  now += 2000;
-  const replacement = repo.claim('replacement')!;
-  await expect(
-    executeStage(
-      repo,
-      replacement,
-      { ...stage, execute: async () => stale! },
-      signal(),
-      undefined,
-      store,
-    ),
-  ).rejects.toThrow('attempt mismatch');
-  expect(
-    await executeStage(repo, replacement, stage, signal(), undefined, store),
-  ).toBe(true);
-  const adopted = sheetOutputSchema.parse(
-    JSON.parse(repo.step(work.step.id)!.outputJson!),
-  );
-  expect(adopted.image.sha256).toBe(stale!.image.sha256);
-  expect(adopted.image.attemptId).toBe(replacement.claim.attemptId);
-});
 
 it('adopts capture/analysis/cleanup/master with actual PNGs, lineage and no review/publication side effects', async () => {
   const { jobId, upstream, work } = await prepareMaster();
@@ -1370,4 +1195,170 @@ it('rejects provider changes to the explicitly selected body type', async () => 
   await expect(run(repo.claim('analysis')!)).rejects.toThrow(
     'explicit creative choices',
   );
+});
+
+async function prepareSheet() {
+  const { work: frames } = await prepareFrameBranch('walk', true, true);
+  expect(
+    await executeStage(
+      repo,
+      frames,
+      framesStage(new FrameMockProvider(), 'walk'),
+      signal(),
+      undefined,
+      store,
+    ),
+  ).toBe(true);
+  const normalization = repo.claim('normalizer')!;
+  expect(
+    await executeStage(
+      repo,
+      normalization,
+      normalizeFramesStage('walk'),
+      signal(),
+      undefined,
+      store,
+    ),
+  ).toBe(true);
+  const source = normalizedFramesOutputSchema.parse(
+    JSON.parse(repo.step(normalization.step.id)!.outputJson!),
+  );
+  reopen();
+  return { source, work: repo.claim('packer')! };
+}
+
+it('adopts a deterministic sheet from the selected normalized branch', async () => {
+  const { source, work } = await prepareSheet();
+  expect(
+    await executeStage(
+      repo,
+      work,
+      packSheetStage('walk'),
+      signal(),
+      undefined,
+      store,
+    ),
+  ).toBe(true);
+  reopen();
+  const output = sheetOutputSchema.parse(
+    JSON.parse(repo.step(work.step.id)!.outputJson!),
+  );
+  expect(output.sourceSha256s).toEqual(
+    source.frames.map((frame) => frame.image.sha256),
+  );
+  expect(output).toMatchObject({
+    animation: 'walk',
+    frameCount: 3,
+    columns: 2,
+    frameWidth: 256,
+    frameHeight: 256,
+    footAnchor: source.footAnchor,
+  });
+  expect(output.image).toMatchObject({
+    width: 512,
+    height: 512,
+    attemptId: work.claim.attemptId,
+  });
+  expect(sha256(await store.read(output.image))).toBe(output.image.sha256);
+});
+
+it('refuses corrupt normalized artifacts without adopting a sheet', async () => {
+  const { source, work } = await prepareSheet();
+  const image = source.frames[1]!.image;
+  const file = join(
+    root,
+    'artifacts',
+    image.stepId,
+    image.attemptId,
+    `${image.artifactId}.png`,
+  );
+  chmodSync(file, 0o600);
+  writeFileSync(file, Buffer.alloc(image.bytes));
+  await expect(
+    executeStage(
+      repo,
+      work,
+      packSheetStage('walk'),
+      signal(),
+      undefined,
+      store,
+    ),
+  ).rejects.toThrow('Artifact hash mismatch');
+  expect(repo.step(work.step.id)!.outputJson).toBeNull();
+});
+
+it('fences expired sheet attempts and rejects stale artifact adoption', async () => {
+  const { work } = await prepareSheet();
+  const stage = packSheetStage('walk');
+  let stale: Awaited<ReturnType<typeof stage.execute>> | undefined;
+  const expiring = {
+    ...stage,
+    async execute(...args: Parameters<typeof stage.execute>) {
+      stale = await stage.execute(...args);
+      now += 60000;
+      repo.recoverExpired();
+      return stale;
+    },
+  };
+  expect(
+    await executeStage(repo, work, expiring, signal(), undefined, store),
+  ).toBe(false);
+  reopen();
+  now += 2000;
+  const replacement = repo.claim('replacement')!;
+  await expect(
+    executeStage(
+      repo,
+      replacement,
+      { ...stage, execute: async () => stale! },
+      signal(),
+      undefined,
+      store,
+    ),
+  ).rejects.toThrow('attempt mismatch');
+  expect(
+    await executeStage(repo, replacement, stage, signal(), undefined, store),
+  ).toBe(true);
+  const output = sheetOutputSchema.parse(
+    JSON.parse(repo.step(work.step.id)!.outputJson!),
+  );
+  expect(output.image.sha256).toBe(stale!.image.sha256);
+  expect(output.image.attemptId).toBe(replacement.claim.attemptId);
+});
+
+it('does not adopt a sheet cancelled after artifact creation', async () => {
+  const { work } = await prepareSheet();
+  const controller = new AbortController();
+  const put = store.putPng.bind(store);
+  vi.spyOn(store, 'putPng').mockImplementation(async (...args) => {
+    const result = await put(...args);
+    controller.abort();
+    return result;
+  });
+  await expect(
+    executeStage(
+      repo,
+      work,
+      packSheetStage('walk'),
+      controller.signal,
+      undefined,
+      store,
+    ),
+  ).rejects.toThrow();
+  expect(repo.step(work.step.id)!.outputJson).toBeNull();
+});
+
+it('rejects a handler for a different branch', async () => {
+  const { work } = await prepareSheet();
+  await expect(
+    executeStage(
+      repo,
+      work,
+      packSheetStage('idle'),
+      signal(),
+      undefined,
+      store,
+    ),
+  ).rejects.toThrow();
+  expect(repo.step(work.step.id)!.outputJson).toBeNull();
 });

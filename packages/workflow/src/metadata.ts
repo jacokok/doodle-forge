@@ -11,7 +11,7 @@ import { characterMetadataSchema } from '@doodleforge/contracts/authoring';
 import { artifactSchema } from './artifacts.js';
 import { stageEnvelopeSchema } from './envelope.js';
 import { analysisOutputSchema, poseAnimationSchema } from './mock-stages.js';
-import { sheetOutputSchema } from './sheet.js';
+import { buildSheetOutputSchema } from './build-sheet.js';
 import type { Stage } from './index.js';
 
 // Provider branch names are not the public manifest animation names.
@@ -106,7 +106,9 @@ export function generateMetadataStage(): Stage<
             item.targetKey === branch,
         );
         if (!parent) throw new Error('Required sheet dependency unavailable');
-        const sheet = sheetOutputSchema.parse(JSON.parse(parent.outputJson));
+        const sheet = buildSheetOutputSchema.parse(
+          JSON.parse(parent.outputJson),
+        );
         if (sheet.animation !== branch || sheet.style !== provenance.style)
           throw new Error('Sheet branch/style mismatch');
         if (

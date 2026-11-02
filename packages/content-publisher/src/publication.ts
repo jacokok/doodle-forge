@@ -41,6 +41,39 @@ async function writeDurable(filename: string, bytes: string | Buffer) {
   await syncDirectory(path.dirname(filename));
 }
 
+export async function validateAssetBuffer(
+  bytes: Buffer,
+  asset: Pick<
+    CharacterManifest['assets'][string],
+    'bytes' | 'sha256' | 'width' | 'height'
+  >,
+): Promise<void> {
+  if (bytes.length !== asset.bytes || sha256(bytes) !== asset.sha256)
+    throw new Error('Asset byte length/hash mismatch');
+  const image = sharp(bytes, {
+    limitInputPixels: 4096 * 4096,
+    failOn: 'warning',
+    animated: true,
+  });
+  const metadata = await image.metadata();
+  if (
+    metadata.format !== 'png' ||
+    metadata.width !== asset.width ||
+    metadata.height !== asset.height ||
+    (metadata.pages ?? 1) !== 1 ||
+    !metadata.hasAlpha ||
+    metadata.channels !== 4
+  )
+    throw new Error('Invalid RGBA PNG dimensions/pages');
+  const decoded = await image.raw().toBuffer({ resolveWithObject: true });
+  if (
+    decoded.info.width !== asset.width ||
+    decoded.info.height !== asset.height ||
+    decoded.info.channels !== 4
+  )
+    throw new Error('PNG decode mismatch');
+}
+
 export class PublicationService {
   constructor(
     private readonly reviews: ReviewService,
@@ -60,30 +93,7 @@ export class PublicationService {
       if (!target.startsWith(root + path.sep))
         throw new Error('Asset package escape');
       const bytes = await readBoundedFile(target, asset.bytes);
-      if (bytes.length !== asset.bytes || sha256(bytes) !== asset.sha256)
-        throw new Error('Asset byte length/hash mismatch');
-      const image = sharp(bytes, {
-        limitInputPixels: 4096 * 4096,
-        failOn: 'warning',
-        animated: true,
-      });
-      const metadata = await image.metadata();
-      if (
-        metadata.format !== 'png' ||
-        metadata.width !== asset.width ||
-        metadata.height !== asset.height ||
-        (metadata.pages ?? 1) !== 1 ||
-        !metadata.hasAlpha ||
-        metadata.channels !== 4
-      )
-        throw new Error('Invalid RGBA PNG dimensions/pages');
-      const decoded = await image.raw().toBuffer({ resolveWithObject: true });
-      if (
-        decoded.info.width !== asset.width ||
-        decoded.info.height !== asset.height ||
-        decoded.info.channels !== 4
-      )
-        throw new Error('PNG decode mismatch');
+      await validateAssetBuffer(bytes, asset);
       if (consume) await consume(asset.path, bytes);
     }
   }
