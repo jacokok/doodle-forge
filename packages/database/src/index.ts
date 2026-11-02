@@ -73,4 +73,5 @@ export {
   SnapshotRepository,
   ReviewConflictError,
   type ApprovalDecision,
+  type FrozenSnapshotInput,
 } from './snapshots.js';

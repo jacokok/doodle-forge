@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { and, eq, lte } from 'drizzle-orm';
 import type { DatabaseConnection } from './index.js';
+import { SnapshotRepository, type FrozenSnapshotInput } from './snapshots.js';
 import {
   generationJobs,
   generationSteps,
@@ -291,6 +292,60 @@ export class WorkflowRepository {
       // Completing computation never implies review approval or publication. Gates arrive with snapshot stages.
       return true;
     });
+  }
+  /** Adopt a terminal validation checkpoint and its review snapshot in the same write lock. */
+  completeReview(
+    claim: WorkflowClaim,
+    outputJson: string,
+    snapshot: FrozenSnapshotInput,
+  ) {
+    JSON.parse(outputJson);
+    const lostLease = new Error('Review lease lost');
+    try {
+      return this.transaction((now) => {
+        if (!this.owns(claim, now)) return false;
+        const step = this.step(claim.stepId)!;
+        const job = this.job(step.jobId)!;
+        const envelope = JSON.parse(step.inputJson) as {
+          characterId: string;
+          characterVersion: number;
+        };
+        if (
+          step.stageKey !== 'validate-review' ||
+          step.stageVersion !== '1' ||
+          step.targetKey !== '' ||
+          job.kind !== 'generate' ||
+          job.characterId !== snapshot.characterId ||
+          envelope.characterId !== snapshot.characterId ||
+          envelope.characterVersion !== snapshot.version
+        )
+          throw new Error('Review snapshot identity mismatch');
+        const unfinished = this.connection.sqlite
+          .prepare(
+            "SELECT 1 FROM generation_steps WHERE job_id=? AND id!=? AND status!='succeeded' LIMIT 1",
+          )
+          .get(job.id, step.id);
+        if (unfinished)
+          throw new Error('Review requires all other steps to have succeeded');
+        const frozen = new SnapshotRepository(this.connection).freeze(snapshot);
+        if (
+          job.characterVersionId !== null &&
+          job.characterVersionId !== frozen.id
+        )
+          throw new Error('Job review version conflict');
+        // Recheck the clock after snapshot insertion; a failure rolls the insertion back too.
+        if (!this.complete(claim, outputJson)) throw lostLease;
+        this.connection.sqlite
+          .prepare(
+            "UPDATE generation_jobs SET character_version_id=?,status='waiting_approval',updated_at=? WHERE id=?",
+          )
+          .run(frozen.id, now, job.id);
+        return true;
+      });
+    } catch (error) {
+      if (error === lostLease) return false;
+      throw error;
+    }
   }
   fail(claim: WorkflowClaim, errorJson: string, retryable: boolean) {
     JSON.parse(errorJson);

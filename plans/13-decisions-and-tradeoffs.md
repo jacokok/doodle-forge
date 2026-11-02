@@ -199,5 +199,81 @@ Stage implementations may declare a dependency as `{stageKey, targetKey}` to sel
 
 ### ADR-038 — Explicit body choice and provisional target anchor (accepted)
 
+The library-only body stage consumes the adopted master and capture-first analysis, verifies the master bytes, and preserves the explicit body choice rather than inventing a provider suggestion. It reports the contract's (128,224) foot anchor as a target, not a measured or normalized position. No image alignment, body detection, user confirmation flow, worker registration or publication authority is implied. Pose/frame generation and image normalization must perform their own validation.
 
-[Showing lines 1-201 of 268 (50.0KB limit). Use offset=202 to continue.]
+### ADR-039 — Mock pose adapter and target identity (accepted)
+
+The library-only pose stage adapts the capture-first brief into ADR-033's separate mock frame-provider request and persists one candidate per animation branch. Its deterministic palette derives from the master hash; the mock frame provider conditions on that hash, not the master pixels, and cannot demonstrate visual identity preservation. Candidate PNG/hash/alpha and provider provenance are validated before attempt-scoped adoption. The executor supplies the claimed step target to stage context so the animation request cannot silently mismatch its branch. No provider interface merge, production registration, frame sequence, anchor normalization, approval or publication is implied. The image validator's internal synthetic wrapper is only a reuse mechanism and is not persisted as the actual provider provenance.
+
+### ADR-040 — Durable raw-frame branch with mock pose boundary (accepted)
+
+The library frame stage addresses the matching pose by stage and animation target, revalidates adopted pose/master files, and installs an ordered bounded sequence as attempt-scoped artifacts before fenced adoption. Its provenance includes master and pose hashes and the dependency-resolved input identity. The existing mock frame provider accepts a master hash but no pose image or pose hash: the pose is verified and recorded as a workflow dependency, not a conditioning input to generated pixels. This does not claim pose-conditioned generation, normalization, sheets, cache reuse, production worker support or publication. Replacing the mock with genuine reference conditioning requires an explicit provider-contract change.
+
+### ADR-041 — Conservative mock-frame normalization bounds (accepted)
+
+The first standalone normalizer uses every nonzero-alpha pixel for bounds rather than plan 07's proposed threshold: this conservatively retains faint visible pixels instead of silently clipping them. It rejects source art touching an input edge as potentially clipped, never enlarges, fits within a 224×208 area, and aligns the resulting bounding-box bottom center to the (128,224) target using nearest-neighbor for pixel style and Lanczos for others. Bounding-box bottom center is a provisional heuristic, not an anatomically measured foot; per-frame downscaling can affect temporal consistency and needs review. This is a standalone image operation, not yet a workflow stage, a sheet, or approval evidence.
+
+### ADR-042 — Attempt-scoped frame normalization (accepted)
+
+The library normalization stage consumes a specific adopted animation frame branch, revalidates each selected frame and persists ordered normalized images through the existing attempt artifact and lease-fencing protocol. Checkpoints retain source hashes, placement diagnostics, style and resolved input identity. Completion grants no review or publication authority; this stage is not registered in the production worker. ADR-041's bounding-box anchor and per-frame fit limitations still apply.
+
+### ADR-046 — Generated asset validation checkpoint (accepted)
+
+A library-only stage validates the selected manifest and five sheet checkpoints, checks provenance, rereads private artifacts and applies the publisher's shared full PNG byte validator under the existing workflow completion fence. The publisher still stages the same buffers it validates. This checkpoint does not install or freeze a package, guarantee future file integrity, or authorize review or publication; a later freeze must revalidate and establish private visibility and decision guards atomically. The workflow now depends on the existing publisher package for its validation policy.
+
+### ADR-045 — Fenced manifest checkpoint (accepted)
+
+A library-only manifest stage joins the five selected sheet checkpoints and revalidates their private PNG artifacts before assembling metadata. It records the manifest, canonical hash and selected-sheet provenance in bounded fenced checkpoint JSON; the PNG-only artifact store is not extended to store JSON. Manifest paths use content hashes but do not imply that package files have been installed. This is neither full package validation nor a review snapshot, and does not authorize approval or publication. Gameplay and timing remain explicit inputs pending a separately approved catalog.
+
+### ADR-044 — Explicit metadata assembly (accepted)
+
+The pure manifest assembler requires caller-supplied character, gameplay, animation timing and sheet metadata; it does not infer gameplay from mock AI or fixture values. It maps the five existing workflow branches to v1 animation names, validates schema and semantics, and hashes the publisher's canonical JSON bytes. Declared asset metadata is not evidence that files exist or are valid; asset verification, review freeze, approval and publication remain separate boundaries. An approved gameplay catalog and production composition remain future work.
+
+### ADR-043 — Fenced branch-addressed sprite sheets (accepted)
+
+The library sheet stage consumes one adopted normalized animation branch, revalidates its ordered artifacts and style, and persists a deterministic packed PNG through the existing attempt fence. Its checkpoint records source hashes and layout; columns are explicit inputs. This is not a manifest, a review snapshot, production worker registration or publication authority. ADR-041's provisional anchor limitations remain.
+
+### ADR-047 — Attempt-scoped animation sheet packing (accepted)
+
+The library-only `build-sheet@1` stage consumes exactly one adopted `normalize-frames@1` animation branch. It revalidates ordered source files and selected attempt identity, packs with the deterministic animation library, and installs a new attempt-scoped PNG before fenced checkpoint adoption. Strict layout metadata, ordered source hashes, inherited style/target anchor and resolved input identity are persisted; column count is an explicit hashed input. This bounded mock stage supports 1–8 frames and 1–8 columns, narrower than the standalone packer. It preserves ADR-041's provisional anchor limitations and does not independently establish temporal/anchor consistency. Cache reuse remains disabled; no production registration, manifest, frozen review or publication authority is introduced. Interrupted/stale installations remain private orphans under the existing artifact policy.
+
+### ADR-048 — Canonical metadata join and trusted light-melee catalog (accepted)
+
+The library-only `generate-metadata@1` stage joins all five adopted sheet targets plus capture-first analysis. It revalidates selected attempt identity and PNG bytes, rejects branch/style mismatches, maps provider `attack`/`ko` targets to public `attack_light`/`knockout`, and emits a shared-v1 manifest with its canonical UTF-8 SHA-256 and private sheet references in a fenced JSON checkpoint. Package paths are derived only as `assets/<sha256>.png`; attempt paths never enter game content. Gameplay comes from the contracts-owned `light-melee@1` catalog, using the existing fixture's fixed stats, boxes, anchors and melee timings for every body type. Only explicit `light_melee`/`none` intent is supported; unselected/unsupported choices fail rather than silently selecting gameplay. Idle runs at 8 FPS, other animations at 10 FPS; only idle/walk loop. Text, provider output and image dimensions cannot override combat values. Future tuning requires a new catalog/stage identity for immutable input/cache compatibility.
+
+This checkpoint is not a frozen review version, source registration or a manifest file in a package directory. It grants no review/publication authority, holds no approval state and introduces no production registration or cache reuse. A later validation/freeze increment must reverify all referenced files and adopt the snapshot under job cancellation/lease fencing. Existing provisional anchor, synthetic-art and orphan-retention limitations remain.
+
+### ADR-049 — Fenced generated review freeze and artifact-source registration (accepted)
+
+Library-only `validate-review@1` requires the adopted metadata checkpoint and all five selected sheet checkpoints. It verifies manifest identity, exact sheet/attempt bindings, schema/semantics/hash, strict bounded RGBA decode, nonempty transparent frames, no frame-edge art and fully transparent unused cells. The PNG decoder is shared with publication; stricter generated-frame checks apply only at generated review and do not retroactively reject historical fixture packages. A compact validation report accompanies the output. This still cannot prove anatomical anchors, temporal consistency or art fidelity.
+
+Stages may declare a pure `reviewSnapshot` projection. Only the executor's fenced completion persists it: `WorkflowRepository.completeReview` requires the terminal `validate-review@1` step in a generation job and all other computation succeeded, freezes via the existing snapshot repository, completes checkpoint/attempt, links the version and transitions the job to `waiting_approval` in one immediate SQLite transaction. It rechecks lease ownership after freeze; expiry, cancellation, archive/version conflict or a later DB failure leaves no partial snapshot/checkpoint/gate. Waiting holds no lease. Cancel after adoption preserves immutable review history without approving it. No automatic approval, waiting-publish transition or release activation is inferred.
+
+Generated source registration is a strict `workflow-artifacts@1` record in immutable `sourceSnapshotJson`, binding hash-derived manifest asset IDs to selected attempt artifact refs plus validation/metadata step and source/checkpoint hashes. It is not arbitrary filesystem hints, an asset-table migration, a materialized package or new public delivery authority. Future private review/publication source resolution must validate the matching adopted job/checkpoint/owner and cancellation/gate state and reverify bytes; merely parsing this record is insufficient. No automatic version reservation, public generation enqueue, production registration or generated preview/publication route is added. Existing fixture commands remain source-limited. Artifacts must be retained while referenced; local filesystem trust/orphan policy and same-host clock assumptions remain.
+
+### ADR-050 — Reconcile parallel workflow protocols without rewriting checkpoints (accepted)
+
+Remote c1c0107 through 33a9efb and local 44a355e independently implemented overlapping sheet/metadata stages. Both retain distinct identities: remote `pack-sheet@1` uses mock parameters, `inputs.columns`, `sourceSha256s`, explicit gameplay/timing assembly and validation-only `validate-assets`; local `build-sheet@1` uses `parameters.columns`, `sourceHashes`, the fixed light-melee catalog and atomic `validate-review` freeze. Local code/schema now lives in `build-sheet.ts`/`buildSheetOutputSchema`; remote `sheet.ts`/`sheetOutputSchema` retains its contract. Existing checkpoints/inputs are not converted or reinterpreted. Local sheet regressions are separated from remote mock-stage tests. Neither path is production-registered; selecting/consolidating a production graph remains an explicit subsequent decision. The catalog is an optional server policy, not a replacement for the remote pure assembler's explicit-input boundary.
+
+The remote public `validateAssetBuffer` API remains exported and delegates to the same strict decoder as generated review; publication, validation-only and freeze share admission without duplicate PNG logic. Remote ADRs 043–046 retain their IDs; conflicting local ADRs are renumbered 047 (sheet), 048 (metadata/catalog) and 049 (freeze). Earlier progress retains both branches' historical evidence. The remote freeze-blocked note is superseded only for the tested local library boundary: generated private previews, Studio gate synchronization and publication remain unwired. No history rewrite, automatic phase advancement or release visibility change is introduced.
+
+## Dependencies
+Plans 01–11 contain detailed consequences. Roadmap orders implementations; progress records evidence. External source availability affects research, not local test status.
+
+## Implementation tasks
+- [x] Verify selected Godot binary and Linux x86_64 export templates in Phase 1 (ADR-007 addendum).
+- [x] Pin and record Node/pnpm/library versions after compatibility tests (ADR-014).
+- [ ] Record chosen real providers and consent/cost terms in Phase 7.
+- [ ] Add superseding ADR for any major deviation before implementation.
+
+## Acceptance criteria
+Every major boundary has rationale and consequences. Deferred choices have an owner phase and do not masquerade as tested decisions. Changes are traceable to updated plans and relevant tests.
+
+## Risks and limitations
+Upstream releases and terms change. Reverify sources during implementation without silently upgrading established pins. Early fixed-canvas and local-trust decisions may require explicit revision as product scope grows.
+
+## Future considerations
+Signed bundles, hosted identity, storage/queue scaling, new content schemas and combat executors warrant new ADRs rather than ad hoc package dependencies.
+
+### ADR-024 — Explicit safe-boundary manual catalog replacement (accepted, Phase 4 increment)
+**Decision:** API-mode Refresh is user-triggered only and allowed when no arena load is active and combat is not running (idle practice, loss, or completed match). Use a new repository/factory and independently validate its entire catalog; reconcile selection by character ID, defaulting to the candidate's first entry. Prepare a complete selected generic fighter, including asset fetch/integrity checks and native decoding, in a hidden staging node. Only on success synchronously replace repository, factory, catalog, pinned release and player, then free the old player. Empty catalogs or any candidate/resource error retain the previous coherent arena state and surface an explicit refresh error; initial discovery failures remain errors without fixtures. Reject overlap; no queueing. **Rationale:** old fighters/releases remain usable until one safe replacement boundary, with no mixed-release match and no partial state. **Alternatives rejected:** mutating the pinned repository, swapping catalog before resources are playable, clearing the old match on candidate failure, refreshing on Start/reset/retry/failure, polling, or accepting refresh during combat/loading. **Consequences:** candidate discovery and one selected fighter are proven playable before activation, but unselected candidate entries are loaded on demand; a later load can still explicitly fail. Empty-catalog replacement is refused. This is not polling or the separate data-only live-addition acceptance proof. Default fixture mode and opt-in PNG cache are unchanged. See docs/phase-4-godot-arena.md and plan 14.

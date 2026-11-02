@@ -4,6 +4,8 @@
 DoodleForge turns children's paper drawings into approved, versioned game characters. It comprises a SvelteKit studio/API, SQLite content store, independent TypeScript workflow worker, asset tooling, and a Godot 4 2D-rendered 2.5D beat-'em-up. Phase 0 is complete and reviewed; Phase 1 foundation and Phase 2 contract have been locally verified. Read live progress for the current verified milestone and do not advance phases silently.
 
 ## Required reading and workflow
+Before editing, inspect Git status, fetch the tracked remote and compare local/remote history. Integrate remote changes before implementation, preserving any local commits and uncommitted work with a safety branch/stash as needed. Do not blindly pull over dirty files, discard either side, or force-push. If fetching is unavailable, report that limitation before proceeding. Recheck remote history before final integration.
+
 Before implementation, read `plans/README.md`, `plans/12-implementation-roadmap.md`, and `plans/14-progress.md`, then the relevant architecture plans. Identify current phase and tasks. Inspect existing files, state a small implementation approach, implement an increment, run tests, update progress, and record any architectural change in `plans/13-decisions-and-tradeoffs.md`. Never mark unverified work complete or claim unrun tests passed.
 
 ## Technology and monorepo conventions

@@ -50,15 +50,27 @@ Mock analysis normalizes plain text without tools and preserves explicit choices
 
 Next: persisted body/pose/frame stages using the provider candidates, normalization/sheet packing and explicit capture-first worker registration, followed by freeze/gates/progress. No generated review/publication authority is introduced by this slice. Phase 5 manual accessibility/child-usability checks remain deferred, not passed.
 
-## Durable normalization and sheet libraries (ADRs 042/043)
+## Durable normalization and sheet libraries (ADRs 042/047)
 
 Branch-addressed `normalize-frames@1` and `build-sheet@1` now consume adopted upstream checkpoints and reverify selected attempt-scoped files. Sheet input has `inputs: {animation}` and `parameters: {columns}` (1–8). It depends on the matching normalization target, packs 1–8 ordered 256×256 frames, and records the new sheet artifact, dimensions/layout, ordered normalized hashes, style, provisional target anchor and resolved input hash. Packing does not independently prove foot alignment or temporal consistency. The executor verifies the produced file before lease-fenced adoption. Restart, corrupt input, post-install cancellation and stale-attempt tests use real SQLite/storage. Neither stage is production-registered; cache reuse, manifests, frozen review, gates and complete generation remain pending.
 
-## Canonical metadata library (ADR-044)
+## Canonical metadata library (ADR-048)
 
 `generate-metadata@1` uses empty target, `inputs: {name}` and `parameters: {catalog: 'light-melee@1'}`. Required predecessors are capture-first analysis and all five `build-sheet@1` targets. It checks branch/style consistency and selected artifact attempt identity, then revalidates every PNG through the artifact store. Provider targets `attack` and `ko` become `attack_light` and `knockout`. The contracts-owned catalog supplies fixed gameplay defaults only for explicit light-melee/no-power intent; neither creative text nor provider values supply combat numbers. Idle is 8 FPS; other clips are 10 FPS; only idle/walk loop.
 
 The fenced JSON checkpoint contains the shared-schema/semantic-validated manifest, SHA-256 of its canonical UTF-8 bytes, sheet artifact bindings, catalog identity and resolved input identity. Package asset paths are hash-derived; private attempt paths are never exposed in the manifest. No manifest file, source registration, frozen review, approval, publication or production worker handler is created. Validation/freeze must reverify files and coordinate snapshot adoption with the job fence/cancellation before review is enabled. Metadata tests use synthetic upstream checkpoint producers and real PNGs/SQLite/storage, not the full capture-to-game flow.
+
+## Fenced review validation library (ADR-049)
+
+`validate-review@1` uses empty target/inputs/parameters and depends on `generate-metadata@1` plus all five selected `build-sheet@1` branches. It verifies exact metadata/sheet identity and decodes every PNG with the publication-shared decoder. Generated review additionally rejects empty/opaque frames, visible art touching frame edges and nontransparent unused cells. Five-sheet/total-frame diagnostics are persisted; anatomical anchor and temporal/art fidelity remain unverified.
+
+The stage has no direct DB side effects. Its pure `reviewSnapshot` projection is passed by the executor to `completeReview`, which freezes the canonical manifest and immutable source registry, adopts checkpoint/attempt, links the version and moves the generation job to `waiting_approval` in one short fenced transaction. Every other computation step must already have succeeded. Lease ownership is checked again after snapshot insertion; failure rolls everything back. Waiting owns no lease. Version collisions fail rather than overwrite or reserve a different number. Cancelling a waiting job preserves immutable historical review data, not permission to publish it.
+
+The strict `workflow-artifacts@1` source record contains selected artifact references keyed by manifest asset ID, validation/metadata step IDs and source/resolved/checkpoint hashes—no client-selected paths. It registers durable private sources without materializing a package or adding asset-table rows. Future generated-source readers must match adopted job/checkpoint/owner and cancellation/gate state and reverify bytes. Current Studio commands still reject generated sources; private previews, approval/waiting-publish synchronization, durable publication and production graph registration remain unwired. No existing fixture release is changed.
+
+## Parallel protocol reconciliation (ADR-050)
+
+Remote `pack-sheet`/`assemble-manifest`/`validate-assets` contracts remain intact. Their sheet output is `sheetOutputSchema` from `sheet.ts` (`sourceSha256s`, columns in inputs, explicit mock parameters). The catalog-driven path uses `build-sheet`/`generate-metadata`/`validate-review` with `buildSheetOutputSchema` from `build-sheet.ts` (`sourceHashes`, columns in parameters). Do not mix schemas, silently rename persisted stages, or interpret a validation-only checkpoint as review authority. The local pure snapshot projection applies only to `validate-review`. No production graph is selected or enabled by this reconciliation.
 
 ## Verification
 

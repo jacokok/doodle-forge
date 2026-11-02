@@ -1,7 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { canonicalJson, sha256 } from '@doodleforge/contracts';
-import { WorkflowRepository, type WorkflowClaim } from '@doodleforge/database';
+import {
+  WorkflowRepository,
+  type WorkflowClaim,
+  type FrozenSnapshotInput,
+} from '@doodleforge/database';
 
 import { ArtifactStore, type Artifact } from './artifacts.js';
 export { ArtifactStore, artifactSchema, type Artifact } from './artifacts.js';
@@ -26,6 +30,11 @@ export { packSheetStage, sheetOutputSchema } from './sheet.js';
 export { captureArtworkStage, captureOutputSchema } from './capture.js';
 export { buildSheetStage, buildSheetOutputSchema } from './build-sheet.js';
 export { generateMetadataStage, metadataOutputSchema } from './metadata.js';
+export {
+  validateReviewStage,
+  reviewValidationOutputSchema,
+  generatedReviewSourceSchema,
+} from './review.js';
 export {
   normalizeFramesStage,
   normalizedFramesOutputSchema,
@@ -84,6 +93,8 @@ export interface Stage<I, O> {
   )[];
   /** All newly produced files must be declared for verification before adoption. */
   readonly artifactRefs?: (output: O) => readonly Artifact[];
+  /** Pure projection only; the repository commits this alongside the checkpoint under its fence. */
+  readonly reviewSnapshot?: (output: O) => FrozenSnapshotInput;
   execute(context: StageContext, input: I): Promise<O>;
 }
 
@@ -295,5 +306,11 @@ export async function executeStage<I, O>(
   const outputJson = canonicalJson(z.json().parse(output));
   if (Buffer.byteLength(outputJson) > 256 * 1024)
     throw new Error('Stage output too large');
-  return repository.complete(work.claim, outputJson);
+  return stage.reviewSnapshot
+    ? repository.completeReview(
+        work.claim,
+        outputJson,
+        stage.reviewSnapshot(output),
+      )
+    : repository.complete(work.claim, outputJson);
 }

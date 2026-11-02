@@ -4,6 +4,7 @@ export {
   validateAssetBuffer,
   type PublicationBoundary,
 } from './publication.js';
+export { decodePngAsset, validateReviewSheet } from './validation.js';
 export {
   PublishedContentService,
   ContentError,

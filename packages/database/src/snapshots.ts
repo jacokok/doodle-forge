@@ -9,7 +9,7 @@ import {
   contentReleaseEntries,
 } from './schema.js';
 
-type FrozenInput = Pick<
+export type FrozenSnapshotInput = Pick<
   typeof characterVersions.$inferInsert,
   'characterId' | 'version' | 'sourceSnapshotJson'
 > & {
@@ -116,7 +116,7 @@ export class SnapshotRepository {
       throw new ReviewConflictError();
   }
 
-  freeze(input: FrozenInput) {
+  freeze(input: FrozenSnapshotInput) {
     return this.connection.sqlite
       .transaction(() => {
         const owner = this.connection.db

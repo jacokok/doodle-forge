@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, open, realpath, rename, rm, readdir } from 'node:fs/promises';
 import path from 'node:path';
-import sharp from 'sharp';
+import { decodePngAsset } from './validation.js';
 import {
   canonicalJson,
   releaseIndexSchema,
@@ -48,30 +48,7 @@ export async function validateAssetBuffer(
     'bytes' | 'sha256' | 'width' | 'height'
   >,
 ): Promise<void> {
-  if (bytes.length !== asset.bytes || sha256(bytes) !== asset.sha256)
-    throw new Error('Asset byte length/hash mismatch');
-  const image = sharp(bytes, {
-    limitInputPixels: 4096 * 4096,
-    failOn: 'warning',
-    animated: true,
-  });
-  const metadata = await image.metadata();
-  if (
-    metadata.format !== 'png' ||
-    metadata.width !== asset.width ||
-    metadata.height !== asset.height ||
-    (metadata.pages ?? 1) !== 1 ||
-    !metadata.hasAlpha ||
-    metadata.channels !== 4
-  )
-    throw new Error('Invalid RGBA PNG dimensions/pages');
-  const decoded = await image.raw().toBuffer({ resolveWithObject: true });
-  if (
-    decoded.info.width !== asset.width ||
-    decoded.info.height !== asset.height ||
-    decoded.info.channels !== 4
-  )
-    throw new Error('PNG decode mismatch');
+  await decodePngAsset(bytes, asset);
 }
 
 export class PublicationService {

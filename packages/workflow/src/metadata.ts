@@ -15,7 +15,7 @@ import { buildSheetOutputSchema } from './build-sheet.js';
 import type { Stage } from './index.js';
 
 // Provider branch names are not the public manifest animation names.
-const animationNames = {
+export const generatedAnimationNames = {
   idle: 'idle',
   walk: 'walk',
   attack: 'attack_light',
@@ -39,8 +39,9 @@ export const metadataOutputSchema = z
     const errors = validateManifestSemantics(output.manifest);
     if (sha256(canonicalJson(output.manifest)) !== output.manifestSha256)
       errors.push('Manifest hash mismatch');
-    for (const [branch, name] of Object.entries(animationNames)) {
-      const source = output.sheets[branch as keyof typeof animationNames];
+    for (const [branch, name] of Object.entries(generatedAnimationNames)) {
+      const source =
+        output.sheets[branch as keyof typeof generatedAnimationNames];
       const animation = output.manifest.animations[name];
       const asset = animation && output.manifest.assets[animation.assetId];
       if (
@@ -118,7 +119,7 @@ export function generateMetadataStage(): Stage<
           throw new Error('Unselected dependency artifact');
         context.signal.throwIfAborted();
         await context.artifacts.read(sheet.image);
-        const name = animationNames[branch];
+        const name = generatedAnimationNames[branch];
         const assetId = `${name}_sheet`;
         sheets[branch] = sheet.image;
         assets[assetId] = {
