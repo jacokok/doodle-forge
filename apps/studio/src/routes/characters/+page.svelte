@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import VersionActions from '../../lib/VersionActions.svelte';
+  import GenerationProgress from '../../lib/GenerationProgress.svelte';
   import { resolve } from '$app/paths';
   import { beforeNavigate } from '$app/navigation';
   import { characterManifestSchema } from '@doodleforge/contracts/manifest';
@@ -31,6 +32,7 @@
     'requestId'
   > & { requestId: string };
   const catalog = library();
+  let clientReady = $state(false);
   let selected = $state<Character | null>(null);
   let editing = $state(false);
   let name = $state('');
@@ -82,6 +84,7 @@
   );
 
   onMount(() => {
+    clientReady = true;
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
     const update = () => (reducedMotion = media.matches);
     update();
@@ -378,7 +381,7 @@
 </script>
 
 <svelte:head><title>Character library — DoodleForge</title></svelte:head>
-<main class="mx-auto max-w-5xl p-6">
+<main class="mx-auto max-w-5xl p-6" inert={!clientReady}>
   <a href={resolve('/')}>DoodleForge home</a>
   <h1 class="my-4 text-3xl font-bold">Character library</h1>
   <p>
@@ -388,14 +391,14 @@
   <p class="my-3">
     Save character details, optionally attach a private original, then inspect
     frozen history, then explicitly review and publish supported fixture
-    versions. Creative choices are authoring intent only. Studio generation is
-    unavailable; offline mock generation is CLI-only and its jobs are not
-    tracked here.
+    versions. Creative choices are authoring intent only. Generation is
+    CLI-only. Persisted job progress and generated previews are read-only here;
+    generated approval and publication are not connected.
   </p>
   <div class="my-5 flex flex-wrap gap-3">
     <button
       bind:this={newCharacterButton}
-      disabled={busy}
+      disabled={busy || !clientReady}
       onclick={() => requestOpen(null)}>New character</button
     >
     <button disabled={busy || catalog.loading} onclick={reload}
@@ -612,14 +615,15 @@
                 approve or publish content.
               </p>
             </section>
-            <section aria-label="Generation and jobs" class="my-6 space-y-3">
-              <h3 class="text-lg font-semibold">Generation and jobs</h3>
-              <p role="status">
-                Studio generation and job progress are not connected. CLI mock
-                jobs may exist; this page does not report their status or offer
-                retry/cancel controls.
-              </p>
-            </section>
+            {#key selected.id}
+              <GenerationProgress
+                characterId={selected.id}
+                active={step === 2}
+                onReviewReady={async (id) => {
+                  await versionHistory(id).refresh();
+                }}
+              />
+            {/key}
             <section aria-label="Frozen version history" class="my-6 space-y-3">
               <h3 class="text-lg font-semibold">Frozen versions</h3>
               <p>

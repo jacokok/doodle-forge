@@ -1,5 +1,9 @@
 import { sql } from 'drizzle-orm';
 import {
+  generationJobStatuses,
+  generationStepStatuses,
+} from '@doodleforge/contracts/jobs';
+import {
   check,
   index,
   integer,
@@ -21,15 +25,7 @@ export const generationJobs = sqliteTable(
     ),
     kind: text('kind', { enum: ['generate', 'publish'] }).notNull(),
     status: text('status', {
-      enum: [
-        'queued',
-        'running',
-        'waiting_approval',
-        'waiting_publish',
-        'succeeded',
-        'failed',
-        'cancelled',
-      ],
+      enum: generationJobStatuses,
     }).notNull(),
     requestJson: text('request_json').notNull(),
     requestHash: text('request_hash').notNull(),
@@ -65,14 +61,7 @@ export const generationSteps = sqliteTable(
     targetKey: text('target_key').notNull(),
     dependenciesJson: text('dependencies_json').notNull(),
     status: text('status', {
-      enum: [
-        'queued',
-        'running',
-        'succeeded',
-        'failed',
-        'cancelled',
-        'blocked',
-      ],
+      enum: generationStepStatuses,
     }).notNull(),
     inputHash: text('input_hash').notNull(),
     inputJson: text('input_json').notNull(),

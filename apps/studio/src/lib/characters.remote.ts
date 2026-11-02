@@ -1,6 +1,10 @@
 import { command, getRequestEvent, query } from '$app/server';
 import { z } from 'zod';
-import { characterService, reviewActionService } from './server/runtime.js';
+import {
+  characterService,
+  reviewActionService,
+  generationProgressService,
+} from './server/runtime.js';
 import { CharacterError } from './server/characters.js';
 import { characterResult } from './server/character-result.js';
 
@@ -13,6 +17,10 @@ export const publishVersion = command(z.unknown(), (input) =>
 
 export const library = query(() =>
   characterResult(() => characterService().list()),
+);
+
+export const generationProgress = query(z.string().uuid(), (id) =>
+  characterResult(() => generationProgressService().list(id)),
 );
 
 export const versionHistory = query(z.string().uuid(), (id) =>

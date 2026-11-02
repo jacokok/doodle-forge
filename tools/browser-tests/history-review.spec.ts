@@ -70,7 +70,11 @@ test('keyboard history selection keeps unsaved authoring input and separates app
   const history = page.getByLabel('Frozen version history');
   const versionSelect = history.getByLabel('Frozen version');
   await expect(versionSelect).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Step 3 of 3: Review and history' }),
+  ).toBeFocused();
   await versionSelect.focus();
+  await expect(versionSelect).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   const snapshot = history.getByLabel('Selected frozen version');

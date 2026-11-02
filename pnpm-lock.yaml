@@ -184,6 +184,9 @@ importers:
 
   packages/database:
     dependencies:
+      '@doodleforge/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@doodleforge/shared':
         specifier: workspace:*
         version: link:../shared

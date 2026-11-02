@@ -62,6 +62,40 @@ export class WorkflowRepository {
       .where(eq(generationJobs.id, id))
       .get();
   }
+  recentGenerationJobs(characterId: string, limit = 10) {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 10)
+      throw new Error('Invalid job limit');
+    // A read transaction keeps the job states and their step projections coherent across workers.
+    return this.connection.sqlite
+      .transaction(() => {
+        const ids = this.connection.sqlite
+          .prepare(
+            `SELECT id FROM generation_jobs
+        WHERE character_id=? AND kind='generate' AND json_extract(request_json,'$.generation.protocol')='mock-factory@1'
+        ORDER BY created_at DESC,id DESC LIMIT ?`,
+          )
+          .all(characterId, limit) as { id: string }[];
+        return ids.map(({ id }) => ({
+          job: this.job(id)!,
+          steps: this.connection.db
+            .select({
+              stageKey: generationSteps.stageKey,
+              targetKey: generationSteps.targetKey,
+              status: generationSteps.status,
+              attemptCount: generationSteps.attemptCount,
+              maxAttempts: generationSteps.maxAttempts,
+              availableAt: generationSteps.availableAt,
+              errorJson: generationSteps.errorJson,
+            })
+            .from(generationSteps)
+            .where(eq(generationSteps.jobId, id))
+            .orderBy(generationSteps.stageKey, generationSteps.targetKey)
+            .limit(28)
+            .all(),
+        }));
+      })
+      .deferred();
+  }
   progress(id: string) {
     const job = this.job(id);
     if (!job) return undefined;

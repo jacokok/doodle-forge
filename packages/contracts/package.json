@@ -5,7 +5,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./authoring": "./src/authoring.ts",
-    "./manifest": "./src/manifest.ts"
+    "./manifest": "./src/manifest.ts",
+    "./jobs": "./src/jobs.ts"
   },
   "dependencies": {
     "zod": "4.6.7"

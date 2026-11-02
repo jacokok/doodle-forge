@@ -6,6 +6,9 @@ test('keyboard create, structured validation, edit, deliberate archive and persi
 }) => {
   const name = `Pencil ${randomUUID()}`;
   await page.goto('/characters');
+  await expect(
+    page.getByRole('button', { name: 'New character', exact: true }),
+  ).toBeEnabled();
   await page
     .getByRole('button', { name: 'New character', exact: true })
     .focus();
