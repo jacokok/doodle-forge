@@ -289,6 +289,10 @@ The Review step explicitly enqueues only saved input with an attached original, 
 
 Session storage survives reload in the same tab but not tab closure, clearing storage or all browser failure modes; separate tabs/CLI can create separate jobs. Users must inspect persisted progress before starting a new request after losing the recovery handle. This is not cross-tab deduplication, a job retry/cancel function, authentication or a quota. Unsaved editor fields/files are never implicitly submitted.
 
+### ADR-056 — Owner-scoped active mock job cancellation (accepted)
+
+Studio may explicitly cancel only queued or running mock-factory generation jobs, with a native confirmation. The repository checks active owner, job owner/kind, request hash and protocol under the same immediate transaction as the cancellation and step/attempt fencing. Repeated cancellation is idempotent; review/waiting-publish and other terminal states cannot be cancelled through this command. A concurrent review freeze or cancellation wins atomically, never both. Worker polling/lease fencing prevents subsequent adoption; immutable originals and already-adopted checkpoints remain retained. Lost responses are treated as uncertain and followed by progress refresh; replay is safe. This does not undo releases or enable job retry, public jobs API, real-provider cancellation guarantees or generated publication.
+
 ## Dependencies
 Plans 01–11 contain detailed consequences. Roadmap orders implementations; progress records evidence. External source availability affects research, not local test status.
 

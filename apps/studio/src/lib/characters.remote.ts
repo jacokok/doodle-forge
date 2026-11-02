@@ -5,9 +5,14 @@ import {
   reviewActionService,
   generationProgressService,
   generationEnqueueService,
+  generationCancelService,
 } from './server/runtime.js';
 import { CharacterError } from './server/characters.js';
 import { characterResult } from './server/character-result.js';
+
+export const cancelGeneration = command(z.unknown(), (input) =>
+  mutation(() => generationCancelService().cancel(input)),
+);
 
 export const enqueueGeneration = command(z.unknown(), (input) =>
   mutation(() => generationEnqueueService().enqueue(input)),

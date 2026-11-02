@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { and, eq, lte } from 'drizzle-orm';
 import type { DatabaseConnection } from './index.js';
 import { SnapshotRepository, type FrozenSnapshotInput } from './snapshots.js';
@@ -583,6 +583,56 @@ export class WorkflowRepository {
       return recovered;
     });
   }
+  /** Narrow Studio authority: never cancel review/publish or another owner's job. */
+  cancelOwnedMockGeneration(characterId: string, jobId: string) {
+    return this.transaction((now) => {
+      const character = new CharacterRepository(this.connection).get(
+        characterId,
+      );
+      const job = this.job(jobId);
+      if (
+        !character ||
+        !job ||
+        job.characterId !== characterId ||
+        job.kind !== 'generate'
+      )
+        return 'not_found' as const;
+      let request: {
+        characterId?: unknown;
+        generation?: { protocol?: unknown };
+      };
+      try {
+        if (
+          createHash('sha256').update(job.requestJson).digest('hex') !==
+          job.requestHash
+        )
+          throw new Error();
+        request = JSON.parse(job.requestJson);
+        if (
+          request.characterId !== characterId ||
+          request.generation?.protocol !== 'mock-factory@1'
+        )
+          throw new Error();
+      } catch {
+        return 'not_found' as const;
+      }
+      if (job.status === 'cancelled') return 'cancelled' as const;
+      if (
+        !['queued', 'running'].includes(job.status) ||
+        job.cancelRequestedAt !== null ||
+        job.characterVersionId !== null
+      )
+        return 'not_cancellable' as const;
+      this.connection.sqlite
+        .prepare(
+          "UPDATE generation_jobs SET status='cancelled',cancel_requested_at=?,updated_at=? WHERE id=?",
+        )
+        .run(now, now, jobId);
+      this.stopSteps(jobId, now, 'cancelled');
+      return 'cancelled' as const;
+    });
+  }
+
   cancel(jobId: string) {
     return this.transaction((now) => {
       const job = this.job(jobId);

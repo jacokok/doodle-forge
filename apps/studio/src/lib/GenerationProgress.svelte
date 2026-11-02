@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { generationProgress } from './characters.remote.js';
+  import { cancelGeneration, generationProgress } from './characters.remote.js';
 
   let {
     characterId,
@@ -15,6 +15,34 @@
   let hidden = $state(false);
   let inFlight = $state(false);
   let networkError = $state(false);
+  let cancelling = $state('');
+  let cancelMessage = $state('');
+  let cancelError = $state('');
+  async function cancelJob(jobId: string, version: number) {
+    if (
+      cancelling ||
+      !window.confirm(
+        `Cancel generation v${version}? Completed work and the original are retained; this cannot be undone.`,
+      )
+    )
+      return;
+    cancelling = jobId;
+    cancelMessage = '';
+    cancelError = '';
+    try {
+      const result = await cancelGeneration({ characterId, jobId });
+      if (result.ok)
+        cancelMessage = `Cancellation recorded for generation v${version}.`;
+      else
+        cancelError = `${result.error.message} Reference: ${result.error.requestId}`;
+    } catch {
+      cancelError =
+        'Cancellation result is uncertain. Refresh progress; retrying cancellation is safe.';
+    } finally {
+      cancelling = '';
+      await refresh(true);
+    }
+  }
   const statusLabels = {
     queued: 'Queued',
     running: 'Running',
@@ -87,14 +115,17 @@
 >
   <h3 class="text-lg font-semibold">Generation and jobs</h3>
   <p>
-    This panel reads persisted job progress. Job retry and cancellation are not
-    connected. Completion does not approve or publish a character.
+    This panel reads persisted job progress. Queued or running jobs can be
+    cancelled; job retry is not connected. Completion does not approve or
+    publish.
   </p>
   <button
     type="button"
     disabled={!jobs || jobs.loading || inFlight}
     onclick={() => refresh(true)}>Refresh generation progress</button
   >
+  {#if cancelError}<p role="alert">{cancelError}</p>{/if}
+  {#if cancelMessage}<p role="status">{cancelMessage}</p>{/if}
   {#if jobs?.loading && !jobs.current}<p role="status">
       Loading generation progress…
     </p>{/if}
@@ -133,6 +164,16 @@
                 max={job.total}
               ></progress>
               <p>Requested {new Date(job.createdAt).toLocaleString()}</p>
+              {#if job.status === 'queued' || job.status === 'running'}
+                <button
+                  type="button"
+                  disabled={!!cancelling}
+                  onclick={() => cancelJob(job.id, job.characterVersion)}
+                  >{cancelling === job.id
+                    ? 'Cancelling…'
+                    : `Cancel generation v${job.characterVersion}`}</button
+                >
+              {/if}
               {#if job.status === 'waiting_approval'}<p>
                   Frozen review version {job.characterVersion} is available in history
                   below. It has not been published.

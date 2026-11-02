@@ -40,9 +40,7 @@ test('shows actual bounded job/step states without leaking provider data', async
   await expect(
     jobs.getByRole('button', { name: 'Refresh generation progress' }),
   ).toHaveCount(1);
-  await expect(
-    jobs.getByRole('button', { name: /^(Retry|Cancel)/ }),
-  ).toHaveCount(0);
+  await expect(jobs.getByRole('button', { name: /^Retry/ })).toHaveCount(0);
   await page
     .getByLabel('Library')
     .getByRole('button', { name: 'Sprout', exact: true })
