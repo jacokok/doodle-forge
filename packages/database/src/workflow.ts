@@ -98,6 +98,7 @@ export class WorkflowRepository {
           job: this.job(id)!,
           steps: this.connection.db
             .select({
+              id: generationSteps.id,
               stageKey: generationSteps.stageKey,
               targetKey: generationSteps.targetKey,
               status: generationSteps.status,
@@ -583,6 +584,103 @@ export class WorkflowRepository {
       return recovered;
     });
   }
+  /** Retry a single failed mock job without changing attempts, inputs or adopted outputs.
+   * This library boundary is not exposed to Studio; callers must reconcile uncertain results.
+   */
+  retryFailedMockGeneration(
+    characterId: string,
+    jobId: string,
+    failedStepId: string,
+    expectedAttemptCount: number,
+  ) {
+    return this.transaction((now) => {
+      const job = this.job(jobId);
+      if (
+        !new CharacterRepository(this.connection).get(characterId) ||
+        !job ||
+        job.characterId !== characterId ||
+        job.kind !== 'generate'
+      )
+        return 'not_found' as const;
+      try {
+        if (
+          createHash('sha256').update(job.requestJson).digest('hex') !==
+          job.requestHash
+        )
+          throw new Error();
+        const request = JSON.parse(job.requestJson) as {
+          characterId?: unknown;
+          generation?: { protocol?: unknown };
+        };
+        if (
+          request.characterId !== characterId ||
+          request.generation?.protocol !== 'mock-factory@1'
+        )
+          throw new Error();
+      } catch {
+        return 'not_found' as const;
+      }
+      if (
+        job.status !== 'failed' ||
+        job.cancelRequestedAt !== null ||
+        job.characterVersionId !== null ||
+        !Number.isSafeInteger(expectedAttemptCount) ||
+        expectedAttemptCount < 1
+      )
+        return 'not_retryable' as const;
+      const steps = this.connection.db
+        .select()
+        .from(generationSteps)
+        .where(eq(generationSteps.jobId, jobId))
+        .all();
+      const failed = steps.filter((step) => step.status === 'failed');
+      if (
+        failed.length !== 1 ||
+        failed[0]!.id !== failedStepId ||
+        failed[0]!.attemptCount !== expectedAttemptCount ||
+        steps.length !== 27 ||
+        steps.some((step) => {
+          if (step.leaseOwner !== null || step.leaseExpiresAt !== null)
+            return true;
+          if (step.status === 'succeeded') return step.outputJson === null;
+          if (step.status !== 'failed' && step.status !== 'blocked')
+            return true;
+          return (
+            step.outputJson !== null || step.attemptCount >= step.maxAttempts
+          );
+        })
+      )
+        return 'not_retryable' as const;
+      const lastAttempt = this.attempts(failedStepId).find(
+        (attempt) => attempt.attemptNo === expectedAttemptCount,
+      );
+      const runningAttempt = this.connection.sqlite
+        .prepare(
+          "SELECT 1 FROM generation_attempts a JOIN generation_steps s ON s.id=a.step_id WHERE s.job_id=? AND a.outcome='running' LIMIT 1",
+        )
+        .get(jobId);
+      if (
+        !lastAttempt ||
+        !['failed', 'expired', 'cancelled'].includes(lastAttempt.outcome) ||
+        runningAttempt
+      )
+        return 'not_retryable' as const;
+      // The failure transaction blocks every unfinished step, including independently running siblings.
+      // Resuming those siblings consumes their remaining existing attempt budgets, never new budget.
+      this.connection.sqlite
+        .prepare(
+          "UPDATE generation_steps SET status='queued',available_at=?,error_json=NULL WHERE job_id=? AND status IN ('failed','blocked')",
+        )
+        .run(now, jobId);
+      this.connection.sqlite
+        .prepare(
+          "UPDATE generation_jobs SET status='queued',updated_at=? WHERE id=?",
+        )
+        .run(now, jobId);
+      return 'retried' as const;
+    });
+  }
+
   /** Narrow Studio authority: never cancel review/publish or another owner's job. */
   cancelOwnedMockGeneration(characterId: string, jobId: string) {
     return this.transaction((now) => {

@@ -293,6 +293,18 @@ Session storage survives reload in the same tab but not tab closure, clearing st
 
 Studio may explicitly cancel only queued or running mock-factory generation jobs, with a native confirmation. The repository checks active owner, job owner/kind, request hash and protocol under the same immediate transaction as the cancellation and step/attempt fencing. Repeated cancellation is idempotent; review/waiting-publish and other terminal states cannot be cancelled through this command. A concurrent review freeze or cancellation wins atomically, never both. Worker polling/lease fencing prevents subsequent adoption; immutable originals and already-adopted checkpoints remain retained. Lost responses are treated as uncertain and followed by progress refresh; replay is safe. This does not undo releases or enable job retry, public jobs API, real-provider cancellation guarantees or generated publication.
 
+### ADR-057 — Budget-preserving failed mock graph recovery primitive (accepted)
+
+Add a repository-only recovery primitive for a failed `mock-factory@1` job. Under one immediate transaction it checks active owner, request hash/protocol, uncancelled/unfrozen failed job, exact failed step and expected attempt count, one failed step, 27 consistent terminal/blocked steps, closed attempt history and remaining existing attempt budget for every unfinished step. It requeues the failed and blocked steps without changing inputs, successful checkpoints, attempt history or maximum budgets. Interrupted independent siblings also consume their existing budgets; if any is exhausted the whole retry is refused. Attempt-scoped artifacts are reverified by existing handlers; recovery does not imply review, approval or publication.
+
+Manual recovery may retry a permanent mock stage failure with remaining budget, but does not make that error automatically retryable. It is not exposed via Studio or CLI: safe user authorization, projected retry eligibility, uncertainty reconciliation and error guidance need separate work. No retries of exhausted attempts, provider requests, changed parameters or completed review versions are enabled. The expected attempt count prevents a stale retry request from targeting a later failure.
+
+### ADR-058 — Studio mock retry with advisory eligibility (accepted)
+
+Expose an owner-scoped same-origin retry command and an advisory progress projection containing only the single failed step UUID and observed attempt count when persisted states and budgets appear eligible. This narrowly supersedes ADR-053's exclusion of all step IDs; no artifacts, paths or provider data are exposed. The write transaction remains authoritative and checks the full ADR-057 conditions and exact failed-attempt CAS. A stale or repeated command cannot retry a later failure. Manual retry includes permanent mock failures only while all original budgets permit; it does not apply to real providers or add attempts.
+
+The UI confirms the action, preserves authoring edits and blocks further retry until a deliberate successful progress refresh after every response, including an uncertain transport result. Polling alone cannot clear this guard. This is a same-app local-trust feature, not a public jobs API, regeneration, approval or publication; exhausted jobs and review gates remain ineligible.
+
 ## Dependencies
 Plans 01–11 contain detailed consequences. Roadmap orders implementations; progress records evidence. External source availability affects research, not local test status.
 

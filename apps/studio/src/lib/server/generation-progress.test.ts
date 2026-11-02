@@ -14,6 +14,7 @@ import { enqueueMockGeneration, enqueueWorkflow } from '@doodleforge/workflow';
 import { mockReviewFixture } from '../../../../../tools/content-cli/src/mock-review-fixture.js';
 import { CharacterService } from './characters.js';
 import { GenerationProgressService } from './generation-progress.js';
+import { GenerationRetryService } from './generation-retry.js';
 
 let root: string,
   db: ReturnType<typeof openDatabase>,
@@ -44,6 +45,40 @@ function enqueue(key = randomUUID()) {
     seed: 17,
   });
 }
+
+it('projects advisory retry identity and rejects stale or foreign retry requests', () => {
+  const next = enqueue();
+  const work = repo.claim('worker')!;
+  repo.fail(
+    work.claim,
+    JSON.stringify({ code: 'STAGE_EXECUTION_FAILED' }),
+    false,
+  );
+  const projected = service
+    .list(fixture.characterId)
+    .find((job) => job.id === next.jobId)!;
+  expect(projected.retryCandidate).toEqual({
+    stepId: work.step.id,
+    attempts: 1,
+  });
+  const retry = new GenerationRetryService(repo);
+  const request = {
+    characterId: fixture.characterId,
+    jobId: next.jobId,
+    ...projected.retryCandidate!,
+  };
+  expect(() => retry.retry({ ...request, characterId: randomUUID() })).toThrow(
+    expect.objectContaining({ code: 'not_found' }),
+  );
+  expect(retry.retry(request)).toEqual({ status: 'queued' });
+  expect(() => retry.retry(request)).toThrow(
+    expect.objectContaining({ code: 'not_retryable' }),
+  );
+  expect(
+    service.list(fixture.characterId).find((job) => job.id === next.jobId)!
+      .retryCandidate,
+  ).toBeNull();
+});
 
 it('projects persisted complete/queued/running/retry/failed/cancelled states without source or worker data', () => {
   const complete = service.list(fixture.characterId)[0]!;

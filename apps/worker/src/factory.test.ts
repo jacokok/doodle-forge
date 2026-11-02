@@ -30,6 +30,95 @@ import {
 } from '@doodleforge/workflow';
 import { mockStageHandlers } from './stages.js';
 
+it('requeues only an eligible failed graph and preserves adopted upstream checkpoints and attempt history', () => {
+  const job = enqueueMockGeneration(repo, command());
+  const capture = repo.claim('first')!;
+  expect(repo.complete(capture.claim, '{"checkpoint":"kept"}')).toBe(true);
+  const failed = repo.claim('first')!;
+  const sibling = repo.claim('second')!;
+  expect(
+    repo.fail(failed.claim, '{"code":"STAGE_EXECUTION_FAILED"}', false),
+  ).toBe(true);
+  const before = repo.step(capture.step.id)!;
+  const other = openDatabase(join(root, 'queue.sqlite'));
+  try {
+    const competing = new WorkflowRepository(other);
+    expect(
+      competing.retryFailedMockGeneration(
+        randomUUID(),
+        job.jobId,
+        failed.step.id,
+        1,
+      ),
+    ).toBe('not_found');
+    expect(
+      competing.retryFailedMockGeneration(
+        characterId,
+        job.jobId,
+        failed.step.id,
+        2,
+      ),
+    ).toBe('not_retryable');
+    expect(
+      competing.retryFailedMockGeneration(
+        characterId,
+        job.jobId,
+        failed.step.id,
+        1,
+      ),
+    ).toBe('retried');
+    expect(
+      repo.retryFailedMockGeneration(characterId, job.jobId, failed.step.id, 1),
+    ).toBe('not_retryable');
+    expect(repo.step(capture.step.id)).toEqual(before);
+    expect(repo.complete(sibling.claim, '{}')).toBe(false);
+    expect(repo.attempts(failed.step.id)).toHaveLength(1);
+    expect(repo.attempts(sibling.step.id)[0]!.outcome).toBe('cancelled');
+    const next = repo.claim('replacement')!;
+    expect([failed.step.id, sibling.step.id]).toContain(next.step.id);
+    expect(next.step.attemptCount).toBe(2);
+    expect(repo.attempts(next.step.id)).toHaveLength(2);
+    expect(
+      readFileSync(join(root, 'originals', `${originalId}.original`)),
+    ).toEqual(png);
+  } finally {
+    other.close();
+  }
+});
+
+it('refuses retries when the failed step has exhausted its budget', () => {
+  const job = enqueueMockGeneration(repo, command());
+  const failed = repo.claim('first')!;
+  repo.fail(failed.claim, '{"code":"STAGE_EXECUTION_FAILED"}', false);
+  connection.sqlite
+    .prepare(
+      'UPDATE generation_steps SET max_attempts=attempt_count WHERE id=?',
+    )
+    .run(failed.step.id);
+  expect(
+    repo.retryFailedMockGeneration(characterId, job.jobId, failed.step.id, 1),
+  ).toBe('not_retryable');
+  expect(repo.job(job.jobId)!.status).toBe('failed');
+});
+
+it('refuses retries when an interrupted sibling has exhausted its budget', () => {
+  const job = enqueueMockGeneration(repo, command());
+  const capture = repo.claim('first')!;
+  repo.complete(capture.claim, '{}');
+  const failed = repo.claim('first')!;
+  const sibling = repo.claim('second')!;
+  repo.fail(failed.claim, '{"code":"STAGE_EXECUTION_FAILED"}', false);
+  connection.sqlite
+    .prepare(
+      'UPDATE generation_steps SET max_attempts=attempt_count WHERE id=?',
+    )
+    .run(sibling.step.id);
+  expect(
+    repo.retryFailedMockGeneration(characterId, job.jobId, failed.step.id, 1),
+  ).toBe('not_retryable');
+  expect(repo.job(job.jobId)!.status).toBe('failed');
+});
+
 const png = readFileSync(
   new URL(
     '../../../packages/contracts/fixtures/sprout/v1/assets/db061ac349376d65ef413dbf86627cc70e692922ab59b9087cbd11eb73bb423d.png',
@@ -328,6 +417,81 @@ it('runs the actual registered graph after reopen and retains pinned art/metadat
     ),
   ).toBe(true);
 });
+
+it('resumes a failed animation with actual registered handlers and preserves completed checkpoints', async () => {
+  const { jobId } = enqueueMockGeneration(repo, command());
+  const handlers = mockStageHandlers(connection, root).map((handler) =>
+    handler.key !== 'generate-frames'
+      ? handler
+      : {
+          ...handler,
+          async execute(...args: Parameters<typeof handler.execute>) {
+            if (args[1].step.targetKey === 'walk')
+              throw new Error('injected failure');
+            return handler.execute(...args);
+          },
+        },
+  );
+  runner = new WorkflowRunner(repo, handlers, { pollMs: 5, concurrency: 1 });
+  runner.start();
+  await until(() => repo.job(jobId)!.status === 'failed');
+  await runner.close();
+  runner = undefined;
+  const completed = connection.sqlite
+    .prepare(
+      "SELECT id,output_json,attempt_count FROM generation_steps WHERE job_id=? AND status='succeeded'",
+    )
+    .all(jobId);
+  const failed = connection.sqlite
+    .prepare(
+      "SELECT id,attempt_count FROM generation_steps WHERE job_id=? AND status='failed'",
+    )
+    .get(jobId) as { id: string; attempt_count: number };
+  expect(completed.length).toBeGreaterThan(5);
+  expect(
+    repo.retryFailedMockGeneration(
+      characterId,
+      jobId,
+      failed.id,
+      failed.attempt_count,
+    ),
+  ).toBe('retried');
+  runner = new WorkflowRunner(repo, mockStageHandlers(connection, root), {
+    pollMs: 5,
+    concurrency: 1,
+  });
+  runner.start();
+  await until(
+    () => ['waiting_approval', 'failed'].includes(repo.job(jobId)!.status),
+    60_000,
+  );
+  expect(repo.job(jobId)!.status).toBe('waiting_approval');
+  await runner.close();
+  runner = undefined;
+  for (const item of completed as {
+    id: string;
+    output_json: string;
+    attempt_count: number;
+  }[]) {
+    expect(repo.step(item.id)).toMatchObject({
+      status: 'succeeded',
+      outputJson: item.output_json,
+      attemptCount: item.attempt_count,
+    });
+  }
+  expect(repo.attempts(failed.id).map((a) => a.outcome)).toEqual([
+    'failed',
+    'succeeded',
+  ]);
+  expect(
+    readFileSync(join(root, 'originals', `${originalId}.original`)),
+  ).toEqual(png);
+  expect(
+    new SnapshotRepository(connection).latestDecision(
+      repo.job(jobId)!.characterVersionId!,
+    ),
+  ).toBeUndefined();
+}, 75_000);
 
 it('cancellation during registered frame execution cannot freeze or approve a version', async () => {
   const { jobId } = enqueueMockGeneration(repo, command());

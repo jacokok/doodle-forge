@@ -35,6 +35,12 @@ export const generationProgressSchema = z
     updatedAt: z.number().int().nonnegative(),
     completed: z.number().int().min(0).max(27),
     total: z.literal(27),
+    retryCandidate: z
+      .strictObject({
+        stepId: z.uuid(),
+        attempts: z.number().int().min(1).max(9),
+      })
+      .nullable(),
     steps: z
       .array(
         z.strictObject({
@@ -53,7 +59,10 @@ export const generationProgressSchema = z
     (job) =>
       job.completed ===
         job.steps.filter((step) => step.status === 'succeeded').length &&
-      job.steps.every((step) => step.attempts <= step.maxAttempts),
+      job.steps.every((step) => step.attempts <= step.maxAttempts) &&
+      (job.retryCandidate === null ||
+        (job.status === 'failed' &&
+          job.steps.filter((step) => step.status === 'failed').length === 1)),
     'Inconsistent persisted job progress',
   );
 export const generationProgressListSchema = z

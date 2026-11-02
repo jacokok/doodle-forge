@@ -6,9 +6,14 @@ import {
   generationProgressService,
   generationEnqueueService,
   generationCancelService,
+  generationRetryService,
 } from './server/runtime.js';
 import { CharacterError } from './server/characters.js';
 import { characterResult } from './server/character-result.js';
+
+export const retryGeneration = command(z.unknown(), (input) =>
+  mutation(() => generationRetryService().retry(input)),
+);
 
 export const cancelGeneration = command(z.unknown(), (input) =>
   mutation(() => generationCancelService().cancel(input)),

@@ -13,6 +13,7 @@ const queued = () => ({
   updatedAt: 1,
   completed: 0,
   total: 27,
+  retryCandidate: null,
   steps: Array.from({ length: 27 }, () => ({
     stage: 'capture-artwork',
     target: '',

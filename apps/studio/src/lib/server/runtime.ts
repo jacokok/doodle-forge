@@ -21,6 +21,7 @@ import { ReviewActionService } from './review-actions.js';
 import { GenerationProgressService } from './generation-progress.js';
 import { GenerationEnqueueService } from './generation-enqueue.js';
 import { GenerationCancelService } from './generation-cancel.js';
+import { GenerationRetryService } from './generation-retry.js';
 import { ArtifactStore, GeneratedReviewSources } from '@doodleforge/workflow';
 
 let connection: ReturnType<typeof openDatabase> | undefined;
@@ -69,6 +70,12 @@ export function generationProgressService() {
     characterService(),
     new WorkflowRepository(connection),
   );
+}
+
+export function generationRetryService() {
+  initializeRuntime();
+  if (!connection) throw new Error('Runtime unavailable during build');
+  return new GenerationRetryService(new WorkflowRepository(connection));
 }
 
 export function generationCancelService() {

@@ -26,7 +26,25 @@ export class GenerationProgressService {
           );
           if (!request.generation || request.characterId !== owner.id)
             throw new Error('Invalid job owner');
+          const failed = steps.filter((step) => step.status === 'failed');
+          // Advisory only: the mutation rechecks the complete graph and attempt history under a write lock.
+          const candidate =
+            job.status === 'failed' &&
+            job.cancelRequestedAt === null &&
+            job.characterVersionId === null &&
+            steps.length === 27 &&
+            failed.length === 1 &&
+            failed[0]!.attemptCount > 0 &&
+            steps.every(
+              (step) =>
+                step.status === 'succeeded' ||
+                ((step.status === 'failed' || step.status === 'blocked') &&
+                  step.attemptCount < step.maxAttempts),
+            )
+              ? { stepId: failed[0]!.id, attempts: failed[0]!.attemptCount }
+              : null;
           return {
+            retryCandidate: candidate,
             id: job.id,
             characterVersion: request.generation.version,
             frozenVersionId: job.characterVersionId,

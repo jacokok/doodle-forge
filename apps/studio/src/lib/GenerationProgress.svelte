@@ -1,6 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { cancelGeneration, generationProgress } from './characters.remote.js';
+  import {
+    cancelGeneration,
+    generationProgress,
+    retryGeneration,
+  } from './characters.remote.js';
 
   let {
     characterId,
@@ -18,6 +22,48 @@
   let cancelling = $state('');
   let cancelMessage = $state('');
   let cancelError = $state('');
+  let retrying = $state('');
+  let retryNeedsRefresh = $state(false);
+  let retryError = $state('');
+  let retryMessage = $state('');
+  async function retryJob(
+    jobId: string,
+    version: number,
+    candidate: { stepId: string; attempts: number },
+  ) {
+    if (
+      retrying ||
+      cancelling ||
+      retryNeedsRefresh ||
+      inFlight ||
+      jobs?.loading ||
+      !window.confirm(
+        `Retry generation v${version}? This resumes unfinished work using remaining attempt budgets. Completed checkpoints and the original are retained.`,
+      )
+    )
+      return;
+    retrying = jobId;
+    retryError = '';
+    retryMessage = '';
+    try {
+      const result = await retryGeneration({
+        characterId,
+        jobId,
+        stepId: candidate.stepId,
+        attempts: candidate.attempts,
+      });
+      if (result.ok) retryMessage = `Generation v${version} was requeued.`;
+      else
+        retryError = `${result.error.message} Reference: ${result.error.requestId} Refresh progress before retrying.`;
+    } catch {
+      retryError =
+        'Retry result is uncertain. Refresh progress before taking further action.';
+    } finally {
+      retrying = '';
+      retryNeedsRefresh = true;
+      // An authoritative refresh is mandatory before another retry; periodic polling does not clear this guard.
+    }
+  }
   async function cancelJob(jobId: string, version: number) {
     if (
       cancelling ||
@@ -71,6 +117,7 @@
     try {
       await query.refresh();
       networkError = false;
+      if (manual && query.current?.ok) retryNeedsRefresh = false;
       if (
         query.current?.ok &&
         (manual ||
@@ -116,14 +163,19 @@
   <h3 class="text-lg font-semibold">Generation and jobs</h3>
   <p>
     This panel reads persisted job progress. Queued or running jobs can be
-    cancelled; job retry is not connected. Completion does not approve or
-    publish.
+    cancelled; eligible failed jobs can be retried within their remaining
+    attempt budgets. Completion does not approve or publish.
   </p>
   <button
     type="button"
     disabled={!jobs || jobs.loading || inFlight}
     onclick={() => refresh(true)}>Refresh generation progress</button
   >
+  {#if retryError}<p role="alert">{retryError}</p>{/if}
+  {#if retryMessage}<p role="status">{retryMessage}</p>{/if}
+  {#if retryNeedsRefresh}<p>
+      Refresh generation progress before another retry.
+    </p>{/if}
   {#if cancelError}<p role="alert">{cancelError}</p>{/if}
   {#if cancelMessage}<p role="status">{cancelMessage}</p>{/if}
   {#if jobs?.loading && !jobs.current}<p role="status">
@@ -180,8 +232,30 @@
                 </p>{/if}
               {#if job.status === 'failed'}<p>
                   Generation failed. The original and completed checkpoints are
-                  retained; this panel cannot retry the job.
-                </p>{/if}
+                  retained. {job.retryCandidate
+                    ? 'A retry can resume unfinished work within the existing attempt budgets.'
+                    : 'Retry is unavailable or the attempt budget is exhausted.'}
+                </p>
+                {#if job.retryCandidate}
+                  <button
+                    type="button"
+                    disabled={!!retrying ||
+                      !!cancelling ||
+                      retryNeedsRefresh ||
+                      inFlight ||
+                      !!jobs?.loading}
+                    onclick={() =>
+                      retryJob(
+                        job.id,
+                        job.characterVersion,
+                        job.retryCandidate!,
+                      )}
+                    >{retrying === job.id
+                      ? 'Retrying…'
+                      : `Retry generation v${job.characterVersion}`}</button
+                  >
+                {/if}
+              {/if}
               <details>
                 <summary>Stage details for v{job.characterVersion}</summary>
                 <ul>
