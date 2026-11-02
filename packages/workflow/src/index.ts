@@ -29,6 +29,7 @@ export {
 } from './validation.js';
 export { packSheetStage, sheetOutputSchema } from './sheet.js';
 export { captureArtworkStage, captureOutputSchema } from './capture.js';
+export { GeneratedReviewSources } from './review-sources.js';
 export { buildSheetStage, buildSheetOutputSchema } from './build-sheet.js';
 export { generateMetadataStage, metadataOutputSchema } from './metadata.js';
 export {
@@ -270,6 +271,25 @@ function resolveDependencies(
   );
 }
 
+export function resolvedStageInputHash(
+  inputHash: string,
+  dependencies: readonly StageDependency[],
+) {
+  return sha256(
+    canonicalJson({
+      inputHash,
+      dependencies: dependencies.map(
+        ({ stageKey, stageVersion, targetKey, outputHash }) => ({
+          stageKey,
+          stageVersion,
+          targetKey,
+          outputHash,
+        }),
+      ),
+    }),
+  );
+}
+
 /** Validate before execution and again before fenced adoption; handlers cannot mutate scheduler state. */
 export async function executeStage<I, O>(
   repository: WorkflowRepository,
@@ -299,18 +319,9 @@ export async function executeStage<I, O>(
     stage.dependencies,
     envelope,
   );
-  const resolvedInputHash = sha256(
-    canonicalJson({
-      inputHash: work.step.inputHash,
-      dependencies: dependencyOutputs.map(
-        ({ stageKey, stageVersion, targetKey, outputHash }) => ({
-          stageKey,
-          stageVersion,
-          targetKey,
-          outputHash,
-        }),
-      ),
-    }),
+  const resolvedInputHash = resolvedStageInputHash(
+    work.step.inputHash,
+    dependencyOutputs,
   );
   const output = stage.outputSchema.parse(
     await stage.execute(

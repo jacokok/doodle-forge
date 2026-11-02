@@ -23,6 +23,7 @@ import {
   readBoundedFile,
 } from '@doodleforge/content-publisher';
 import { CharacterError, CharacterService } from './characters.js';
+import type { GeneratedReviewSources } from '@doodleforge/workflow';
 
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value);
@@ -46,6 +47,7 @@ export class ReviewActionService {
     private readonly releases: ReleaseRepository,
     private readonly publishedRoot: string,
     private readonly fixtureRoot: string,
+    private readonly generated?: GeneratedReviewSources,
   ) {
     this.reviews = new ReviewService(snapshots);
     this.publisher = new PublicationService(
@@ -217,8 +219,32 @@ export class ReviewActionService {
 
   async preview(characterId: unknown, versionId: unknown, assetId: unknown) {
     const snapshot = this.owned(characterId, versionId);
-    const { manifest, assetBytes } = await this.source(snapshot);
     const key = parse(z.string().min(1).max(80), assetId);
+    if (JSON.parse(snapshot.sourceSnapshotJson).kind === 'workflow-artifacts') {
+      if (
+        !Object.hasOwn(
+          characterManifestSchema.parse(JSON.parse(snapshot.manifestJson!))
+            .assets,
+          key,
+        )
+      )
+        throw new CharacterError(404, 'not_found', 'Frozen asset not found.');
+      try {
+        if (!this.generated)
+          throw new Error('Generated source resolver unavailable');
+        const bytes = await this.generated.read(snapshot.id, key);
+        this.characters.get(characterId);
+        return bytes;
+      } catch {
+        this.characters.get(characterId);
+        throw new CharacterError(
+          409,
+          'source_unavailable',
+          'Generated preview unavailable; refresh review or inspect the generation job.',
+        );
+      }
+    }
+    const { manifest, assetBytes } = await this.source(snapshot);
     const asset = manifest.assets[key];
     if (!asset)
       throw new CharacterError(404, 'not_found', 'Frozen asset not found.');

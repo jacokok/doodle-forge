@@ -11,12 +11,14 @@ import {
   CharacterRepository,
   AssetRepository,
   SnapshotRepository,
+  WorkflowRepository,
 } from '@doodleforge/database';
 import { PublishedContentService } from '@doodleforge/content-publisher/content';
 import path from 'node:path';
 import { CharacterService } from './characters.js';
 import { OriginalService } from './originals.js';
 import { ReviewActionService } from './review-actions.js';
+import { ArtifactStore, GeneratedReviewSources } from '@doodleforge/workflow';
 
 let connection: ReturnType<typeof openDatabase> | undefined;
 
@@ -66,6 +68,14 @@ export function reviewActionService() {
     new ReleaseRepository(connection),
     path.join(loadConfig().storageRoot, 'published'),
     path.join(repositoryRoot, 'packages/contracts/fixtures'),
+    new GeneratedReviewSources(
+      new WorkflowRepository(connection),
+      new SnapshotRepository(connection),
+      new CharacterRepository(connection),
+      new ArtifactStore(
+        path.join(loadConfig().storageRoot, 'generated', 'attempts'),
+      ),
+    ),
   );
 }
 

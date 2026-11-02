@@ -50,6 +50,13 @@ try {
   );
   if ((await child.done).code !== 0)
     throw new Error('Browser motion fixture seed failed');
+  child = launch(
+    'pnpm',
+    ['exec', 'tsx', 'tools/content-cli/src/browser-factory-seed.ts'],
+    { env },
+  );
+  if ((await child.done).code !== 0)
+    throw new Error('Browser generated review seed failed');
   if (!stopping) {
     child = launch(process.execPath, ['apps/studio/build/index.js'], { env });
     const result = await child.done;

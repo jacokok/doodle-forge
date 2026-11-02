@@ -86,6 +86,16 @@ export class CharacterService {
           manifestSha256: version.manifestSha256,
           snapshot,
           snapshotAvailable: snapshot !== null,
+          generatedPreviewOnly: (() => {
+            try {
+              return (
+                JSON.parse(version.sourceSnapshotJson).kind ===
+                'workflow-artifacts'
+              );
+            } catch {
+              return false;
+            }
+          })(),
           decisions: decisions.map(
             ({
               decision,

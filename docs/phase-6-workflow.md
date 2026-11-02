@@ -1,6 +1,6 @@
 # Phase 6 mock workflow
 
-The worker now executes explicit **CLI-only offline mock generation** through a frozen, unapproved review snapshot (ADR-051). Studio cannot enqueue or track these jobs or preview/approve/publish their generated sources yet. This is not the complete upload-to-game factory, real AI, or Phase 6 acceptance.
+The worker now executes explicit **CLI-only offline mock generation** through a frozen, unapproved review snapshot (ADR-051). Studio cannot enqueue or track these jobs or approve/publish their generated sources yet. Adopted generated review sheets now have secure read-only private previews (ADR-052). This is not the complete upload-to-game factory, real AI, or Phase 6 acceptance.
 
 ## Try the explicit CLI
 
@@ -61,7 +61,7 @@ Sheets record ordered normalized source hashes, 256×256 frame/layout, style, ta
 
 `validate-review@1` rechecks all selected checkpoints/attempts, schema/semantics/hash and publication-shared full PNG decode, then rejects empty/opaque/clipped frames and nontransparent unused cells. Its pure `reviewSnapshot` projection is passed by the executor to `completeReview`: frozen snapshot, typed `workflow-artifacts@1` source registry, checkpoint/attempt, version link and `waiting_approval` state commit in one fenced transaction. Every other graph step must have succeeded. A final lease check after snapshot insertion rolls back everything on expiry; cancellation/archive/version conflict or gate failure cannot leave partial review authority. Waiting holds no lease. Cancelling afterward preserves immutable history without granting approval.
 
-The source registry binds manifest asset IDs to selected attempt artifacts plus validation/metadata step and source/checkpoint hashes. It is not a filesystem hint, public route or asset-table insertion. Future generated-source readers must verify adopted job/checkpoint/owner, cancellation/gate state and bytes. Current Studio fixture commands reject generated sources; private generated previews, approval/waiting-publish synchronization, durable explicit publication, selective regeneration and upload-to-game acceptance remain incomplete. Existing fixture approval/publication stays separate and unchanged.
+The source registry binds manifest asset IDs to selected attempt artifacts plus validation/metadata step and source/checkpoint hashes. It is not a filesystem hint, public route or asset-table insertion. Future generated-source readers must verify adopted job/checkpoint/owner, cancellation/gate state and bytes. Studio now privately previews generated sheets only after verifying the active owner, uncancelled waiting-approval job/version, adopted validation/metadata/sheet checkpoints and attempts, canonical/resolved hashes and revalidated file bytes, with a post-read authority check. Generated snapshots are labeled preview-only and expose no decision/publication controls; server mutation admission remains fixture-limited. Studio progress, approval/waiting-publish synchronization, durable explicit publication, selective regeneration and upload-to-game acceptance remain incomplete. Existing fixture approval/publication stays separate and unchanged.
 
 ## Verification
 

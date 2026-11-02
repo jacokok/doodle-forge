@@ -721,7 +721,12 @@
                                 </li>{/each}
                             </ul>
                           {/if}
-                          {#if frozen.snapshotAvailable && frozen.manifestSha256}
+                          {#if frozen.generatedPreviewOnly}
+                            <p>
+                              Generated review is preview-only; approval and
+                              publication are not connected.
+                            </p>
+                          {:else if frozen.snapshotAvailable && frozen.manifestSha256}
                             {#key frozen.id}
                               <VersionActions
                                 characterId={selected.id}
@@ -980,8 +985,9 @@
                             necessarily the source of this selected frozen
                             version. Published animation images use the
                             ready-release content route; supported unpublished
-                            fixture sheets use an owner-checked private review
-                            route.
+                            fixture sheets and adopted generated review sheets
+                            use an owner-checked private review route. Generated
+                            previews do not grant approval or publication.
                           </p>
                         </article>
                       {/if}
