@@ -245,6 +245,9 @@ importers:
       '@doodleforge/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@doodleforge/workflow':
+        specifier: workspace:*
+        version: link:../../packages/workflow
     devDependencies:
       sharp:
         specifier: 0.34.5

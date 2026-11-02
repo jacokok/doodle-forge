@@ -1,4 +1,11 @@
 import { z } from 'zod';
+import { join } from 'node:path';
+import { mkdirSync } from 'node:fs';
+import {
+  AssetRepository,
+  type DatabaseConnection,
+} from '@doodleforge/database';
+import { DeterministicMockProvider as ImageMockProvider } from '@doodleforge/ai';
 import {
   DeterministicMockProvider,
   ProviderError,
@@ -13,6 +20,20 @@ import {
   RetryableStageError,
   stageHandler,
   type Stage,
+  type StageHandler,
+  ArtifactStore,
+  captureArtworkStage,
+  analysisStage,
+  cleanImageStage,
+  characterMasterStage,
+  bodyTypeStage,
+  poseStage,
+  framesStage,
+  normalizeFramesStage,
+  buildSheetStage,
+  generateMetadataStage,
+  validateReviewStage,
+  mockGenerationBranches,
 } from '@doodleforge/workflow';
 
 export const analysisStageInputSchema = stageEnvelopeSchema.extend({
@@ -28,7 +49,7 @@ export const analysisStageInputSchema = stageEnvelopeSchema.extend({
     seed: seedSchema,
   }),
 });
-/** Only this offline metadata stage is registered; no artifact or publication handlers yet. */
+/** Retained metadata protocol; capture-first generation has a separate graph and registry. */
 export function mockAnalysisStage(
   provider: Provider = new DeterministicMockProvider(),
 ): Stage<
@@ -75,6 +96,71 @@ export function mockAnalysisStage(
     },
   };
 }
-export function mockStageHandlers() {
-  return [stageHandler(mockAnalysisStage())];
+export function mockStageHandlers(
+  connection?: DatabaseConnection,
+  storageRoot?: string,
+): StageHandler[] {
+  const handlers = [stageHandler(mockAnalysisStage())];
+  if (!connection || !storageRoot) return handlers;
+  const artifactRoot = join(storageRoot, 'generated', 'attempts');
+  mkdirSync(artifactRoot, { recursive: true, mode: 0o700 });
+  const artifacts = new ArtifactStore(artifactRoot);
+  const images = new ImageMockProvider();
+  const frames = new DeterministicMockProvider();
+  const bind = <I, O>(stage: Stage<I, O>): StageHandler => {
+    const handler = stageHandler(stage, undefined, artifacts);
+    return {
+      ...handler,
+      async execute(...args: Parameters<StageHandler['execute']>) {
+        try {
+          return await handler.execute(...args);
+        } catch (error) {
+          if (
+            error instanceof ProviderError &&
+            error.code === 'TRANSIENT_FAILURE'
+          )
+            throw new RetryableStageError();
+          throw error;
+        }
+      },
+    };
+  };
+  const branches = (
+    key: string,
+    make: (branch: (typeof mockGenerationBranches)[number]) => StageHandler,
+  ): StageHandler => {
+    const targets = new Map<string, StageHandler>(
+      mockGenerationBranches.map((branch) => [branch, make(branch)]),
+    );
+    return {
+      key,
+      version: '1',
+      async execute(repository, work, signal, leaseMs) {
+        const handler = targets.get(work.step.targetKey);
+        if (!handler) throw new Error('Unsupported animation target');
+        return handler.execute(repository, work, signal, leaseMs);
+      },
+    };
+  };
+  handlers.push(
+    bind(
+      captureArtworkStage(
+        new AssetRepository(connection),
+        join(storageRoot, 'originals'),
+      ),
+    ),
+    bind(analysisStage(images)),
+    bind(cleanImageStage(images)),
+    bind(characterMasterStage(images)),
+    bind(bodyTypeStage(images)),
+    bind(poseStage(frames)),
+    branches('generate-frames', (branch) => bind(framesStage(frames, branch))),
+    branches('normalize-frames', (branch) =>
+      bind(normalizeFramesStage(branch)),
+    ),
+    branches('build-sheet', (branch) => bind(buildSheetStage(branch))),
+    bind(generateMetadataStage()),
+    bind(validateReviewStage()),
+  );
+  return handlers;
 }

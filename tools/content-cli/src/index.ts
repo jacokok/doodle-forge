@@ -11,6 +11,9 @@ import {
 import { writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import prettier from 'prettier';
+import { enqueueMockGeneration } from '@doodleforge/workflow';
+import { WorkflowRepository } from '@doodleforge/database';
+import { characterIdSchema } from '@doodleforge/contracts/authoring';
 import {
   assertDatabaseReady,
   migrateDatabase,
@@ -57,10 +60,12 @@ try {
     command !== 'migrate' &&
     command !== 'seed' &&
     command !== 'seed-fixtures' &&
-    command !== 'reconcile'
+    command !== 'reconcile' &&
+    command !== 'enqueue-mock' &&
+    command !== 'factory-status'
   ) {
     throw new Error(
-      'Usage: content-cli <migrate|seed|seed-fixtures|reconcile|validate <character.json>|schema [directory]>',
+      'Usage: content-cli <migrate|seed|seed-fixtures|reconcile|factory-status <jobId>|enqueue-mock <characterId> <expectedRevision> <idempotencyKey> <original|cartoon|pixel> <seed>|validate <character.json>|schema [directory]>',
     );
   }
   if (command === 'validate' || command === 'schema') process.exit(0);
@@ -73,7 +78,31 @@ try {
     const connection = openDatabase(config.databasePath);
     try {
       assertDatabaseReady(connection);
-      if (command === 'reconcile') {
+      if (command === 'factory-status') {
+        if (process.argv.length !== 4)
+          throw new Error('Usage: pnpm factory:status <jobId>');
+        const status = new WorkflowRepository(connection).progress(
+          characterIdSchema.parse(process.argv[3]),
+        );
+        if (!status) throw new Error('Job not found');
+        console.log(JSON.stringify(status));
+      } else if (command === 'enqueue-mock') {
+        if (process.argv.length !== 8)
+          throw new Error(
+            'Usage: pnpm factory:enqueue <characterId> <expectedRevision> <idempotencyKey> <original|cartoon|pixel> <seed>',
+          );
+        const result = enqueueMockGeneration(
+          new WorkflowRepository(connection),
+          {
+            characterId: process.argv[3],
+            expectedRevision: Number(process.argv[4]),
+            idempotencyKey: process.argv[5],
+            style: process.argv[6],
+            seed: Number(process.argv[7]),
+          },
+        );
+        console.log(JSON.stringify({ event: 'factory.queued', ...result }));
+      } else if (command === 'reconcile') {
         const publisher = new PublicationService(
           new ReviewService(new SnapshotRepository(connection)),
           new ReleaseRepository(connection),

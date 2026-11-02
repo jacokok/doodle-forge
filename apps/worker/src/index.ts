@@ -23,14 +23,12 @@ try {
           });
         });
       },
+      config.storageRoot,
     );
   } catch (error) {
     connection.close();
     throw error;
   }
-  console.log(
-    JSON.stringify({ event: 'worker.ready', generation: 'unavailable' }),
-  );
   const shutdown = () => {
     void worker
       .close()
@@ -41,6 +39,9 @@ try {
   };
   process.once('SIGINT', shutdown);
   process.once('SIGTERM', shutdown);
+  console.log(
+    JSON.stringify({ event: 'worker.ready', generation: 'mock-cli' }),
+  );
 } catch {
   console.error(
     JSON.stringify({

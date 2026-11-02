@@ -16,8 +16,8 @@
   <p class="mt-6 text-lg">
     Create and edit metadata, attach private original art, and inspect frozen
     review history in the library. Supported frozen fixtures can be explicitly
-    reviewed and published. Generation remains unavailable; no factory jobs are
-    started.
+    reviewed and published. Generation remains unavailable in Studio; no factory
+    jobs are started by this page. Offline mock generation is CLI-only.
   </p>
   <a
     class="mt-8 mr-4 inline-block rounded-lg bg-indigo-700 px-5 py-3 font-semibold text-white"

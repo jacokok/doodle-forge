@@ -5,6 +5,7 @@ import {
   WorkflowRepository,
   type WorkflowClaim,
   type FrozenSnapshotInput,
+  type NewWorkflowJob,
 } from '@doodleforge/database';
 
 import { ArtifactStore, type Artifact } from './artifacts.js';
@@ -30,6 +31,11 @@ export { packSheetStage, sheetOutputSchema } from './sheet.js';
 export { captureArtworkStage, captureOutputSchema } from './capture.js';
 export { buildSheetStage, buildSheetOutputSchema } from './build-sheet.js';
 export { generateMetadataStage, metadataOutputSchema } from './metadata.js';
+export {
+  enqueueMockGeneration,
+  mockGenerationCommandSchema,
+  mockGenerationBranches,
+} from './factory.js';
 export {
   validateReviewStage,
   reviewValidationOutputSchema,
@@ -114,6 +120,14 @@ export const workflowRequestSchema = z.strictObject({
   kind: z.enum(['generate', 'publish']),
   idempotencyKey: z.string().min(1).max(160),
   steps: z.array(stepRequestSchema).min(1).max(1000),
+  generation: z
+    .strictObject({
+      protocol: z.literal('mock-factory@1'),
+      commandJson: z.string().min(1).max(2000),
+      version: z.number().int().positive(),
+      source: z.record(z.string(), z.json()),
+    })
+    .optional(),
 });
 
 /** Identity includes validated inputs, references, implementation and provider/seed parameters. */
@@ -135,18 +149,33 @@ export function enqueueWorkflow(
   repository: WorkflowRepository,
   request: unknown,
 ) {
+  return repository.enqueue(prepareWorkflowJob(request));
+}
+
+/** Validated graph serialization only; also used inside the atomic generation reservation. */
+export function prepareWorkflowJob(request: unknown): NewWorkflowJob {
   const parsed = workflowRequestSchema.parse(request);
   if (
     parsed.steps.some((step) => step.input.characterId !== parsed.characterId)
   )
     throw new Error('Stage owner mismatch');
+  if (
+    parsed.generation &&
+    parsed.steps.some(
+      (step) =>
+        step.input.characterVersion !== parsed.generation!.version ||
+        step.input.sourceSnapshotHash !==
+          sha256(canonicalJson(parsed.generation!.source)),
+    )
+  )
+    throw new Error('Invalid generation snapshot');
   const requestJson = canonicalJson(parsed);
   if (Buffer.byteLength(requestJson) > 256 * 1024)
     throw new Error('Workflow request too large');
   const ids = new Map(parsed.steps.map((step) => [step.key, randomUUID()]));
   if (ids.size !== parsed.steps.length)
     throw new Error('Duplicate workflow step key');
-  return repository.enqueue({
+  return {
     id: randomUUID(),
     characterId: parsed.characterId,
     characterVersionId: parsed.characterVersionId,
@@ -168,7 +197,7 @@ export function enqueueWorkflow(
       inputJson: canonicalJson(step.input),
       maxAttempts: step.maxAttempts,
     })),
-  });
+  };
 }
 
 function resolveDependencies(

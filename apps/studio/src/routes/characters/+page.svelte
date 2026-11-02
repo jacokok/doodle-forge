@@ -388,8 +388,9 @@
   <p class="my-3">
     Save character details, optionally attach a private original, then inspect
     frozen history, then explicitly review and publish supported fixture
-    versions. Creative choices are authoring intent only. Generation remains
-    unavailable; no factory jobs are running here.
+    versions. Creative choices are authoring intent only. Studio generation is
+    unavailable; offline mock generation is CLI-only and its jobs are not
+    tracked here.
   </p>
   <div class="my-5 flex flex-wrap gap-3">
     <button
@@ -614,8 +615,9 @@
             <section aria-label="Generation and jobs" class="my-6 space-y-3">
               <h3 class="text-lg font-semibold">Generation and jobs</h3>
               <p role="status">
-                Unavailable until Phase 6: no generation job is queued or
-                running, and retry/cancel controls are not available.
+                Studio generation and job progress are not connected. CLI mock
+                jobs may exist; this page does not report their status or offer
+                retry/cancel controls.
               </p>
             </section>
             <section aria-label="Frozen version history" class="my-6 space-y-3">

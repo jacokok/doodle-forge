@@ -156,7 +156,7 @@ function launchScheduler(mode: 'hold' | 'finish' | 'retry') {
 describe('mock worker process integration', () => {
   it('the actual worker entry executes persisted analysis and does not repeat it after restart', async () => {
     const work = enqueue();
-    const captureFirst = enqueue('analyze-captured-description');
+    const unregisteredAssembly = enqueue('assemble-manifest');
     const workerPort = await port();
     let studioPort = await port();
     while (studioPort === workerPort) studioPort = await port();
@@ -178,7 +178,7 @@ describe('mock worker process integration', () => {
     expect(output.provenance.providerId).toBe('deterministic-mock');
     expect(
       await (await fetch(`http://127.0.0.1:${workerPort}/health`)).json(),
-    ).toEqual({ status: 'ok', service: 'worker', generation: 'unavailable' });
+    ).toEqual({ status: 'ok', service: 'worker', generation: 'mock-cli' });
     first.child.kill('SIGTERM');
     expect((await first.done)[0]).toBe(0);
     const second = launch(['--import', 'tsx', entry], env);
@@ -186,8 +186,8 @@ describe('mock worker process integration', () => {
     second.child.kill('SIGTERM');
     expect((await second.done)[0]).toBe(0);
     expect(repository.attempts(work.stepId)).toHaveLength(1);
-    expect(repository.step(captureFirst.stepId)?.status).toBe('queued');
-    expect(repository.attempts(captureFirst.stepId)).toHaveLength(0);
+    expect(repository.step(unregisteredAssembly.stepId)?.status).toBe('queued');
+    expect(repository.attempts(unregisteredAssembly.stepId)).toHaveLength(0);
     expect(repository.job(work.jobId)?.status).toBe('running');
   }, 10_000);
   it('automatically recovers a killed worker, preserving fencing and attempt history', async () => {

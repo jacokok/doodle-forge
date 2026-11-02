@@ -9,7 +9,8 @@
     "@doodleforge/content-publisher": "workspace:*",
     "@doodleforge/contracts": "workspace:*",
     "@doodleforge/database": "workspace:*",
-    "@doodleforge/shared": "workspace:*"
+    "@doodleforge/shared": "workspace:*",
+    "@doodleforge/workflow": "workspace:*"
   },
   "devDependencies": {
     "sharp": "0.34.5"

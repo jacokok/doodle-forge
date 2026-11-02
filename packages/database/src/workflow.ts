@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { and, eq, lte } from 'drizzle-orm';
 import type { DatabaseConnection } from './index.js';
 import { SnapshotRepository, type FrozenSnapshotInput } from './snapshots.js';
+import { CharacterRepository } from './repositories.js';
+import { AssetRepository } from './assets.js';
 import {
   generationJobs,
   generationSteps,
@@ -34,6 +36,12 @@ export interface WorkflowClaim {
   token: number;
 }
 
+export interface GenerationReservation {
+  character: NonNullable<ReturnType<CharacterRepository['get']>>;
+  original: NonNullable<ReturnType<AssetRepository['get']>>;
+  version: number;
+}
+
 /** Persistence only: no stage handlers, filesystem writes or provider calls in transactions. */
 export class WorkflowRepository {
   constructor(
@@ -53,6 +61,21 @@ export class WorkflowRepository {
       .from(generationJobs)
       .where(eq(generationJobs.id, id))
       .get();
+  }
+  progress(id: string) {
+    const job = this.job(id);
+    if (!job) return undefined;
+    const counts = this.connection.sqlite
+      .prepare(
+        "SELECT COUNT(*) AS total, COALESCE(SUM(status='succeeded'),0) AS completed, COALESCE(SUM(status='failed'),0) AS failed FROM generation_steps WHERE job_id=?",
+      )
+      .get(id) as { total: number; completed: number; failed: number };
+    return {
+      jobId: id,
+      status: job.status,
+      characterVersionId: job.characterVersionId,
+      ...counts,
+    };
   }
   step(id: string) {
     return this.connection.db
@@ -152,6 +175,80 @@ export class WorkflowRepository {
           .run();
       }
       return request.id;
+    });
+  }
+
+  /** Capture authoring state and reserve a number through retained job steps under one write lock.
+   * build must only validate/serialize a graph: never perform I/O or provider work here.
+   */
+  enqueueGeneration(
+    command: {
+      characterId: string;
+      expectedRevision: number;
+      idempotencyKey: string;
+      commandJson: string;
+    },
+    build: (reservation: GenerationReservation) => NewWorkflowJob,
+  ) {
+    return this.transaction(() => {
+      const existing = this.connection.db
+        .select()
+        .from(generationJobs)
+        .where(eq(generationJobs.idempotencyKey, command.idempotencyKey))
+        .get();
+      if (existing) {
+        const identity = JSON.parse(existing.requestJson).generation as
+          | { protocol?: string; commandJson?: string; version?: number }
+          | undefined;
+        if (
+          existing.characterId !== command.characterId ||
+          existing.kind !== 'generate' ||
+          identity?.protocol !== 'mock-factory@1' ||
+          identity.commandJson !== command.commandJson ||
+          !Number.isSafeInteger(identity.version) ||
+          identity.version! < 1
+        )
+          throw new Error('Idempotency conflict');
+        return { jobId: existing.id, characterVersion: identity.version! };
+      }
+      const character = new CharacterRepository(this.connection).get(
+        command.characterId,
+      );
+      if (!character || character.editRevision !== command.expectedRevision)
+        throw new Error('Active character and matching edit revision required');
+      const original = character.originalAssetId
+        ? new AssetRepository(this.connection).get(character.originalAssetId)
+        : undefined;
+      if (
+        !original ||
+        original.kind !== 'original' ||
+        original.characterId !== character.id
+      )
+        throw new Error('Attached immutable original required');
+      const row = this.connection.sqlite
+        .prepare(
+          `SELECT MAX(version) AS maximum FROM (
+        SELECT version FROM character_versions WHERE character_id=?
+        UNION ALL SELECT CAST(json_extract(s.input_json,'$.characterVersion') AS INTEGER) FROM generation_steps s
+        JOIN generation_jobs j ON j.id=s.job_id WHERE j.character_id=?
+      )`,
+        )
+        .get(character.id, character.id) as { maximum: number | null };
+      const version = (row.maximum ?? 0) + 1;
+      if (!Number.isSafeInteger(version) || version < 1)
+        throw new Error('Character version limit reached');
+      const request = build({ character, original, version });
+      if (
+        request.characterId !== character.id ||
+        request.kind !== 'generate' ||
+        request.idempotencyKey !== command.idempotencyKey ||
+        request.characterVersionId !== null ||
+        request.steps.some(
+          (step) => JSON.parse(step.inputJson).characterVersion !== version,
+        )
+      )
+        throw new Error('Invalid reserved generation graph');
+      return { jobId: this.enqueue(request), characterVersion: version };
     });
   }
 

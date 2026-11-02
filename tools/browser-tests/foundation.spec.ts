@@ -10,7 +10,7 @@ test('studio shell explains unavailable features and has a keyboard-accessible h
   );
   await expect(
     page.getByText(
-      'Generation remains unavailable; no factory jobs are started.',
+      'Generation remains unavailable in Studio; no factory jobs are started by this page.',
       { exact: false },
     ),
   ).toBeVisible();

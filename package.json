@@ -27,6 +27,8 @@
     "db:seed": "tsx tools/content-cli/src/index.ts seed",
     "content:seed": "tsx tools/content-cli/src/index.ts seed-fixtures",
     "content:reconcile": "tsx tools/content-cli/src/index.ts reconcile",
+    "factory:enqueue": "tsx tools/content-cli/src/index.ts enqueue-mock",
+    "factory:status": "tsx tools/content-cli/src/index.ts factory-status",
     "content:validate": "tsx tools/content-cli/src/index.ts validate",
     "content:schema": "tsx tools/content-cli/src/index.ts schema",
     "content:fixtures": "tsx packages/contracts/src/create-fixtures.ts",

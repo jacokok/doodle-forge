@@ -44,7 +44,7 @@ test('keyboard-only guided create/edit on a narrow viewport retains unsaved inpu
   await keyboardButton(page, 'Next step');
   await expect(page.getByLabel('Authoring summary')).toContainText(name);
   await expect(page.getByLabel('Generation and jobs')).toContainText(
-    'Unavailable until Phase 6',
+    'Studio generation and job progress are not connected.',
   );
   await keyboardButton(page, '1. Character details');
   // Wait for Svelte's transition focus before continuing with Tab.

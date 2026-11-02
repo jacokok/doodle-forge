@@ -45,13 +45,13 @@ try {
   });
   assert.deepEqual(
     await waitForHealth(`http://127.0.0.1:${workerPort}/health`, worker),
-    { status: 'ok', service: 'worker', generation: 'unavailable' },
+    { status: 'ok', service: 'worker', generation: 'mock-cli' },
   );
   const page = await fetch(env.ORIGIN);
   assert.equal(page.status, 200);
   assert.match(
     (await page.text()).replace(/\s+/g, ' '),
-    /Generation remains unavailable; no factory jobs are started/,
+    /Generation remains unavailable in Studio; no factory jobs are started by this page/,
   );
   assert.equal(
     (await fetch(`${env.ORIGIN}/storage/originals/private.png`)).status,

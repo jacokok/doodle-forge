@@ -12,6 +12,7 @@ export async function startWorkerRuntime(
   port: number,
   concurrency = 1,
   onFault: () => void = () => {},
+  storageRoot?: string,
 ) {
   // Fail startup on missing workflow migrations; never migrate or seed here.
   connection.sqlite.prepare('SELECT id FROM generation_jobs LIMIT 1').get();
@@ -20,7 +21,7 @@ export async function startWorkerRuntime(
   let faulted = false;
   const runner = new WorkflowRunner(
     new WorkflowRepository(connection),
-    mockStageHandlers(),
+    mockStageHandlers(connection, storageRoot),
     {
       concurrency,
       onFault: () => {
@@ -29,8 +30,12 @@ export async function startWorkerRuntime(
       },
     },
   );
-  const health = await startWorkerHealth(connection, host, port, () =>
-    runner.close(),
+  const health = await startWorkerHealth(
+    connection,
+    host,
+    port,
+    () => runner.close(),
+    storageRoot ? 'mock-cli' : 'unavailable',
   );
   runner.start();
   if (faulted) {

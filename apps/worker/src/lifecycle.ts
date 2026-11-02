@@ -7,6 +7,7 @@ export async function startWorkerHealth(
   host: string,
   port: number,
   beforeClose: () => Promise<void> = async () => {},
+  generation: 'unavailable' | 'mock-cli' = 'unavailable',
 ) {
   const server = createServer((request, response) => {
     response.setHeader('content-type', 'application/json');
@@ -23,7 +24,7 @@ export async function startWorkerHealth(
         JSON.stringify({
           status: 'ok',
           service: 'worker',
-          generation: 'unavailable',
+          generation,
         }),
       );
     } catch {
