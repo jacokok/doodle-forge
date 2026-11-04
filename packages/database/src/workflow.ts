@@ -621,11 +621,17 @@ export class WorkflowRepository {
         JOIN generation_jobs j ON j.id = s.job_id
         WHERE s.status = 'queued' AND s.available_at <= ? AND s.attempt_count < s.max_attempts
           AND j.status IN ('queued','running') AND j.cancel_requested_at IS NULL
+          AND s.stage_key != 'publish-generated'
           AND (? IS NULL OR EXISTS (SELECT 1 FROM json_each(?) supported
             WHERE json_extract(supported.value, '$.key') = s.stage_key
               AND json_extract(supported.value, '$.version') = s.stage_version))
-          AND NOT EXISTS (SELECT 1 FROM json_each(s.dependencies_json) d
-            LEFT JOIN generation_steps upstream ON upstream.id = d.value AND upstream.job_id = s.job_id
+          AND json_valid(s.dependencies_json)
+          AND json_type(CASE WHEN json_valid(s.dependencies_json) THEN s.dependencies_json ELSE '[]' END) = 'array'
+          AND NOT EXISTS (SELECT 1 FROM json_each(
+            CASE WHEN json_valid(s.dependencies_json) THEN
+              CASE WHEN json_type(s.dependencies_json) = 'array' THEN s.dependencies_json ELSE '[]' END
+            ELSE '[]' END
+          ) d LEFT JOIN generation_steps upstream ON upstream.id = d.value AND upstream.job_id = s.job_id
             WHERE upstream.id IS NULL OR upstream.status != 'succeeded')
         ORDER BY s.available_at, j.created_at, s.id LIMIT 1`,
         )

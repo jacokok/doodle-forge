@@ -363,6 +363,10 @@ This increment does not register the stage, claim a lease, read or stage bytes, 
 
 **Consequences:** Generated approval remains unavailable in production; generated publication remains blocked. No migration, publisher change, or phase completion is implied.
 
+### ADR-068 — Defer generated publication claims until activation is safe (accepted)
+
+The generic scheduler refuses to claim `publish-generated` steps, even if explicitly requested, until an independently reviewed activation protocol exists. Malformed or non-array dependency JSON is excluded safely without rewriting retained requests, hashes or other audit evidence; unrelated eligible work remains claimable. An earlier proposed claim-time fence and quarantine were not integrated: a claim is not activation authority, and rewriting corrupt request bytes would destroy evidence. This does not stage bytes, publish, or complete jobs. The direct-publisher guard and false Studio capability remain in force.
+
 ## Dependencies
 Plans 01–11 contain detailed consequences. Roadmap orders implementations; progress records evidence. External source availability affects research, not local test status.
 

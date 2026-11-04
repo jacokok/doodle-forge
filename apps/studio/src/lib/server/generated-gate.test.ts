@@ -221,6 +221,116 @@ it('durably reserves one idempotent publication request only behind the current 
   );
 });
 
+it('keeps generated publication unclaimable until an activation protocol is integrated', () => {
+  const decision = input();
+  repo.recordGeneratedReviewDecision(decision);
+  const request = {
+    characterId: decision.characterId,
+    versionId: decision.versionId,
+    expectedManifestSha256: decision.expectedManifestSha256,
+    expectedSourceSha256: decision.expectedSourceSha256,
+    expectedDecisionOrder: 1,
+    idempotencyKey: `generated-publish:${randomUUID()}`,
+  };
+  const childId = repo.enqueueGeneratedPublication(request);
+  expect(
+    repo.claim('publisher-test', 60_000, [
+      { key: 'publish-generated', version: '1' },
+    ]),
+  ).toBeUndefined();
+  expect(repo.job(childId)?.status).toBe('queued');
+});
+
+it('does not let malformed queued publication JSON block unrelated work or rewrite audit bytes', () => {
+  const decision = input();
+  repo.recordGeneratedReviewDecision(decision);
+  const request = {
+    characterId: decision.characterId,
+    versionId: decision.versionId,
+    expectedManifestSha256: decision.expectedManifestSha256,
+    expectedSourceSha256: decision.expectedSourceSha256,
+    expectedDecisionOrder: 1,
+    idempotencyKey: `generated-publish:${randomUUID()}`,
+  };
+  const badChildId = repo.enqueueGeneratedPublication(request);
+  const nonArrayChildId = repo.enqueueGeneratedPublication({
+    ...request,
+    idempotencyKey: `generated-publish:${randomUUID()}`,
+  });
+  const unrelatedJobId = randomUUID();
+  const unrelatedStepId = randomUUID();
+  const inputJson = '{}';
+  const requestJson = '{}';
+  repo.enqueue({
+    id: unrelatedJobId,
+    characterId: decision.characterId,
+    characterVersionId: null,
+    kind: 'generate',
+    requestJson,
+    requestHash: sha256(requestJson),
+    idempotencyKey: `unrelated:${randomUUID()}`,
+    steps: [
+      {
+        id: unrelatedStepId,
+        stageKey: 'unrelated',
+        stageVersion: '1',
+        targetKey: '',
+        dependencies: [],
+        inputHash: sha256(inputJson),
+        inputJson,
+        maxAttempts: 1,
+      },
+    ],
+  });
+  db.sqlite.pragma('ignore_check_constraints = ON');
+  db.sqlite
+    .prepare('UPDATE generation_jobs SET request_json=? WHERE id=?')
+    .run('{', badChildId);
+  db.sqlite
+    .prepare('UPDATE generation_steps SET input_json=? WHERE job_id=?')
+    .run('{', badChildId);
+  db.sqlite
+    .prepare('UPDATE generation_steps SET dependencies_json=? WHERE job_id=?')
+    .run('{', badChildId);
+  db.sqlite
+    .prepare('UPDATE generation_steps SET dependencies_json=? WHERE job_id=?')
+    .run('{}', nonArrayChildId);
+  db.sqlite.pragma('ignore_check_constraints = OFF');
+
+  const originalJob = repo.job(badChildId)!;
+  const originalStep = db.sqlite
+    .prepare(
+      'SELECT input_json,input_hash,status FROM generation_steps WHERE job_id=?',
+    )
+    .get(badChildId) as {
+    input_json: string;
+    input_hash: string;
+    status: string;
+  };
+  const claimed = repo.claim('worker-test', 60_000, [
+    { key: 'publish-generated', version: '1' },
+    { key: 'unrelated', version: '1' },
+  ]);
+  expect(claimed?.step.jobId).toBe(unrelatedJobId);
+  expect(repo.job(badChildId)?.requestJson).toBe('{');
+  expect(repo.job(badChildId)?.requestHash).toBe(originalJob.requestHash);
+  expect(
+    db.sqlite
+      .prepare(
+        'SELECT input_json,input_hash,dependencies_json,status FROM generation_steps WHERE job_id=?',
+      )
+      .get(badChildId),
+  ).toEqual({ ...originalStep, dependencies_json: '{', status: 'queued' });
+  expect(repo.job(nonArrayChildId)?.status).toBe('queued');
+  expect(
+    db.sqlite
+      .prepare(
+        'SELECT dependencies_json,status FROM generation_steps WHERE job_id=?',
+      )
+      .get(nonArrayChildId),
+  ).toEqual({ dependencies_json: '{}', status: 'queued' });
+});
+
 it('serializes competing decision and cancellation attempts across connections', () => {
   const request = input();
   const other = openDatabase(join(root, 'queue.sqlite'));
