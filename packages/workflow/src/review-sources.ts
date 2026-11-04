@@ -36,7 +36,7 @@ export class GeneratedReviewSources {
       !snapshot?.manifestJson ||
       !snapshot.manifestSha256 ||
       !this.characters.get(snapshot.characterId) ||
-      snapshot.status !== 'review' ||
+      !['review', 'approved'].includes(snapshot.status) ||
       sha256(snapshot.manifestJson) !== snapshot.manifestSha256
     )
       throw new Error('Generated review unavailable');
@@ -50,7 +50,13 @@ export class GeneratedReviewSources {
       job.kind !== 'generate' ||
       job.characterId !== snapshot.characterId ||
       job.characterVersionId !== snapshot.id ||
-      job.status !== 'waiting_approval' ||
+      !['waiting_approval', 'waiting_publish'].includes(job.status) ||
+      (job.status === 'waiting_publish'
+        ? snapshot.status !== 'approved' ||
+          this.snapshots.latestDecision(snapshot.id)?.decision !== 'approved'
+        : snapshot.status !== 'review' ||
+          this.snapshots.latestDecision(snapshot.id)?.decision ===
+            'approved') ||
       job.cancelRequestedAt !== null ||
       sha256(job.requestJson) !== job.requestHash ||
       Buffer.byteLength(job.requestJson) > 256 * 1024
@@ -159,6 +165,38 @@ export class GeneratedReviewSources {
     )
       throw new Error('Generated review resolved identity mismatch');
     return { snapshot, source, manifest: review.metadata.manifest };
+  }
+
+  /** Validate every selected sheet before handing the exact registry identity to the atomic gate. */
+  async decide(input: {
+    characterId: string;
+    versionId: string;
+    expectedManifestSha256: string;
+    expectedDecisionOrder: number;
+    decision: 'approved' | 'rejected' | 'revoked';
+    actorLabel: string;
+    note?: string;
+  }) {
+    const selected = this.selected(input.versionId);
+    if (
+      selected.snapshot.characterId !== input.characterId ||
+      selected.snapshot.manifestSha256 !== input.expectedManifestSha256
+    )
+      throw new Error('Generated review unavailable');
+    for (const assetId of Object.keys(selected.source.assets))
+      await this.read(input.versionId, assetId);
+    const current = this.selected(input.versionId);
+    if (
+      current.snapshot.sourceSnapshotJson !==
+        selected.snapshot.sourceSnapshotJson ||
+      current.snapshot.manifestSha256 !== selected.snapshot.manifestSha256
+    )
+      throw new Error('Generated review changed');
+    return this.workflows.recordGeneratedReviewDecision({
+      ...input,
+      note: input.note ?? '',
+      expectedSourceSha256: sha256(selected.snapshot.sourceSnapshotJson),
+    });
   }
 
   async read(versionId: string, assetId: string): Promise<Buffer> {

@@ -158,6 +158,24 @@ export class ReviewActionService {
   async decide(value: unknown) {
     const input = parse(reviewDecisionSchema, value);
     const snapshot = this.current(input);
+    if (JSON.parse(snapshot.sourceSnapshotJson).kind === 'workflow-artifacts') {
+      try {
+        if (!this.generated) throw new Error('Generated resolver unavailable');
+        return await this.generated.decide({
+          ...input,
+          actorLabel: 'local-studio-reviewer',
+        });
+      } catch (error) {
+        if (error instanceof ReviewConflictError)
+          throw new CharacterError(409, 'stale_review', error.message);
+        this.characters.get(input.characterId);
+        throw new CharacterError(
+          409,
+          'source_unavailable',
+          'Generated review unavailable; refresh review or inspect the generation job.',
+        );
+      }
+    }
     await this.source(snapshot); // Never approve a package whose bytes cannot be reviewed.
     try {
       return this.reviews.decide({
@@ -174,6 +192,12 @@ export class ReviewActionService {
   async publish(value: unknown) {
     const input = parse(frozenVersionMutationSchema, value);
     const snapshot = this.current(input);
+    if (JSON.parse(snapshot.sourceSnapshotJson).kind === 'workflow-artifacts')
+      throw new CharacterError(
+        409,
+        'source_unavailable',
+        'Generated publication requires a durable publication job.',
+      );
     if (this.snapshots.latestDecision(snapshot.id)?.decision !== 'approved')
       throw new CharacterError(
         409,

@@ -318,6 +318,12 @@ This is persistence infrastructure only, not a safe standalone approval interfac
 
 The existing direct publisher and its release activation transaction reject a selected snapshot whose source is `workflow-artifacts` or which is linked to a generation job. The entry check prevents staging and the transactional check closes races and bypasses of the service, including cancellation after approval. Inherited entries are not reauthorized. Fixture publication remains unchanged. This is a temporary explicit capability boundary, not a publication-job implementation: a future generated publisher must stage verified exact bytes, bind an explicit idempotent request and current decision/gate, and atomically fence the unexpired attempt, cancellation and parent gate with release activation and completion. The current activation method cannot safely be reused unchanged for that purpose.
 
+### ADR-062 — Validated generated decision service prerequisite (accepted)
+
+The existing review action service dispatches workflow-artifact decisions through the generated resolver, never the fixture source path. Before any approve/reject/revoke, the resolver rechecks the selected validation/metadata/sheet checkpoint lineage and decodes, hashes and validates all five selected sheets. It repeats authority checks after asynchronous reads and passes the exact registry hash to ADR-059's atomic owner, cancellation, snapshot, decision-order and gate transaction. Failed validation cannot append a decision. Approved private previews require a consistent approved snapshot, latest approval and uncancelled waiting-publish job; rejected/revoked reviews return to waiting-approval. Explicit generated publication is refused regardless of fixture identity or release paths. No release or publication job is created.
+
+Studio generated controls remain disabled pending coordinated capability integration and browser verification. This service is local-trust: privileged concurrent filesystem mutation between verification and transaction, power loss and multi-host storage are not claimed safe. Any future publisher must revalidate bytes and independently fence latest approval and gate at activation. No migration, phase completion or real-provider support is implied.
+
 ## Dependencies
 Plans 01–11 contain detailed consequences. Roadmap orders implementations; progress records evidence. External source availability affects research, not local test status.
 

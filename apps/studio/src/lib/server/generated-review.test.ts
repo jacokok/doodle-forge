@@ -87,22 +87,139 @@ it('serves all five adopted generated sheets privately through the existing rout
   expect(new ReleaseRepository(db).state().activeReleaseId).toBeNull();
   const snapshot = snapshots.get(fixture.versionId)!;
   await expect(
-    service.decide({
-      characterId: fixture.characterId,
-      versionId: fixture.versionId,
-      expectedManifestSha256: snapshot.manifestSha256,
-      expectedDecisionOrder: 0,
-      decision: 'approved',
-    }),
-  ).rejects.toMatchObject({ code: 'source_unavailable' });
-  await expect(
     service.publish({
       characterId: fixture.characterId,
       versionId: fixture.versionId,
       expectedManifestSha256: snapshot.manifestSha256,
       expectedDecisionOrder: 0,
     }),
-  ).rejects.toMatchObject({ code: 'approval_required' });
+  ).rejects.toMatchObject({ code: 'source_unavailable' });
+});
+
+function decision(
+  order = 0,
+  value: 'approved' | 'rejected' | 'revoked' = 'approved',
+) {
+  return {
+    characterId: fixture.characterId,
+    versionId: fixture.versionId,
+    expectedManifestSha256: snapshots.get(fixture.versionId)!.manifestSha256!,
+    expectedDecisionOrder: order,
+    decision: value,
+  };
+}
+
+it('validates every sheet before approval, keeps approved previews private, and never publishes', async () => {
+  const spy = vi.spyOn(artifacts, 'read');
+  await service.decide(decision());
+  expect(spy).toHaveBeenCalledTimes(5);
+  expect(workflows.job(fixture.jobId)!.status).toBe('waiting_publish');
+  expect((await preview(event())).status).toBe(200);
+  await expect(service.publish(decision(1))).rejects.toMatchObject({
+    code: 'invalid_input',
+  });
+  const publish = {
+    characterId: fixture.characterId,
+    versionId: fixture.versionId,
+    expectedManifestSha256: snapshots.get(fixture.versionId)!.manifestSha256!,
+    expectedDecisionOrder: 1,
+  };
+  await expect(service.publish(publish)).rejects.toMatchObject({
+    code: 'source_unavailable',
+  });
+  expect(new ReleaseRepository(db).state().activeReleaseId).toBeNull();
+  await service.decide(decision(1, 'revoked'));
+  expect(workflows.job(fixture.jobId)!.status).toBe('waiting_approval');
+  expect((await preview(event())).status).toBe(200);
+});
+
+it('rejects corruption in a non-previewed sheet without appending a decision', async () => {
+  const image = Object.values(source().assets)[4]!;
+  const file = join(
+    root,
+    'generated',
+    'attempts',
+    image.stepId,
+    image.attemptId,
+    `${image.artifactId}.png`,
+  );
+  chmodSync(file, 0o600);
+  writeFileSync(file, Buffer.alloc(image.bytes));
+  await expect(service.decide(decision())).rejects.toMatchObject({
+    code: 'source_unavailable',
+  });
+  expect(snapshots.latestDecision(fixture.versionId)).toBeUndefined();
+  expect(workflows.job(fixture.jobId)!.status).toBe('waiting_approval');
+});
+
+it('rejects cancellation during validation without appending a decision', async () => {
+  const original = artifacts.read.bind(artifacts);
+  vi.spyOn(artifacts, 'read').mockImplementationOnce(async (ref) => {
+    const bytes = await original(ref);
+    workflows.cancel(fixture.jobId);
+    return bytes;
+  });
+  await expect(service.decide(decision())).rejects.toMatchObject({
+    code: 'source_unavailable',
+  });
+  expect(snapshots.latestDecision(fixture.versionId)).toBeUndefined();
+});
+
+it('rejects archival during decision validation', async () => {
+  const original = artifacts.read.bind(artifacts);
+  vi.spyOn(artifacts, 'read').mockImplementationOnce(async (ref) => {
+    const bytes = await original(ref);
+    const owner = characters.get(fixture.characterId)!;
+    characters.archive(owner.id, owner.editRevision);
+    return bytes;
+  });
+  await expect(service.decide(decision())).rejects.toMatchObject({
+    status: 404,
+  });
+  expect(snapshots.latestDecision(fixture.versionId)).toBeUndefined();
+});
+
+it('rejects decision when a selected checkpoint is inconsistent', async () => {
+  const registry = source();
+  const original = workflows.step.bind(workflows);
+  vi.spyOn(workflows, 'step').mockImplementation((id) => {
+    const step = original(id);
+    return step && id === registry.metadataStepId
+      ? { ...step, outputJson: '{}' }
+      : step;
+  });
+  await expect(service.decide(decision())).rejects.toMatchObject({
+    code: 'source_unavailable',
+  });
+  expect(snapshots.latestDecision(fixture.versionId)).toBeUndefined();
+});
+
+it('denies approved private previews if the waiting job is cancelled', async () => {
+  await service.decide(decision());
+  workflows.cancel(fixture.jobId);
+  expect((await preview(event())).status).toBe(409);
+});
+
+it('rejects a stale decision racing another decision during sheet reads', async () => {
+  const original = artifacts.read.bind(artifacts);
+  vi.spyOn(artifacts, 'read').mockImplementationOnce(async (ref) => {
+    const bytes = await original(ref);
+    workflows.recordGeneratedReviewDecision({
+      ...decision(),
+      actorLabel: 'other',
+      note: '',
+      expectedSourceSha256: sha256(
+        snapshots.get(fixture.versionId)!.sourceSnapshotJson,
+      ),
+    });
+    return bytes;
+  });
+  await expect(service.decide(decision())).rejects.toMatchObject({
+    code: 'stale_review',
+  });
+  expect(snapshots.latestDecision(fixture.versionId)!.decision).toBe(
+    'approved',
+  );
 });
 
 it('denies missing/cross-owner/archived identities and unlisted/path/prototype asset keys', async () => {
