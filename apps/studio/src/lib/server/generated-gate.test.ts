@@ -5,12 +5,17 @@ import { randomUUID } from 'node:crypto';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import {
   CharacterRepository,
+  ReleaseRepository,
   SnapshotRepository,
   WorkflowRepository,
   migrateDatabase,
   openDatabase,
 } from '@doodleforge/database';
 import { sha256 } from '@doodleforge/contracts';
+import {
+  PublicationService,
+  ReviewService,
+} from '@doodleforge/content-publisher';
 import { mockReviewFixture } from '../../../../../tools/content-cli/src/mock-review-fixture.js';
 
 let root: string,
@@ -77,6 +82,63 @@ it('atomically synchronizes hash-bound approve, reject and revoke without public
     db.sqlite.prepare('SELECT COUNT(*) AS n FROM content_releases').get(),
   ).toEqual({ n: 0 });
 });
+it('blocks direct publication and activation of an approved generated snapshot', async () => {
+  const request = input();
+  repo.recordGeneratedReviewDecision(request);
+  const releases = new ReleaseRepository(db);
+  const publisher = new PublicationService(
+    new ReviewService(snapshots),
+    releases,
+    join(root, 'published'),
+  );
+  await expect(
+    publisher.publish({
+      versionId: fixture.versionId,
+      expectedManifestSha256: request.expectedManifestSha256,
+      expectedDecisionOrder: 1,
+      sourceDirectory: join(root, 'missing'),
+    }),
+  ).rejects.toThrow('Generated publication requires a fenced protocol');
+  const id = randomUUID();
+  const indexJson = '{}';
+  releases.prepare({
+    id,
+    status: 'preparing',
+    indexKey: `releases/${id}/index.json`,
+    indexJson,
+    indexSha256: sha256(indexJson),
+    previousReleaseId: null,
+    expectedGeneration: 0,
+    publishedAt: null,
+  });
+  expect(() =>
+    releases.activate(
+      id,
+      [
+        {
+          characterId: fixture.characterId,
+          characterVersionId: fixture.versionId,
+          manifestPath: 'unused/character.json',
+          manifestSha256: request.expectedManifestSha256,
+        },
+      ],
+      fixture.versionId,
+      1,
+    ),
+  ).toThrow('Generated publication requires a fenced protocol');
+  expect(releases.state().activeReleaseId).toBeNull();
+  expect(releases.get(id)!.status).toBe('preparing');
+  expect(releases.entries(id)).toHaveLength(0);
+  repo.cancel(fixture.jobId);
+  await expect(
+    publisher.publish({
+      versionId: fixture.versionId,
+      expectedManifestSha256: request.expectedManifestSha256,
+      sourceDirectory: join(root, 'missing'),
+    }),
+  ).rejects.toThrow('Generated publication requires a fenced protocol');
+});
+
 it('serializes competing decision and cancellation attempts across connections', () => {
   const request = input();
   const other = openDatabase(join(root, 'queue.sqlite'));

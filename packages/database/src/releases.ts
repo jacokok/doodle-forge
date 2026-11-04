@@ -63,6 +63,25 @@ export class ReleaseRepository {
       .where(eq(contentReleases.id, id))
       .run();
   }
+  // The existing direct publisher has no workflow lease/cancellation fence.
+  // Generated snapshots must not use it, even when already approved.
+  assertDirectPublicationAllowed(versionId: string) {
+    const snapshot = new SnapshotRepository(this.connection).get(versionId);
+    if (!snapshot) throw new Error('Publication snapshot required');
+    const source: unknown = JSON.parse(snapshot.sourceSnapshotJson);
+    if (
+      !source ||
+      typeof source !== 'object' ||
+      Array.isArray(source) ||
+      ('kind' in source && source.kind === 'workflow-artifacts') ||
+      this.connection.sqlite
+        .prepare(
+          "SELECT 1 FROM generation_jobs WHERE character_version_id = ? AND kind = 'generate' LIMIT 1",
+        )
+        .get(versionId)
+    )
+      throw new Error('Generated publication requires a fenced protocol');
+  }
   // Filesystem verification occurs before this short synchronous transaction.
   // All newly selected entries are authorized again while holding the write lock.
   activate(
@@ -83,6 +102,7 @@ export class ReleaseRepository {
         )
           return false;
         const snapshots = new SnapshotRepository(this.connection);
+        this.assertDirectPublicationAllowed(selectedVersionId);
         if (expectedDecisionOrder !== undefined)
           snapshots.assertReviewCurrent(
             selectedVersionId,

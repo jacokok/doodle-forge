@@ -109,6 +109,7 @@ export class PublicationService {
       input.expectedManifestSha256,
       input.expectedDecisionOrder,
     );
+    this.releases.assertDirectPublicationAllowed(snapshot.id);
     const manifest = validateManifest(JSON.parse(snapshot.manifestJson!));
     const entry: ReleaseEntry = {
       characterId: manifest.characterId,

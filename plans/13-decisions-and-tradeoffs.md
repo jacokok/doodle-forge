@@ -311,6 +311,10 @@ Add a repository-only generated review decision primitive that atomically append
 
 This is persistence infrastructure only, not a safe standalone approval interface: a caller must first independently revalidate every selected generated asset and source lineage, then pass the exact validated source hash, and the authority/gate must be rechecked transactionally. Existing preview resolver is limited to `waiting_approval` and Studio generated decision controls remain disabled; supporting approved private previews, async source verification races and public-facing error/confirmation behavior requires a later tested service increment. Existing low-level cancellation can cancel a waiting job, so future gate and publication code must always check job state and not infer authorization from an approval row alone. No migration or real-provider behavior is introduced.
 
+### ADR-060 — Fail closed on generated snapshots in the direct publisher (accepted)
+
+The existing direct publisher and its release activation transaction reject a selected snapshot whose source is `workflow-artifacts` or which is linked to a generation job. The entry check prevents staging and the transactional check closes races and bypasses of the service, including cancellation after approval. Inherited entries are not reauthorized. Fixture publication remains unchanged. This is a temporary explicit capability boundary, not a publication-job implementation: a future generated publisher must stage verified exact bytes, bind an explicit idempotent request and current decision/gate, and atomically fence the unexpired attempt, cancellation and parent gate with release activation and completion. The current activation method cannot safely be reused unchanged for that purpose.
+
 ## Dependencies
 Plans 01–11 contain detailed consequences. Roadmap orders implementations; progress records evidence. External source availability affects research, not local test status.
 
