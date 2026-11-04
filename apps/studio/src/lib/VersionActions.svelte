@@ -7,6 +7,8 @@
     hash,
     decisionOrder,
     latestDecision,
+    decisionSupported = true,
+    allowPublish = true,
     busy = $bindable(false),
     refresh,
   }: {
@@ -15,6 +17,8 @@
     hash: string;
     decisionOrder: number;
     latestDecision: string | undefined;
+    decisionSupported?: boolean;
+    allowPublish?: boolean;
     busy?: boolean;
     refresh: () => Promise<void>;
   } = $props();
@@ -75,7 +79,13 @@
     }
   }
   async function confirm() {
-    if (!action || busy) return;
+    if (
+      !action ||
+      busy ||
+      !decisionSupported ||
+      (action === 'publish' && !allowPublish)
+    )
+      return;
     busy = true;
     failed = '';
     notice = '';
@@ -120,10 +130,11 @@
       {failed}
     </p>{/if}
   <div class="flex flex-wrap gap-2">
-    {#each ['approved', 'rejected', 'revoked', 'publish'] as choice (choice)}
+    {#each allowPublish ? ['approved', 'rejected', 'revoked', 'publish'] : ['approved', 'rejected', 'revoked'] as choice (choice)}
       {@const next = choice as Action}
       <button
         disabled={busy ||
+          !decisionSupported ||
           needsRefresh ||
           (next === 'publish' && latestDecision !== 'approved')}
         onclick={(event) => prepare(next, event.currentTarget)}
@@ -134,7 +145,11 @@
       >Refresh review</button
     >
   </div>
-  {#if latestDecision !== 'approved'}<p>
+  {#if !decisionSupported}<p>
+      Generated review decisions are unavailable until validated server support
+      is connected.
+    </p>{/if}
+  {#if allowPublish && latestDecision !== 'approved'}<p>
       Publication requires a matching latest approval.
     </p>{/if}
   <dialog

@@ -78,10 +78,11 @@ it('serves all five adopted generated sheets privately through the existing rout
       image.sha256,
     );
   }
-  expect(
-    new CharacterService(characters, snapshots).history(fixture.characterId)[0]!
-      .generatedPreviewOnly,
-  ).toBe(true);
+  const history = new CharacterService(characters, snapshots).history(
+    fixture.characterId,
+  )[0]!;
+  expect(history.generatedPreviewOnly).toBe(true);
+  expect(history.generatedReviewDecisionSupported).toBe(false);
   expect(snapshots.latestDecision(fixture.versionId)).toBeUndefined();
   expect(new ReleaseRepository(db).state().activeReleaseId).toBeNull();
   const snapshot = snapshots.get(fixture.versionId)!;

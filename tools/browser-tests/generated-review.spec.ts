@@ -9,6 +9,7 @@ test('generated review sheets are privately visible but cannot be approved or pu
     .getByLabel('Library')
     .getByRole('button', { name: 'Generated preview fixture', exact: true })
     .click();
+  await page.getByLabel('Description').fill('Unsaved generated review edit');
   await page
     .getByRole('button', { name: '3. Review and history', exact: true })
     .click();
@@ -16,17 +17,31 @@ test('generated review sheets are privately visible but cannot be approved or pu
     .getByLabel('Frozen version', { exact: true })
     .selectOption({ label: 'v1 · review' });
   const snapshot = page.getByLabel('Selected frozen version');
-  await expect(snapshot).toContainText('Generated review is preview-only');
+  await expect(snapshot).toContainText(
+    'Generated publication is not connected',
+  );
+  await expect(snapshot).toContainText(
+    'Generated review decisions are unavailable',
+  );
   await expect(snapshot).toContainText('No approval decision recorded');
   await expect(snapshot).toContainText(
     'Not present in any ready published release',
   );
-  await expect(
-    snapshot.getByRole('button', { name: 'Approve version', exact: true }),
-  ).toHaveCount(0);
+  for (const name of ['Approve version', 'Reject version', 'Revoke approval']) {
+    await expect(
+      snapshot.getByRole('button', { name, exact: true }),
+    ).toBeDisabled();
+  }
   await expect(
     snapshot.getByRole('button', { name: 'Publish version', exact: true }),
   ).toHaveCount(0);
+  await snapshot.getByRole('button', { name: 'Refresh review' }).click();
+  await expect(page.getByLabel('Description')).toHaveValue(
+    'Unsaved generated review edit',
+  );
+  await expect(
+    snapshot.getByRole('button', { name: 'Approve version', exact: true }),
+  ).toBeDisabled();
   const image = snapshot.getByRole('img', {
     name: 'Frame 1 of 3 for attack_light',
   });

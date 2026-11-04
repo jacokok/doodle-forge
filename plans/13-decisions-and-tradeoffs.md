@@ -14,6 +14,9 @@ Implementers propose changes, update this log and relevant plans, and report eff
 
 ## Key design decisions
 
+### ADR-061 — Fail-closed generated review UI capability (accepted for scaffolding)
+**Decision:** Version history reports server-owned `generatedReviewDecisionSupported`; it is always false until the generated decision service is integrated and verified. Generated decision controls require literal `true`, use the existing hash/order CAS and confirmation/recovery flow, and never expose fixture publication. **Rationale:** preview availability is not authority to decide or publish; client gating does not replace server validation. **Consequences:** activation requires validated source bytes, authoritative gate/cancellation checks and independent integration/browser verification; missing or malformed capability fails closed. No generated decision or publication is enabled by this ADR.
+
 ### ADR-001 — One SvelteKit backend (accepted)
 **Decision:** SvelteKit/Svelte 5, Tailwind, adapter-node owns UI and APIs; independent Node worker owns long jobs. **Rationale:** shared TypeScript boundaries and minimal deployment complexity. **Alternative rejected:** Express/Nest/FastAPI backend or jobs inside HTTP requests. **Consequences:** server-only import boundaries, bounded handlers and a separate worker lifecycle are required.
 

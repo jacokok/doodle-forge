@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import VersionActions from '../../lib/VersionActions.svelte';
+  import { generatedDecisionSupported } from '../../lib/review-capability.js';
   import GenerationProgress from '../../lib/GenerationProgress.svelte';
   import GenerationEnqueue from '../../lib/GenerationEnqueue.svelte';
   import { resolve } from '$app/paths';
@@ -733,11 +734,9 @@
                             </ul>
                           {/if}
                           {#if frozen.generatedPreviewOnly}
-                            <p>
-                              Generated review is preview-only; approval and
-                              publication are not connected.
-                            </p>
-                          {:else if frozen.snapshotAvailable && frozen.manifestSha256}
+                            <p>Generated publication is not connected.</p>
+                          {/if}
+                          {#if frozen.snapshotAvailable && frozen.manifestSha256}
                             {#key frozen.id}
                               <VersionActions
                                 characterId={selected.id}
@@ -746,6 +745,11 @@
                                 decisionOrder={frozen.decisions[0]
                                   ?.decisionOrder ?? 0}
                                 latestDecision={frozen.decisions[0]?.decision}
+                                decisionSupported={!frozen.generatedPreviewOnly ||
+                                  generatedDecisionSupported(
+                                    frozen.generatedReviewDecisionSupported,
+                                  )}
+                                allowPublish={!frozen.generatedPreviewOnly}
                                 bind:busy
                                 refresh={async () => {
                                   await history.refresh();

@@ -86,6 +86,9 @@ export class CharacterService {
           manifestSha256: version.manifestSha256,
           snapshot,
           snapshotAvailable: snapshot !== null,
+          // No generated decision service is wired yet. Never infer capability
+          // from the existence of a preview or a workflow snapshot.
+          generatedReviewDecisionSupported: false,
           generatedPreviewOnly: (() => {
             try {
               return (
