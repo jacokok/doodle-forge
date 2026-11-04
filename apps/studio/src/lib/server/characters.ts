@@ -41,7 +41,6 @@ export class CharacterService {
   constructor(
     private readonly repository: CharacterRepository,
     private readonly snapshots?: SnapshotRepository,
-    private readonly browserTestGeneratedDecisionOverride = false,
   ) {}
 
   list() {
@@ -57,7 +56,7 @@ export class CharacterService {
 
   history(id: unknown) {
     const characterId = validate(characterIdSchema, id);
-    const character = this.get(characterId); // Archived and missing identities expose no history.
+    this.get(characterId); // Archived and missing identities expose no history.
     if (!this.snapshots)
       throw new CharacterError(
         503,
@@ -87,24 +86,9 @@ export class CharacterService {
           manifestSha256: version.manifestSha256,
           snapshot,
           snapshotAvailable: snapshot !== null,
-          // Production remains fail-closed. The browser harness opts into this
-          // UI capability only for its isolated generated-review fixture; all
-          // server-side validation and decision gates remain mandatory.
-          generatedReviewDecisionSupported:
-            this.browserTestGeneratedDecisionOverride &&
-            ['Generated preview fixture', 'Generated corrupt fixture'].includes(
-              character.name,
-            ) &&
-            (() => {
-              try {
-                return (
-                  JSON.parse(version.sourceSnapshotJson).kind ===
-                  'workflow-artifacts'
-                );
-              } catch {
-                return false;
-              }
-            })(),
+          // Generated decision controls remain disabled in the real server
+          // projection until production activation is explicitly reviewed.
+          generatedReviewDecisionSupported: false,
           generatedPreviewOnly: (() => {
             try {
               return (

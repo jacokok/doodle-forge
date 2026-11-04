@@ -9,7 +9,6 @@ const env = {
   BODY_SIZE_LIMIT: '10551296',
   DOODLEFORGE_STORAGE_ROOT: root,
   DOODLEFORGE_DATABASE_PATH: join(root, 'db', 'test.sqlite'),
-  DOODLEFORGE_BROWSER_TEST_MODE: 'generated-review-decisions',
 };
 let child;
 let stopping = false;
