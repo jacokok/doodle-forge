@@ -38,7 +38,7 @@ export interface WorkflowClaim {
   token: number;
 }
 
-export interface NewCheckpointLineage {
+export interface NewCheckpointLineageClaim {
   id: string;
   characterId: string;
   sourceJobId: string;
@@ -48,6 +48,7 @@ export interface NewCheckpointLineage {
   stageKey: string;
   stageVersion: string;
   targetKey: string;
+  regenerationTarget: 'idle' | 'walk' | 'attack' | 'hurt' | 'ko';
   sourceSnapshotHash: string;
   childSnapshotHash: string;
   sourceOutputHash: string;
@@ -156,13 +157,14 @@ export class WorkflowRepository {
       .where(eq(generationSteps.id, id))
       .get();
   }
-  /** Persist provenance only; execution never consumes these rows while reuse remains disabled. */
-  recordCheckpointLineage(input: NewCheckpointLineage) {
+  /** Persist an untrusted provenance claim; executor never consumes claim rows. */
+  recordCheckpointLineageClaim(input: NewCheckpointLineageClaim) {
     const hash = /^[a-f0-9]{64}$/;
     if (
       !hash.test(input.sourceSnapshotHash) ||
       !hash.test(input.childSnapshotHash) ||
       !hash.test(input.sourceOutputHash) ||
+      input.artifactHashes.length < 1 ||
       input.artifactHashes.length > 100 ||
       input.artifactHashes.some((value) => !hash.test(value)) ||
       new Set(input.artifactHashes).size !== input.artifactHashes.length
@@ -215,6 +217,133 @@ export class WorkflowRepository {
         .update(canonicalJson(child?.source))
         .digest('hex');
       const stageInput = JSON.parse(step.inputJson);
+      const sourceVersionRecord = sourceJob.characterVersionId
+        ? (this.connection.sqlite
+            .prepare(
+              'SELECT id,character_id,version,source_snapshot_json FROM character_versions WHERE id=?',
+            )
+            .get(sourceJob.characterVersionId) as
+            | {
+                id: string;
+                character_id: string;
+                version: number;
+                source_snapshot_json: string;
+              }
+            | undefined)
+        : undefined;
+      const childSteps = this.connection.sqlite
+        .prepare(
+          'SELECT id,stage_key,stage_version,target_key,status,input_hash,input_json FROM generation_steps WHERE job_id=?',
+        )
+        .all(childJob.id) as {
+        id: string;
+        stage_key: string;
+        stage_version: string;
+        target_key: string;
+        status: string;
+        input_hash: string;
+        input_json: string;
+      }[];
+      const childSourceStep = childSteps.find(
+        (candidate) =>
+          candidate.stage_key === input.stageKey &&
+          candidate.stage_version === input.stageVersion &&
+          candidate.target_key === input.targetKey,
+      );
+      const invalidated = [
+        ['generate-pose', input.regenerationTarget],
+        ['generate-frames', input.regenerationTarget],
+        ['normalize-frames', input.regenerationTarget],
+        ['build-sheet', input.regenerationTarget],
+        ['generate-metadata', ''],
+        ['validate-review', ''],
+      ];
+      const hasInvalidationGraph = invalidated.every(([stageKey, targetKey]) =>
+        childSteps.some(
+          (candidate) =>
+            candidate.stage_key === stageKey &&
+            candidate.target_key === targetKey &&
+            candidate.status === 'queued',
+        ),
+      );
+      const reusableStageKeys = new Set([
+        'capture-artwork',
+        'analyze-captured-description',
+        'clean-image',
+        'character-master',
+        'determine-body-type',
+        'generate-pose',
+        'generate-frames',
+        'normalize-frames',
+        'build-sheet',
+      ]);
+      const checkpointArtifacts: {
+        stepId: string;
+        attemptId: string;
+        sha256: string;
+      }[] = [];
+      const collectArtifacts = (value: unknown): void => {
+        if (Array.isArray(value)) value.forEach(collectArtifacts);
+        else if (value && typeof value === 'object') {
+          const item = value as Record<string, unknown>;
+          if (
+            typeof item.stepId === 'string' &&
+            typeof item.attemptId === 'string' &&
+            typeof item.artifactId === 'string' &&
+            typeof item.sha256 === 'string' &&
+            typeof item.bytes === 'number' &&
+            item.mediaType === 'image/png' &&
+            typeof item.width === 'number' &&
+            typeof item.height === 'number'
+          ) {
+            checkpointArtifacts.push({
+              stepId: item.stepId,
+              attemptId: item.attemptId,
+              sha256: item.sha256,
+            });
+          } else Object.values(item).forEach(collectArtifacts);
+        }
+      };
+      collectArtifacts(JSON.parse(step.outputJson));
+      const checkpointArtifactHashes = [
+        ...new Set(checkpointArtifacts.map(({ sha256 }) => sha256)),
+      ].sort();
+      const frozenSource = sourceVersionRecord
+        ? JSON.parse(sourceVersionRecord.source_snapshot_json)
+        : undefined;
+      const childGraphValid =
+        childSteps.length > 0 &&
+        childSteps.every((candidate) => {
+          const envelope = JSON.parse(candidate.input_json);
+          return (
+            candidate.status === 'queued' &&
+            envelope.characterId === input.characterId &&
+            envelope.characterVersion === childVersion &&
+            envelope.sourceSnapshotHash === childSnapshotHash &&
+            createHash('sha256')
+              .update(
+                canonicalJson({
+                  stageKey: candidate.stage_key,
+                  stageVersion: candidate.stage_version,
+                  input: envelope,
+                }),
+              )
+              .digest('hex') === candidate.input_hash
+          );
+        });
+      const childVersionUnreserved = !this.connection.sqlite
+        .prepare(
+          `SELECT 1 FROM character_versions WHERE character_id=? AND version=?
+         UNION ALL SELECT 1 FROM generation_steps s JOIN generation_jobs j ON j.id=s.job_id
+         WHERE j.character_id=? AND j.id!=? AND CAST(json_extract(s.input_json,'$.characterVersion') AS INTEGER)=? LIMIT 1`,
+        )
+        .get(
+          input.characterId,
+          childVersion,
+          input.characterId,
+          childJob.id,
+          childVersion,
+        );
       const selectedAttempt = this.connection.sqlite
         .prepare(
           "SELECT id FROM generation_attempts WHERE id=? AND step_id=? AND outcome='succeeded' AND lease_token=?",
@@ -228,6 +357,28 @@ export class WorkflowRepository {
         sourceVersion >= childVersion ||
         sourceSnapshotHash !== input.sourceSnapshotHash ||
         childSnapshotHash !== input.childSnapshotHash ||
+        !sourceVersionRecord ||
+        sourceVersionRecord.character_id !== input.characterId ||
+        sourceVersionRecord.version !== sourceVersion ||
+        sourceJob.characterVersionId !== sourceVersionRecord.id ||
+        frozenSource?.kind !== 'workflow-artifacts' ||
+        frozenSource?.schemaVersion !== 1 ||
+        frozenSource?.sourceSnapshotHash !== sourceSnapshotHash ||
+        !childVersionUnreserved ||
+        !childGraphValid ||
+        !childSourceStep ||
+        childSourceStep.status !== 'queued' ||
+        !hasInvalidationGraph ||
+        !reusableStageKeys.has(step.stageKey) ||
+        (step.targetKey !== '' &&
+          step.targetKey === input.regenerationTarget) ||
+        !checkpointArtifacts.length ||
+        checkpointArtifacts.some(
+          ({ stepId, attemptId }) =>
+            stepId !== step.id || attemptId !== input.sourceAttemptId,
+        ) ||
+        canonicalJson(checkpointArtifactHashes) !==
+          canonicalJson([...input.artifactHashes].sort()) ||
         canonicalJson(source.source?.original) !==
           canonicalJson(child.source?.original) ||
         !selectedAttempt ||
@@ -250,9 +401,9 @@ export class WorkflowRepository {
       const id = input.id;
       this.connection.sqlite
         .prepare(
-          `INSERT INTO generation_checkpoint_lineage
-          (id,character_id,source_job_id,source_step_id,source_attempt_id,child_job_id,stage_key,stage_version,target_key,source_version,child_version,source_snapshot_hash,child_snapshot_hash,source_input_hash,source_output_hash,artifact_hashes_json,created_at)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+          `INSERT INTO generation_checkpoint_lineage_claims
+          (id,character_id,source_job_id,source_step_id,source_attempt_id,child_job_id,stage_key,stage_version,target_key,regeneration_target,source_version,child_version,source_snapshot_hash,child_snapshot_hash,source_input_hash,source_output_hash,artifact_hashes_json,created_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         )
         .run(
           id,
@@ -264,6 +415,7 @@ export class WorkflowRepository {
           step.stageKey,
           step.stageVersion,
           step.targetKey,
+          input.regenerationTarget,
           sourceVersion,
           childVersion,
           sourceSnapshotHash,
@@ -277,10 +429,10 @@ export class WorkflowRepository {
     });
   }
 
-  checkpointLineage(childJobId: string) {
+  checkpointLineageClaims(childJobId: string) {
     return this.connection.sqlite
       .prepare(
-        'SELECT * FROM generation_checkpoint_lineage WHERE child_job_id=? ORDER BY stage_key,target_key',
+        'SELECT * FROM generation_checkpoint_lineage_claims WHERE child_job_id=? ORDER BY stage_key,target_key',
       )
       .all(childJobId);
   }

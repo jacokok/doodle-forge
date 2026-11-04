@@ -100,8 +100,8 @@ export const generationSteps = sqliteTable(
   ],
 );
 
-export const generationCheckpointLineage = sqliteTable(
-  'generation_checkpoint_lineage',
+export const generationCheckpointLineageClaims = sqliteTable(
+  'generation_checkpoint_lineage_claims',
   {
     id: text('id').primaryKey(),
     characterId: text('character_id')
@@ -122,6 +122,7 @@ export const generationCheckpointLineage = sqliteTable(
     stageKey: text('stage_key').notNull(),
     stageVersion: text('stage_version').notNull(),
     targetKey: text('target_key').notNull(),
+    regenerationTarget: text('regeneration_target').notNull(),
     sourceVersion: integer('source_version').notNull(),
     childVersion: integer('child_version').notNull(),
     sourceSnapshotHash: text('source_snapshot_hash').notNull(),
@@ -132,10 +133,14 @@ export const generationCheckpointLineage = sqliteTable(
     createdAt: integer('created_at').notNull(),
   },
   (t) => [
-    uniqueIndex('checkpoint_lineage_child_target').on(
+    uniqueIndex('checkpoint_lineage_claim_child_target').on(
       t.childJobId,
       t.stageKey,
       t.targetKey,
+    ),
+    check(
+      'checkpoint_lineage_regeneration_target',
+      sql`${t.regenerationTarget} IN ('idle','walk','attack','hurt','ko','unclassified')`,
     ),
     check(
       'checkpoint_lineage_versions',

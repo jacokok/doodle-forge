@@ -43,6 +43,13 @@
       "when": 1793130000000,
       "tag": "0005_regeneration_checkpoint_lineage",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1793130060000,
+      "tag": "0006_regeneration_lineage_claims",
+      "breakpoints": true
     }
   ]
 }

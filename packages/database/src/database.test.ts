@@ -276,6 +276,7 @@ describe('SQLite foundation', () => {
       const childJobId = randomUUID();
       const stepId = randomUUID();
       const attemptId = randomUUID();
+      const sourceVersionId = randomUUID();
       const source = {
         schemaVersion: 1,
         characterId: character.id,
@@ -299,7 +300,16 @@ describe('SQLite foundation', () => {
         parameters: {},
       };
       const outputJson = canonicalJson({
-        artifacts: [{ sha256: 'a'.repeat(64) }],
+        image: {
+          stepId,
+          attemptId,
+          artifactId: randomUUID(),
+          sha256: 'a'.repeat(64),
+          bytes: 10,
+          mediaType: 'image/png',
+          width: 1,
+          height: 1,
+        },
       });
       const sourceRequest = canonicalJson({
         generation: { protocol: 'mock-factory@1', version: 1, source },
@@ -307,12 +317,27 @@ describe('SQLite foundation', () => {
       const childRequest = canonicalJson({
         generation: { protocol: 'mock-factory@1', version: 2, source: child },
       });
+      connection.sqlite
+        .prepare(
+          "INSERT INTO character_versions(id,character_id,version,status,source_snapshot_json,manifest_json,manifest_sha256,created_at,updated_at) VALUES(?,?,1,'review',?,'{}',?,0,0)",
+        )
+        .run(
+          sourceVersionId,
+          character.id,
+          canonicalJson({
+            kind: 'workflow-artifacts',
+            schemaVersion: 1,
+            sourceSnapshotHash: sourceHash,
+          }),
+          'c'.repeat(64),
+        );
       const insertJob = connection.sqlite.prepare(
-        "INSERT INTO generation_jobs(id,character_id,kind,status,request_json,request_hash,idempotency_key,created_at,updated_at) VALUES(?,? ,'generate',?,?,?, ?,0,0)",
+        "INSERT INTO generation_jobs(id,character_id,character_version_id,kind,status,request_json,request_hash,idempotency_key,created_at,updated_at) VALUES(?,?,?,'generate',?,?,?, ?,0,0)",
       );
       insertJob.run(
         sourceJobId,
         character.id,
+        sourceVersionId,
         'waiting_approval',
         sourceRequest,
         sha256(sourceRequest),
@@ -321,6 +346,7 @@ describe('SQLite foundation', () => {
       insertJob.run(
         childJobId,
         character.id,
+        null,
         'queued',
         childRequest,
         sha256(childRequest),
@@ -344,6 +370,36 @@ describe('SQLite foundation', () => {
           canonicalJson(input),
           outputJson,
         );
+      const childStepInsert = connection.sqlite.prepare(
+        `INSERT INTO generation_steps(id,job_id,stage_key,stage_version,target_key,dependencies_json,status,input_hash,input_json,max_attempts,available_at)
+         VALUES(?,?,?, '1',?,'[]','queued',?,?,3,0)`,
+      );
+      const childStages = [
+        ['build-sheet', 'walk'],
+        ['generate-pose', 'idle'],
+        ['generate-frames', 'idle'],
+        ['normalize-frames', 'idle'],
+        ['build-sheet', 'idle'],
+        ['generate-metadata', ''],
+        ['validate-review', ''],
+      ];
+      for (const [stageKey, targetKey] of childStages) {
+        const envelope = {
+          ...input,
+          characterVersion: 2,
+          sourceSnapshotHash: childHash,
+        };
+        childStepInsert.run(
+          randomUUID(),
+          childJobId,
+          stageKey,
+          targetKey,
+          sha256(
+            canonicalJson({ stageKey, stageVersion: '1', input: envelope }),
+          ),
+          canonicalJson(envelope),
+        );
+      }
       connection.sqlite
         .prepare(
           `INSERT INTO generation_attempts(id,step_id,attempt_no,lease_token,worker_id,started_at,ended_at,outcome)
@@ -361,25 +417,88 @@ describe('SQLite foundation', () => {
         stageKey: 'build-sheet',
         stageVersion: '1',
         targetKey: 'walk',
+        regenerationTarget: 'idle' as const,
         sourceSnapshotHash: sourceHash,
         childSnapshotHash: childHash,
         sourceOutputHash: sha256(outputJson),
         artifactHashes: ['a'.repeat(64)],
       };
-      expect(repository.recordCheckpointLineage(record)).toBe(record.id);
-      expect(repository.checkpointLineage(childJobId)).toHaveLength(1);
+      expect(() =>
+        repository.recordCheckpointLineageClaim({
+          ...record,
+          id: randomUUID(),
+          artifactHashes: ['b'.repeat(64)],
+        }),
+      ).toThrow('Checkpoint lineage identity mismatch');
+      expect(() =>
+        repository.recordCheckpointLineageClaim({
+          ...record,
+          id: randomUUID(),
+          regenerationTarget: 'walk',
+        }),
+      ).toThrow('Checkpoint lineage identity mismatch');
+      const mismatchedChildRequest = canonicalJson({
+        generation: { protocol: 'mock-factory@1', version: 3, source: child },
+      });
+      connection.sqlite
+        .prepare(
+          'UPDATE generation_jobs SET request_json=?,request_hash=? WHERE id=?',
+        )
+        .run(
+          mismatchedChildRequest,
+          sha256(mismatchedChildRequest),
+          childJobId,
+        );
+      expect(() =>
+        repository.recordCheckpointLineageClaim({
+          ...record,
+          id: randomUUID(),
+        }),
+      ).toThrow('Checkpoint lineage identity mismatch');
+      connection.sqlite
+        .prepare(
+          'UPDATE generation_jobs SET request_json=?,request_hash=? WHERE id=?',
+        )
+        .run(childRequest, sha256(childRequest), childJobId);
+      const mismatchedSourceRequest = canonicalJson({
+        generation: { protocol: 'mock-factory@1', version: 4, source },
+      });
+      connection.sqlite
+        .prepare(
+          'UPDATE generation_jobs SET request_json=?,request_hash=? WHERE id=?',
+        )
+        .run(
+          mismatchedSourceRequest,
+          sha256(mismatchedSourceRequest),
+          sourceJobId,
+        );
+      expect(() =>
+        repository.recordCheckpointLineageClaim({
+          ...record,
+          id: randomUUID(),
+        }),
+      ).toThrow('Checkpoint lineage identity mismatch');
+      connection.sqlite
+        .prepare(
+          'UPDATE generation_jobs SET request_json=?,request_hash=? WHERE id=?',
+        )
+        .run(sourceRequest, sha256(sourceRequest), sourceJobId);
+      expect(repository.recordCheckpointLineageClaim(record)).toBe(record.id);
+      expect(repository.checkpointLineageClaims(childJobId)).toHaveLength(1);
       expect(() =>
         connection.sqlite
-          .prepare('UPDATE generation_checkpoint_lineage SET source_version=2')
+          .prepare(
+            'UPDATE generation_checkpoint_lineage_claims SET source_version=2',
+          )
           .run(),
       ).toThrow(/immutable/);
       expect(() =>
         connection.sqlite
-          .prepare('DELETE FROM generation_checkpoint_lineage')
+          .prepare('DELETE FROM generation_checkpoint_lineage_claims')
           .run(),
       ).toThrow(/cannot be deleted/);
       expect(() =>
-        repository.recordCheckpointLineage({
+        repository.recordCheckpointLineageClaim({
           ...record,
           id: randomUUID(),
           sourceOutputHash: 'b'.repeat(64),

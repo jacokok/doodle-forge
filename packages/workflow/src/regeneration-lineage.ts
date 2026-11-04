@@ -1,17 +1,17 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import type {
-  NewCheckpointLineage,
+  NewCheckpointLineageClaim,
   WorkflowRepository,
 } from '@doodleforge/database';
 import { canonicalJson } from '@doodleforge/contracts';
 import { ArtifactStore, artifactSchema } from './artifacts.js';
 
-/** Hash-verified provenance record only. The executor does not consume lineage rows. */
-export async function persistVerifiedCheckpointLineage(
+/** Writes an untrusted lineage claim after this helper rereads selected artifact bytes. */
+export async function persistByteCheckedCheckpointLineageClaim(
   repository: WorkflowRepository,
   artifacts: ArtifactStore,
-  input: Omit<NewCheckpointLineage, 'sourceOutputHash' | 'artifactHashes'>,
+  input: Omit<NewCheckpointLineageClaim, 'sourceOutputHash' | 'artifactHashes'>,
 ) {
   const step = repository.step(input.sourceStepId);
   if (!step?.outputJson) throw new Error('Source checkpoint unavailable');
@@ -46,7 +46,7 @@ export async function persistVerifiedCheckpointLineage(
   const sourceOutputHash = createHash('sha256')
     .update(canonicalJson(output))
     .digest('hex');
-  return repository.recordCheckpointLineage({
+  return repository.recordCheckpointLineageClaim({
     ...input,
     sourceOutputHash,
     artifactHashes: [...new Set(refs.map(({ sha256 }) => sha256))].sort(),
