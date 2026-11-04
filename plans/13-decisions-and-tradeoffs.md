@@ -334,6 +334,12 @@ Studio generated controls remain disabled pending coordinated capability integra
 
 **Consequences:** Selective regeneration remains unavailable to users and does not satisfy automatic validated branch reuse. This is a prerequisite, not Phase 6 completion.
 
+### ADR-063 — Idempotent generated-publication request reservation (accepted, prerequisite only)
+
+A generated publication request is admitted only while the linked mock generation job is uncancelled and `waiting_publish`, the frozen snapshot/hash and source-registry hash match, and the latest hash-bound decision is the caller's expected approval order. One immediate transaction creates a `kind=publish` child job and a single queued `publish-generated@1` step with the exact version/hash/decision identity. Repeated idempotency keys must match the canonical request; a second key for the same approval resolves to the same retained request, preventing duplicate work. The existing job/step tables require no migration. Replays return the durable request even if the gate later changes, but this confers no execution authority: any executor must recheck all fences.
+
+This increment does not register the stage, claim a lease, read or stage bytes, activate a release, complete either job, or expose a route/UI. The generic direct publisher and its generated-source activation guard remain unchanged. Follow-up must stage the exact validated byte buffers and atomically verify publish-step worker/attempt/token/unexpired lease, publish-job cancellation, parent generation job/gate, current approval/hash/order and release CAS while activating the release and completing both jobs. Filesystem staging remains orphanable/invisible before that commit. No power-loss, privileged filesystem race or multi-host claim is made; generated publication stays disabled until those transactional and crash/race proofs plus browser integration exist.
+
 ## Dependencies
 Plans 01–11 contain detailed consequences. Roadmap orders implementations; progress records evidence. External source availability affects research, not local test status.
 

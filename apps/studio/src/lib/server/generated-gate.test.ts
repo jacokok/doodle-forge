@@ -139,6 +139,75 @@ it('blocks direct publication and activation of an approved generated snapshot',
   ).rejects.toThrow('Generated publication requires a fenced protocol');
 });
 
+it('durably reserves one idempotent publication request only behind the current approval gate', () => {
+  const decision = input();
+  repo.recordGeneratedReviewDecision(decision);
+  const request = {
+    characterId: decision.characterId,
+    versionId: decision.versionId,
+    expectedManifestSha256: decision.expectedManifestSha256,
+    expectedSourceSha256: decision.expectedSourceSha256,
+    expectedDecisionOrder: 1,
+    idempotencyKey: `generated-publish:${randomUUID()}`,
+  };
+  const id = repo.enqueueGeneratedPublication(request);
+  const competingConnection = openDatabase(join(root, 'queue.sqlite'));
+  try {
+    expect(
+      new WorkflowRepository(competingConnection).enqueueGeneratedPublication(
+        request,
+      ),
+    ).toBe(id);
+  } finally {
+    competingConnection.close();
+  }
+  expect(repo.enqueueGeneratedPublication(request)).toBe(id);
+  expect(() =>
+    repo.enqueueGeneratedPublication({ ...request, expectedDecisionOrder: 2 }),
+  ).toThrow('Publication idempotency conflict');
+  const changedKey = repo.enqueueGeneratedPublication({
+    ...request,
+    idempotencyKey: `generated-publish:${randomUUID()}`,
+  });
+  expect(changedKey).toBe(id);
+  expect(repo.job(id)).toMatchObject({
+    kind: 'publish',
+    status: 'queued',
+    characterVersionId: request.versionId,
+    requestHash: sha256(repo.job(id)!.requestJson),
+  });
+  expect(
+    db.sqlite
+      .prepare(
+        'SELECT stage_key,status,attempt_count FROM generation_steps WHERE job_id=?',
+      )
+      .get(id),
+  ).toEqual({
+    stage_key: 'publish-generated',
+    status: 'queued',
+    attempt_count: 0,
+  });
+  expect(job().status).toBe('waiting_publish');
+  repo.recordGeneratedReviewDecision({
+    ...decision,
+    expectedDecisionOrder: 1,
+    decision: 'revoked',
+  });
+  expect(
+    repo.enqueueGeneratedPublication({
+      ...request,
+      idempotencyKey: `generated-publish:${randomUUID()}`,
+    }),
+  ).toBe(id);
+  expect(() =>
+    repo.enqueueGeneratedPublication({
+      ...request,
+      idempotencyKey: `generated-publish:${randomUUID()}`,
+      expectedDecisionOrder: 2,
+    }),
+  ).toThrow('Generated publication gate unavailable');
+});
+
 it('serializes competing decision and cancellation attempts across connections', () => {
   const request = input();
   const other = openDatabase(join(root, 'queue.sqlite'));

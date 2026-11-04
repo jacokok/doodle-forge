@@ -586,6 +586,142 @@ export class WorkflowRepository {
       return recovered;
     });
   }
+  /** Persist an explicit, idempotent generated-publication request. This creates only
+   * a queued child job; it does not grant publication authority or stage files.
+   */
+  enqueueGeneratedPublication(input: {
+    characterId: string;
+    versionId: string;
+    expectedManifestSha256: string;
+    expectedSourceSha256: string;
+    expectedDecisionOrder: number;
+    idempotencyKey: string;
+  }) {
+    return this.transaction((now) => {
+      if (
+        !/^[a-zA-Z0-9._:-]{16,200}$/.test(input.idempotencyKey) ||
+        !/^[a-f0-9]{64}$/.test(input.expectedManifestSha256) ||
+        !/^[a-f0-9]{64}$/.test(input.expectedSourceSha256) ||
+        !Number.isSafeInteger(input.expectedDecisionOrder) ||
+        input.expectedDecisionOrder < 1
+      )
+        throw new Error('Invalid generated publication request');
+      const request = {
+        protocol: 'generated-publication@1',
+        characterId: input.characterId,
+        versionId: input.versionId,
+        manifestSha256: input.expectedManifestSha256,
+        sourceSha256: input.expectedSourceSha256,
+        decisionOrder: input.expectedDecisionOrder,
+      };
+      const requestJson = canonicalJson(request);
+      const requestHash = createHash('sha256')
+        .update(requestJson)
+        .digest('hex');
+      const existing = this.connection.db
+        .select()
+        .from(generationJobs)
+        .where(eq(generationJobs.idempotencyKey, input.idempotencyKey))
+        .get();
+      if (existing) {
+        if (
+          existing.kind !== 'publish' ||
+          existing.requestJson !== requestJson ||
+          existing.requestHash !== requestHash
+        )
+          throw new Error('Publication idempotency conflict');
+        return existing.id;
+      }
+      const sameApproval = this.connection.db
+        .select()
+        .from(generationJobs)
+        .where(
+          and(
+            eq(generationJobs.kind, 'publish'),
+            eq(generationJobs.requestJson, requestJson),
+          ),
+        )
+        .get();
+      if (sameApproval) return sameApproval.id;
+      const character = new CharacterRepository(this.connection).get(
+        input.characterId,
+      );
+      const snapshot = new SnapshotRepository(this.connection).get(
+        input.versionId,
+      );
+      const parent = this.connection.sqlite
+        .prepare(
+          `SELECT id FROM generation_jobs WHERE kind='generate'
+          AND character_version_id=? AND character_id=? AND status='waiting_publish'
+          AND cancel_requested_at IS NULL LIMIT 1`,
+        )
+        .get(input.versionId, input.characterId) as { id: string } | undefined;
+      const latest =
+        snapshot &&
+        new SnapshotRepository(this.connection).latestDecision(snapshot.id);
+      if (
+        !character ||
+        !snapshot ||
+        snapshot.characterId !== input.characterId ||
+        !parent ||
+        snapshot.status !== 'approved' ||
+        snapshot.manifestSha256 !== input.expectedManifestSha256 ||
+        !snapshot.manifestJson ||
+        createHash('sha256').update(snapshot.manifestJson).digest('hex') !==
+          input.expectedManifestSha256 ||
+        createHash('sha256')
+          .update(snapshot.sourceSnapshotJson)
+          .digest('hex') !== input.expectedSourceSha256 ||
+        latest?.decision !== 'approved' ||
+        latest.decisionOrder !== input.expectedDecisionOrder ||
+        latest.manifestSha256 !== input.expectedManifestSha256
+      )
+        throw new Error('Generated publication gate unavailable');
+      const jobId = randomUUID();
+      const stepId = randomUUID();
+      const stepInput = canonicalJson({ ...request, parentJobId: parent.id });
+      this.connection.db
+        .insert(generationJobs)
+        .values({
+          id: jobId,
+          characterId: input.characterId,
+          characterVersionId: input.versionId,
+          kind: 'publish',
+          status: 'queued',
+          requestJson,
+          requestHash,
+          idempotencyKey: input.idempotencyKey,
+          cancelRequestedAt: null,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      this.connection.db
+        .insert(generationSteps)
+        .values({
+          id: stepId,
+          jobId,
+          stageKey: 'publish-generated',
+          stageVersion: '1',
+          targetKey: '',
+          dependenciesJson: '[]',
+          status: 'queued',
+          inputHash: createHash('sha256').update(stepInput).digest('hex'),
+          inputJson: stepInput,
+          outputJson: null,
+          errorJson: null,
+          attemptCount: 0,
+          maxAttempts: 1,
+          availableAt: now,
+          leaseOwner: null,
+          leaseToken: 0,
+          leaseExpiresAt: null,
+        })
+        .run();
+      return jobId;
+    });
+  }
+
   /** Atomic gate persistence only. Caller must first validate every generated source byte;
    * this is not a public approval or publication API. */
   recordGeneratedReviewDecision(input: {
