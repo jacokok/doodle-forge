@@ -379,6 +379,10 @@ Add `WorkflowRepository.activateGeneratedPublication` as the sole short SQLite v
 
 SQLite does not attest filesystem bytes. The staged result is not authority: the integrated caller must reverify staged files immediately before calling this method. This remains a trusted same-root/local-filesystem boundary with a TOCTOU window against privileged concurrent mutation; no multi-host or power-loss guarantee is claimed. This increment adds no stage registration, worker call, direct-publisher bypass, capability or UI enablement. ADR-060/068 guards remain active pending independent integration review and end-to-end verification.
 
+### ADR-071 — Disconnected exact-byte generated publication staging (prerequisite)
+
+A bounded stager copies inputs before async work, validates the canonical manifest, five selected PNG sheets and complete release index, and installs complete immutable package and index directories from private staging. It checks exact collisions, syncs installed directories, propagates sync failures and leaves complete invisible orphans for retry. A separate verifier re-reads and validates staged files; a staged descriptor alone grants no authority. The stager participates in existing publisher/maintenance exclusion, while crash-left private staging does not lock later calls. Local trusted-filesystem assumptions and ADR-019's stale publisher marker procedure remain. No worker registration, release activation or generated publication is enabled by this prerequisite.
+
 ## Dependencies
 Plans 01–11 contain detailed consequences. Roadmap orders implementations; progress records evidence. External source availability affects research, not local test status.
 
