@@ -344,6 +344,16 @@ A generated publication request is admitted only for an active (non-archived) ow
 
 This increment does not register the stage, claim a lease, read or stage bytes, activate a release, complete either job, or expose a route/UI. Distinct idempotency keys may therefore queue duplicate commands; later activation must converge or refuse stale competitors atomically. The generic direct publisher and its generated-source activation guard remain unchanged. Follow-up must stage the exact validated byte buffers and atomically verify publish-step worker/attempt/token/unexpired lease, publish-job cancellation, parent generation job/gate, current approval/hash/order and release CAS while activating the release and completing both jobs. Filesystem staging remains orphanable/invisible before that commit. No power-loss, privileged filesystem race or multi-host claim is made; generated publication stays disabled until those transactional and crash/race proofs plus browser integration exist.
 
+### ADR-066 — Keep generated review decisions disabled pending publication fencing (accepted)
+
+**Decision:** Keep the production `generatedReviewDecisionSupported` projection literal `false`. Do not treat the validated decision service or browser-only capability simulation as sufficient grounds to activate generated approval controls. The real service verifies all five selected sheets and lineage, then the SQLite gate performs owner/hash/order/cancellation checks atomically; same-origin mutation validation runs before dispatch. However, generated publication is still denied, the durable publish step is unregistered, and the direct publisher/activation guard intentionally rejects generated sources. Leave preview available only through its private owner/job/checkpoint-bound route.
+
+**Rationale:** Enabling approval before the corresponding approved-to-release path is safely implementable would create an approval state that cannot complete the intended release workflow. A client-side `true` value in browser coverage tests UI behavior, not production capability authority.
+
+**Activation blockers:** A separately reviewed publication executor must stage exact validated bytes and atomically fence the publish lease/attempt, cancellation, parent generation gate, latest approval/hash/order, and release CAS while completing both jobs. It requires race/fault/restart tests and a browser test against the actual production-true projection and server path. Existing tests cover decision CAS, cancellation/revocation, origin denial, corruption, and preview privacy but do not establish that publication protocol. Do not modify the direct publisher guard absent that complete protocol.
+
+**Consequences:** Generated approval remains unavailable in production; generated publication remains blocked. No migration, publisher change, or phase completion is implied.
+
 ## Dependencies
 Plans 01–11 contain detailed consequences. Roadmap orders implementations; progress records evidence. External source availability affects research, not local test status.
 

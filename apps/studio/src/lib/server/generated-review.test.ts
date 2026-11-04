@@ -114,6 +114,12 @@ it('validates every sheet before approval, keeps approved previews private, and 
   await service.decide(decision());
   expect(spy).toHaveBeenCalledTimes(5);
   expect(workflows.job(fixture.jobId)!.status).toBe('waiting_publish');
+  expect(
+    new CharacterService(characters, snapshots)
+      .history(fixture.characterId)
+      .find((item) => item.id === fixture.versionId)
+      ?.generatedReviewDecisionSupported,
+  ).toBe(false);
   expect((await preview(event())).status).toBe(200);
   await expect(service.publish(decision(1))).rejects.toMatchObject({
     code: 'invalid_input',
@@ -130,6 +136,12 @@ it('validates every sheet before approval, keeps approved previews private, and 
   expect(new ReleaseRepository(db).state().activeReleaseId).toBeNull();
   await service.decide(decision(1, 'revoked'));
   expect(workflows.job(fixture.jobId)!.status).toBe('waiting_approval');
+  expect(
+    new CharacterService(characters, snapshots)
+      .history(fixture.characterId)
+      .find((item) => item.id === fixture.versionId)
+      ?.generatedReviewDecisionSupported,
+  ).toBe(false);
   expect((await preview(event())).status).toBe(200);
 });
 
