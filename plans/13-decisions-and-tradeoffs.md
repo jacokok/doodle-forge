@@ -324,6 +324,16 @@ The existing review action service dispatches workflow-artifact decisions throug
 
 Studio generated controls remain disabled pending coordinated capability integration and browser verification. This service is local-trust: privileged concurrent filesystem mutation between verification and transaction, power loss and multi-host storage are not claimed safe. Any future publisher must revalidate bytes and independently fence latest approval and gate at activation. No migration, phase completion or real-provider support is implied.
 
+### ADR-063 — Selective-regeneration planning without unsafe checkpoint reuse (accepted)
+
+**Decision:** Add a pure mock-animation invalidation planner that names the selected pose/frame/normalization/sheet steps and the metadata/review descendants, while preserving upstream and unaffected branches in its plan. The planner is descriptive only: it creates no version/job, copies no checkpoint, and explicitly reports checkpoint reuse disabled. Keep existing source-snapshot, job/version, successful-attempt and artifact-byte verification unchanged.
+
+**Rationale:** Existing adopted dependencies are same-job and their input envelopes are bound to the generation version and source snapshot. Reusing an earlier version's artifacts in a new immutable version cannot currently pass the executor's lineage checks; bypassing those checks would undermine provenance. A plan-only increment provides independently testable invalidation semantics without suggesting that outputs are safely reusable.
+
+**Required before production regeneration:** define a persistence protocol creating a new reserved version and job atomically; persist explicit reuse lineage to the original job/step/attempt and its hashes; revalidate the source and every referenced artifact's bytes/schema/provenance; and make dependency resolution verify that lineage and the new version's relevant inputs before adoption. Integrate the new graph in the worker/Studio only after race, corruption, cancellation, and restart tests. No migration or publication/UI capability is included here.
+
+**Consequences:** Selective regeneration remains unavailable to users and does not satisfy automatic validated branch reuse. This is a prerequisite, not Phase 6 completion.
+
 ## Dependencies
 Plans 01–11 contain detailed consequences. Roadmap orders implementations; progress records evidence. External source availability affects research, not local test status.
 

@@ -1,5 +1,11 @@
 # 14 — Persistent implementation progress
 
+## Phase 6 — selective-regeneration planning prerequisite (ADR-063)
+
+- Added a pure validated planner for targeted mock-animation invalidation: it identifies that branch's pose/frame/normalize/sheet work plus metadata/review descendants, and distinguishes preserved upstream/other branches. Unknown targets fail closed. It does not copy outputs, create versions/jobs, or enable regeneration.
+- Safe production reuse is blocked by existing invariants: persisted checkpoints and dependency inputs bind to the original job, character version and source snapshot; the executor requires same-job/version dependencies and valid successful attempts. Rebinding/copying without a new persisted lineage protocol and repeated artifact-byte verification would bypass source/attempt verification. ADR-063 records this boundary and required next work.
+- Validation: `mise exec -- pnpm install --frozen-lockfile` PASS (Sharp build script ignored by pnpm); `mise exec -- pnpm exec vitest run packages/workflow/src/regeneration.test.ts` PASS, 6 tests; `mise exec -- pnpm exec vitest run packages/workflow/src --maxWorkers=1` PASS, 139 tests / 10 files; `mise exec -- pnpm check` PASS, 0 Svelte errors/warnings; `mise exec -- pnpm lint` PASS; targeted Prettier check and `git diff --check` PASS. No full suite, worker, browser, Godot or end-to-end tests ran. Phase 6 remains incomplete, generated publication remains blocked, and Phase 5 manual acceptance remains deferred.
+
 ## Phase 6 — parallel safety integration
 
 - Integrated publication guard `90c0d11`, fail-closed Studio capability `52e86d4`, and byte-validated decision service `876c76a` as cherry-picks on the isolated integration branch; retained both parallel ADRs as 060/061 and the service as 062. The direct publisher and activation transaction reject generated sources, while server decision validation checks all selected sheets and lineage before the atomic gate. Generated controls remain disabled: enabled-path browser proof and independent durable publication fencing are still required. Privileged concurrent filesystem writes remain outside the local-trust model.

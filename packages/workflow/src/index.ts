@@ -37,6 +37,7 @@ export {
   mockGenerationCommandSchema,
   mockGenerationBranches,
 } from './factory.js';
+export { planMockAnimationRegeneration } from './regeneration.js';
 export {
   validateReviewStage,
   reviewValidationOutputSchema,
