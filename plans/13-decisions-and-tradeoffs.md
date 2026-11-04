@@ -334,7 +334,7 @@ Studio generated controls remain disabled pending coordinated capability integra
 
 **Consequences:** Selective regeneration remains unavailable to users and does not satisfy automatic validated branch reuse. This is a prerequisite, not Phase 6 completion.
 
-### ADR-063 — Idempotent generated-publication request reservation (accepted, prerequisite only)
+### ADR-064 — Idempotent generated-publication request reservation (accepted, prerequisite only)
 
 A generated publication request is admitted only for an active (non-archived) owner and while the linked mock generation job is uncancelled and `waiting_publish`, the frozen snapshot/hash and source-registry hash match, and the latest hash-bound decision is the caller's expected approval order. One immediate transaction creates a `kind=publish` child job and a single queued `publish-generated@1` step with the exact version/hash/decision identity. A repeated idempotency key returns its retained job only when the canonical request matches; key reuse with a changed request conflicts. Distinct keys are distinct durable commands and create distinct requests, even for the same approval; request identity is never treated as an unrecorded idempotency alias. The existing job/step tables require no migration. An exact-key replay for an active owner returns its durable request even if approval is later revoked, solely to reconcile an uncertain response; it grants no execution authority, and any executor must recheck all fences. Archived/deleted owners fail closed even on exact replay.
 
