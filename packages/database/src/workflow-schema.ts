@@ -100,6 +100,58 @@ export const generationSteps = sqliteTable(
   ],
 );
 
+export const generationCheckpointLineage = sqliteTable(
+  'generation_checkpoint_lineage',
+  {
+    id: text('id').primaryKey(),
+    characterId: text('character_id')
+      .notNull()
+      .references(() => characters.id),
+    sourceJobId: text('source_job_id')
+      .notNull()
+      .references(() => generationJobs.id),
+    sourceStepId: text('source_step_id')
+      .notNull()
+      .references(() => generationSteps.id),
+    sourceAttemptId: text('source_attempt_id')
+      .notNull()
+      .references(() => generationAttempts.id),
+    childJobId: text('child_job_id')
+      .notNull()
+      .references(() => generationJobs.id),
+    stageKey: text('stage_key').notNull(),
+    stageVersion: text('stage_version').notNull(),
+    targetKey: text('target_key').notNull(),
+    sourceVersion: integer('source_version').notNull(),
+    childVersion: integer('child_version').notNull(),
+    sourceSnapshotHash: text('source_snapshot_hash').notNull(),
+    childSnapshotHash: text('child_snapshot_hash').notNull(),
+    sourceInputHash: text('source_input_hash').notNull(),
+    sourceOutputHash: text('source_output_hash').notNull(),
+    artifactHashesJson: text('artifact_hashes_json').notNull(),
+    createdAt: integer('created_at').notNull(),
+  },
+  (t) => [
+    uniqueIndex('checkpoint_lineage_child_target').on(
+      t.childJobId,
+      t.stageKey,
+      t.targetKey,
+    ),
+    check(
+      'checkpoint_lineage_versions',
+      sql`${t.sourceVersion} < ${t.childVersion}`,
+    ),
+    check(
+      'checkpoint_lineage_hashes',
+      sql`length(${t.sourceSnapshotHash})=64 AND ${t.sourceSnapshotHash} NOT GLOB '*[^a-f0-9]*' AND length(${t.childSnapshotHash})=64 AND ${t.childSnapshotHash} NOT GLOB '*[^a-f0-9]*' AND length(${t.sourceInputHash})=64 AND ${t.sourceInputHash} NOT GLOB '*[^a-f0-9]*' AND length(${t.sourceOutputHash})=64 AND ${t.sourceOutputHash} NOT GLOB '*[^a-f0-9]*'`,
+    ),
+    check(
+      'checkpoint_lineage_artifacts_json',
+      sql`json_valid(${t.artifactHashesJson}) AND json_type(${t.artifactHashesJson})='array'`,
+    ),
+  ],
+);
+
 export const generationAttempts = sqliteTable(
   'generation_attempts',
   {

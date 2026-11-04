@@ -36,6 +36,13 @@
       "when": 1793043007727,
       "tag": "0004_lyrical_boom_boom",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1793130000000,
+      "tag": "0005_regeneration_checkpoint_lineage",
+      "breakpoints": true
     }
   ]
 }

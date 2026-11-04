@@ -38,6 +38,22 @@ export interface WorkflowClaim {
   token: number;
 }
 
+export interface NewCheckpointLineage {
+  id: string;
+  characterId: string;
+  sourceJobId: string;
+  sourceStepId: string;
+  sourceAttemptId: string;
+  childJobId: string;
+  stageKey: string;
+  stageVersion: string;
+  targetKey: string;
+  sourceSnapshotHash: string;
+  childSnapshotHash: string;
+  sourceOutputHash: string;
+  artifactHashes: readonly string[];
+}
+
 export interface GenerationReservation {
   character: NonNullable<ReturnType<CharacterRepository['get']>>;
   original: NonNullable<ReturnType<AssetRepository['get']>>;
@@ -140,6 +156,135 @@ export class WorkflowRepository {
       .where(eq(generationSteps.id, id))
       .get();
   }
+  /** Persist provenance only; execution never consumes these rows while reuse remains disabled. */
+  recordCheckpointLineage(input: NewCheckpointLineage) {
+    const hash = /^[a-f0-9]{64}$/;
+    if (
+      !hash.test(input.sourceSnapshotHash) ||
+      !hash.test(input.childSnapshotHash) ||
+      !hash.test(input.sourceOutputHash) ||
+      input.artifactHashes.length > 100 ||
+      input.artifactHashes.some((value) => !hash.test(value)) ||
+      new Set(input.artifactHashes).size !== input.artifactHashes.length
+    )
+      throw new Error('Invalid checkpoint lineage hashes');
+    return this.transaction((now) => {
+      const character = new CharacterRepository(this.connection).get(
+        input.characterId,
+      );
+      const sourceJob = this.job(input.sourceJobId);
+      const childJob = this.job(input.childJobId);
+      const step = this.step(input.sourceStepId);
+      if (
+        !character ||
+        character.archivedAt !== null ||
+        !sourceJob ||
+        !childJob ||
+        !step ||
+        sourceJob.characterId !== input.characterId ||
+        childJob.characterId !== input.characterId ||
+        sourceJob.kind !== 'generate' ||
+        childJob.kind !== 'generate' ||
+        sourceJob.cancelRequestedAt !== null ||
+        childJob.cancelRequestedAt !== null ||
+        !['waiting_approval', 'waiting_publish'].includes(sourceJob.status) ||
+        childJob.status !== 'queued' ||
+        step.jobId !== sourceJob.id ||
+        step.status !== 'succeeded' ||
+        step.stageKey !== input.stageKey ||
+        step.stageVersion !== input.stageVersion ||
+        step.targetKey !== input.targetKey ||
+        !step.outputJson
+      )
+        throw new Error('Checkpoint lineage authority denied');
+      if (
+        createHash('sha256').update(sourceJob.requestJson).digest('hex') !==
+          sourceJob.requestHash ||
+        createHash('sha256').update(childJob.requestJson).digest('hex') !==
+          childJob.requestHash
+      )
+        throw new Error('Checkpoint lineage job identity mismatch');
+      const source = JSON.parse(sourceJob.requestJson).generation;
+      const child = JSON.parse(childJob.requestJson).generation;
+      const sourceVersion = source?.version;
+      const childVersion = child?.version;
+      const sourceSnapshotHash = createHash('sha256')
+        .update(canonicalJson(source?.source))
+        .digest('hex');
+      const childSnapshotHash = createHash('sha256')
+        .update(canonicalJson(child?.source))
+        .digest('hex');
+      const stageInput = JSON.parse(step.inputJson);
+      const selectedAttempt = this.connection.sqlite
+        .prepare(
+          "SELECT id FROM generation_attempts WHERE id=? AND step_id=? AND outcome='succeeded' AND lease_token=?",
+        )
+        .get(input.sourceAttemptId, step.id, step.leaseToken);
+      if (
+        source?.protocol !== 'mock-factory@1' ||
+        child?.protocol !== 'mock-factory@1' ||
+        !Number.isSafeInteger(sourceVersion) ||
+        !Number.isSafeInteger(childVersion) ||
+        sourceVersion >= childVersion ||
+        sourceSnapshotHash !== input.sourceSnapshotHash ||
+        childSnapshotHash !== input.childSnapshotHash ||
+        canonicalJson(source.source?.original) !==
+          canonicalJson(child.source?.original) ||
+        !selectedAttempt ||
+        stageInput.characterId !== input.characterId ||
+        stageInput.characterVersion !== sourceVersion ||
+        stageInput.sourceSnapshotHash !== sourceSnapshotHash ||
+        createHash('sha256')
+          .update(
+            canonicalJson({
+              stageKey: step.stageKey,
+              stageVersion: step.stageVersion,
+              input: stageInput,
+            }),
+          )
+          .digest('hex') !== step.inputHash ||
+        createHash('sha256').update(step.outputJson).digest('hex') !==
+          input.sourceOutputHash
+      )
+        throw new Error('Checkpoint lineage identity mismatch');
+      const id = input.id;
+      this.connection.sqlite
+        .prepare(
+          `INSERT INTO generation_checkpoint_lineage
+          (id,character_id,source_job_id,source_step_id,source_attempt_id,child_job_id,stage_key,stage_version,target_key,source_version,child_version,source_snapshot_hash,child_snapshot_hash,source_input_hash,source_output_hash,artifact_hashes_json,created_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        )
+        .run(
+          id,
+          input.characterId,
+          sourceJob.id,
+          step.id,
+          input.sourceAttemptId,
+          childJob.id,
+          step.stageKey,
+          step.stageVersion,
+          step.targetKey,
+          sourceVersion,
+          childVersion,
+          sourceSnapshotHash,
+          childSnapshotHash,
+          step.inputHash,
+          input.sourceOutputHash,
+          canonicalJson([...input.artifactHashes].sort()),
+          now,
+        );
+      return id;
+    });
+  }
+
+  checkpointLineage(childJobId: string) {
+    return this.connection.sqlite
+      .prepare(
+        'SELECT * FROM generation_checkpoint_lineage WHERE child_job_id=? ORDER BY stage_key,target_key',
+      )
+      .all(childJobId);
+  }
+
   attempts(stepId: string) {
     return this.connection.db
       .select()

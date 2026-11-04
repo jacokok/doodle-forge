@@ -38,6 +38,7 @@ export {
   mockGenerationBranches,
 } from './factory.js';
 export { planMockAnimationRegeneration } from './regeneration.js';
+export { persistVerifiedCheckpointLineage } from './regeneration-lineage.js';
 export {
   validateReviewStage,
   reviewValidationOutputSchema,

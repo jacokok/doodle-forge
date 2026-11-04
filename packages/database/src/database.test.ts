@@ -14,6 +14,8 @@ import { fileURLToPath } from 'node:url';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { canonicalJson, sha256 } from '@doodleforge/contracts';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   migrateDatabase,
@@ -21,6 +23,7 @@ import {
   seedDevelopment,
   assertDatabaseReady,
   CharacterRepository,
+  WorkflowRepository,
 } from './index.js';
 
 let root: string;
@@ -258,6 +261,130 @@ describe('SQLite foundation', () => {
         if (first.sqlite.inTransaction) first.sqlite.exec('ROLLBACK');
         second.close();
       }
+    });
+  });
+  it('records immutable cross-version checkpoint lineage only for the active owner and selected successful attempt', () => {
+    withDatabase((connection) => {
+      const character = new CharacterRepository(connection).create({
+        name: 'Lineage hero',
+        description: '',
+        bodyType: 'humanoid',
+        fightingStyle: 'light_melee',
+        specialPower: 'none',
+      });
+      const sourceJobId = randomUUID();
+      const childJobId = randomUUID();
+      const stepId = randomUUID();
+      const attemptId = randomUUID();
+      const source = {
+        schemaVersion: 1,
+        characterId: character.id,
+        version: 1,
+        original: { assetId: randomUUID() },
+      };
+      const child = {
+        schemaVersion: 1,
+        characterId: character.id,
+        version: 2,
+        original: source.original,
+      };
+      const sourceHash = sha256(canonicalJson(source));
+      const childHash = sha256(canonicalJson(child));
+      const input = {
+        schemaVersion: 1,
+        characterId: character.id,
+        characterVersion: 1,
+        sourceSnapshotHash: sourceHash,
+        inputs: {},
+        parameters: {},
+      };
+      const outputJson = canonicalJson({
+        artifacts: [{ sha256: 'a'.repeat(64) }],
+      });
+      const sourceRequest = canonicalJson({
+        generation: { protocol: 'mock-factory@1', version: 1, source },
+      });
+      const childRequest = canonicalJson({
+        generation: { protocol: 'mock-factory@1', version: 2, source: child },
+      });
+      const insertJob = connection.sqlite.prepare(
+        "INSERT INTO generation_jobs(id,character_id,kind,status,request_json,request_hash,idempotency_key,created_at,updated_at) VALUES(?,? ,'generate',?,?,?, ?,0,0)",
+      );
+      insertJob.run(
+        sourceJobId,
+        character.id,
+        'waiting_approval',
+        sourceRequest,
+        sha256(sourceRequest),
+        randomUUID(),
+      );
+      insertJob.run(
+        childJobId,
+        character.id,
+        'queued',
+        childRequest,
+        sha256(childRequest),
+        randomUUID(),
+      );
+      connection.sqlite
+        .prepare(
+          `INSERT INTO generation_steps(id,job_id,stage_key,stage_version,target_key,dependencies_json,status,input_hash,input_json,output_json,attempt_count,max_attempts,available_at,lease_token)
+         VALUES(?,?, 'build-sheet','1','walk','[]','succeeded',?,?,?,1,3,0,1)`,
+        )
+        .run(
+          stepId,
+          sourceJobId,
+          sha256(
+            canonicalJson({
+              stageKey: 'build-sheet',
+              stageVersion: '1',
+              input,
+            }),
+          ),
+          canonicalJson(input),
+          outputJson,
+        );
+      connection.sqlite
+        .prepare(
+          `INSERT INTO generation_attempts(id,step_id,attempt_no,lease_token,worker_id,started_at,ended_at,outcome)
+         VALUES(?,?,1,1,'test',0,1,'succeeded')`,
+        )
+        .run(attemptId, stepId);
+      const repository = new WorkflowRepository(connection);
+      const record = {
+        id: randomUUID(),
+        characterId: character.id,
+        sourceJobId,
+        sourceStepId: stepId,
+        sourceAttemptId: attemptId,
+        childJobId,
+        stageKey: 'build-sheet',
+        stageVersion: '1',
+        targetKey: 'walk',
+        sourceSnapshotHash: sourceHash,
+        childSnapshotHash: childHash,
+        sourceOutputHash: sha256(outputJson),
+        artifactHashes: ['a'.repeat(64)],
+      };
+      expect(repository.recordCheckpointLineage(record)).toBe(record.id);
+      expect(repository.checkpointLineage(childJobId)).toHaveLength(1);
+      expect(() =>
+        connection.sqlite
+          .prepare('UPDATE generation_checkpoint_lineage SET source_version=2')
+          .run(),
+      ).toThrow(/immutable/);
+      expect(() =>
+        connection.sqlite
+          .prepare('DELETE FROM generation_checkpoint_lineage')
+          .run(),
+      ).toThrow(/cannot be deleted/);
+      expect(() =>
+        repository.recordCheckpointLineage({
+          ...record,
+          id: randomUUID(),
+          sourceOutputHash: 'b'.repeat(64),
+        }),
+      ).toThrow('Checkpoint lineage identity mismatch');
     });
   });
   it('rolls back failed transactions and seeds metadata without fabricating approved content', () => {

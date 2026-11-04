@@ -65,6 +65,7 @@ export {
   GenerationEnqueueError,
   type NewWorkflowJob,
   type WorkflowClaim,
+  type NewCheckpointLineage,
 } from './workflow.js';
 export { AssetRepository, type NewAsset } from './assets.js';
 export { ReleaseRepository, type ReleaseEntry } from './releases.js';
