@@ -1,4 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
+import { canonicalJson } from '@doodleforge/contracts';
 import { and, eq, lte } from 'drizzle-orm';
 import type { DatabaseConnection } from './index.js';
 import { SnapshotRepository, type FrozenSnapshotInput } from './snapshots.js';
@@ -584,6 +586,144 @@ export class WorkflowRepository {
       return recovered;
     });
   }
+  /** Atomic gate persistence only. Caller must first validate every generated source byte;
+   * this is not a public approval or publication API. */
+  recordGeneratedReviewDecision(input: {
+    characterId: string;
+    versionId: string;
+    expectedManifestSha256: string;
+    expectedSourceSha256: string;
+    expectedDecisionOrder: number;
+    decision: 'approved' | 'rejected' | 'revoked';
+    actorLabel: string;
+    note: string;
+  }) {
+    return this.transaction((now) => {
+      if (
+        !['approved', 'rejected', 'revoked'].includes(input.decision) ||
+        !Number.isSafeInteger(input.expectedDecisionOrder) ||
+        input.expectedDecisionOrder < 0 ||
+        !input.actorLabel.trim() ||
+        input.actorLabel.length > 120 ||
+        input.note.length > 2000 ||
+        !/^[a-f0-9]{64}$/.test(input.expectedSourceSha256)
+      )
+        throw new Error('Invalid generated decision');
+      const snapshots = new SnapshotRepository(this.connection);
+      const snapshot = snapshots.get(input.versionId);
+      if (
+        !snapshot ||
+        snapshot.characterId !== input.characterId ||
+        !new CharacterRepository(this.connection).get(input.characterId) ||
+        !snapshot.manifestJson ||
+        snapshot.manifestSha256 !== input.expectedManifestSha256 ||
+        createHash('sha256').update(snapshot.manifestJson).digest('hex') !==
+          input.expectedManifestSha256 ||
+        createHash('sha256')
+          .update(snapshot.sourceSnapshotJson)
+          .digest('hex') !== input.expectedSourceSha256
+      )
+        throw new Error('Generated review unavailable');
+      let source: {
+        kind?: string;
+        schemaVersion?: number;
+        validationStepId?: string;
+        sourceSnapshotHash?: string;
+      };
+      let output: {
+        source?: unknown;
+        metadata?: { manifest?: unknown; manifestSha256?: string };
+      };
+      {
+        source = JSON.parse(snapshot.sourceSnapshotJson);
+        if (
+          source.kind !== 'workflow-artifacts' ||
+          source.schemaVersion !== 1 ||
+          typeof source.validationStepId !== 'string'
+        )
+          throw new Error();
+        const step = this.step(source.validationStepId);
+        const job = step && this.job(step.jobId);
+        if (
+          !step ||
+          !job ||
+          job.kind !== 'generate' ||
+          job.characterId !== input.characterId ||
+          job.characterVersionId !== snapshot.id ||
+          job.cancelRequestedAt !== null ||
+          !['waiting_approval', 'waiting_publish'].includes(job.status) ||
+          createHash('sha256').update(job.requestJson).digest('hex') !==
+            job.requestHash ||
+          step.stageKey !== 'validate-review' ||
+          step.stageVersion !== '1' ||
+          step.targetKey !== '' ||
+          step.status !== 'succeeded' ||
+          !step.outputJson ||
+          !this.attempts(step.id).some(
+            (attempt) =>
+              attempt.outcome === 'succeeded' &&
+              attempt.leaseToken === step.leaseToken,
+          )
+        )
+          throw new Error();
+        const request = JSON.parse(job.requestJson) as {
+          characterId?: string;
+          generation?: {
+            protocol?: string;
+            version?: number;
+            source?: unknown;
+          };
+        };
+        output = JSON.parse(step.outputJson);
+        if (
+          request.characterId !== input.characterId ||
+          request.generation?.protocol !== 'mock-factory@1' ||
+          request.generation.version !== snapshot.version ||
+          !request.generation.source ||
+          createHash('sha256')
+            .update(canonicalJson(request.generation.source))
+            .digest('hex') !== source.sourceSnapshotHash ||
+          !isDeepStrictEqual(output.source, source) ||
+          !isDeepStrictEqual(
+            output.metadata?.manifest,
+            JSON.parse(snapshot.manifestJson),
+          ) ||
+          output.metadata?.manifestSha256 !== input.expectedManifestSha256
+        )
+          throw new Error();
+        const latest = snapshots.latestDecision(snapshot.id);
+        if (
+          (job.status === 'waiting_publish') !==
+            (latest?.decision === 'approved') ||
+          (job.status === 'waiting_publish'
+            ? snapshot.status !== 'approved'
+            : snapshot.status !== 'review')
+        )
+          throw new Error();
+        const decision = snapshots.recordDecision({
+          versionId: snapshot.id,
+          expectedManifestSha256: input.expectedManifestSha256,
+          expectedDecisionOrder: input.expectedDecisionOrder,
+          decision: input.decision,
+          actorLabel: input.actorLabel,
+          note: input.note,
+        });
+        this.connection.sqlite
+          .prepare(
+            'UPDATE generation_jobs SET status=?,updated_at=? WHERE id=?',
+          )
+          .run(
+            input.decision === 'approved'
+              ? 'waiting_publish'
+              : 'waiting_approval',
+            now,
+            job.id,
+          );
+        return decision;
+      }
+    });
+  }
+
   /** Retry a single failed mock job without changing attempts, inputs or adopted outputs.
    * This library boundary is not exposed to Studio; callers must reconcile uncertain results.
    */

@@ -147,7 +147,7 @@ Contract precedes game and factory. API integration precedes authoring UI. To re
 - [x] Implement capture/analysis/cleanup/master/body/pose/frame stages with mock adapter. Actual CLI worker graph persists all stages and five branches (ADRs 034–040/051); the synthetic provider still does not condition frame pixels on the pose. This is not image-quality or full upload-to-game acceptance.
 - [x] Implement anchor normalization, sheet packing, metadata/validation and review freeze. Actual CLI graph verifies files and atomically adopts the review snapshot/source registry and waiting-approval state (ADRs 041–051). The anchor remains provisional; generated-source private preview delivery is now verified separately (ADR-052); Studio generation/progress and mutation gates remain pending.
 - [ ] Add per-animation branching and descendant invalidation into new versions.
-- [ ] Connect approval/waiting-publish gates to explicit publication jobs.
+- [ ] Connect approval/waiting-publish gates to explicit publication jobs. Atomic decision/gate persistence is library-only (ADR-059); generated asset validation/service/UI and durable publication remain.
 - [ ] Wire real progress/errors/previews/regeneration in studio. Read-only persisted progress/errors and generated private previews are verified (ADRs 052/053); Studio enqueue is wired (ADR-055); queued/running cancellation is wired (ADR-056); budget-preserving failed-job retry is available in Studio (ADRs 057/058); selective regeneration remains.
 - [ ] Execute two-character upload/generate/approve/publish/game-move/attack E2E.
 
