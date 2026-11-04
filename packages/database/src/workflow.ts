@@ -1099,17 +1099,86 @@ export class WorkflowRepository {
         .from(contentReleases)
         .where(eq(contentReleases.id, input.release.id))
         .get();
-      if (
-        publishJob?.status === 'succeeded' &&
-        publishStep?.status === 'succeeded' &&
-        publishJob.requestHash === input.expectedRequestHash &&
-        existingRelease?.status === 'ready' &&
-        existingRelease.indexSha256 === input.release.indexSha256 &&
+      const replayOwner = new CharacterRepository(this.connection).get(
+        input.characterId,
+      );
+      const replayParent = this.job(input.parentJobId);
+      const replayState = this.connection.db
+        .select()
+        .from(contentState)
+        .where(eq(contentState.id, 1))
+        .get();
+      let replayRequest: Record<string, unknown> | undefined;
+      let replayInput: Record<string, unknown> | undefined;
+      let replayOutput: Record<string, unknown> | undefined;
+      try {
+        if (publishJob) replayRequest = JSON.parse(publishJob.requestJson);
+        if (publishStep) replayInput = JSON.parse(publishStep.inputJson);
+        if (publishStep?.outputJson)
+          replayOutput = JSON.parse(publishStep.outputJson);
+      } catch {
+        // Corrupt persisted completion evidence is never replay authority.
+      }
+      const replayAttempt =
+        publishStep &&
         this.connection.db
           .select()
-          .from(contentState)
-          .where(eq(contentState.id, 1))
-          .get()?.activeReleaseId === input.release.id
+          .from(generationAttempts)
+          .where(
+            and(
+              eq(generationAttempts.stepId, publishStep.id),
+              eq(generationAttempts.attemptNo, publishStep.attemptCount),
+              eq(generationAttempts.leaseToken, publishStep.leaseToken),
+            ),
+          )
+          .get();
+      if (
+        publishJob?.status === 'succeeded' &&
+        publishJob.kind === 'publish' &&
+        publishJob.characterId === input.characterId &&
+        publishJob.characterVersionId === input.versionId &&
+        publishJob.requestHash === input.expectedRequestHash &&
+        createHash('sha256').update(publishJob.requestJson).digest('hex') ===
+          publishJob.requestHash &&
+        replayRequest?.protocol === 'generated-publication@1' &&
+        canonicalJson(replayRequest) === publishJob.requestJson &&
+        replayRequest.characterId === input.characterId &&
+        replayRequest.versionId === input.versionId &&
+        replayRequest.manifestSha256 === input.expectedManifestSha256 &&
+        replayRequest.sourceSha256 === input.expectedSourceSha256 &&
+        replayRequest.decisionOrder === input.expectedDecisionOrder &&
+        publishStep?.jobId === publishJob.id &&
+        publishStep.stageKey === 'publish-generated' &&
+        publishStep.stageVersion === '1' &&
+        publishStep.status === 'succeeded' &&
+        publishStep.attemptCount === input.attemptNo &&
+        publishStep.leaseToken === input.leaseToken &&
+        publishStep.inputHash ===
+          createHash('sha256').update(publishStep.inputJson).digest('hex') &&
+        replayInput?.parentJobId === input.parentJobId &&
+        canonicalJson({ ...replayRequest, parentJobId: input.parentJobId }) ===
+          publishStep.inputJson &&
+        replayInput?.characterId === input.characterId &&
+        replayInput?.versionId === input.versionId &&
+        replayOutput?.releaseId === input.release.id &&
+        replayOutput?.indexSha256 === input.release.indexSha256 &&
+        replayAttempt?.workerId === input.workerId &&
+        replayAttempt.outcome === 'succeeded' &&
+        replayAttempt.endedAt !== null &&
+        replayParent?.status === 'succeeded' &&
+        replayParent.kind === 'generate' &&
+        replayParent.characterId === input.characterId &&
+        replayParent.characterVersionId === input.versionId &&
+        replayOwner?.archivedAt === null &&
+        existingRelease?.status === 'ready' &&
+        existingRelease.indexKey === input.release.indexKey &&
+        existingRelease.indexSha256 === input.release.indexSha256 &&
+        existingRelease.indexJson === input.release.indexJson &&
+        existingRelease.previousReleaseId === input.release.previousReleaseId &&
+        existingRelease.expectedGeneration ===
+          input.release.expectedGeneration &&
+        replayState?.activeReleaseId === input.release.id &&
+        replayState.generation === input.release.expectedGeneration + 1
       )
         return { status: 'replay', releaseId: input.release.id };
       const parent = this.job(input.parentJobId);
@@ -1205,6 +1274,11 @@ export class WorkflowRepository {
         request.manifestSha256 !== input.expectedManifestSha256 ||
         request.sourceSha256 !== input.expectedSourceSha256 ||
         request.decisionOrder !== input.expectedDecisionOrder ||
+        canonicalJson(request) !== publishJob.requestJson ||
+        canonicalJson({ ...request, parentJobId: parent.id }) !==
+          publishStep.inputJson ||
+        publishStep.inputHash !==
+          createHash('sha256').update(publishStep.inputJson).digest('hex') ||
         stepInput.parentJobId !== parent.id ||
         !releaseState
       )
@@ -1218,8 +1292,7 @@ export class WorkflowRepository {
       }
       if (
         index.releaseId !== input.release.id ||
-        !input.release.indexKey ||
-        input.release.indexKey.length > 500 ||
+        input.release.indexKey !== `releases/${input.release.id}/index.json` ||
         createHash('sha256').update(input.release.indexJson).digest('hex') !==
           input.release.indexSha256 ||
         index.characters.length !== input.entries.length ||
@@ -1256,7 +1329,8 @@ export class WorkflowRepository {
         selectedEntries.length !== 1 ||
         selectedEntries[0]?.characterId !== input.characterId ||
         selectedEntries[0]?.manifestSha256 !== input.expectedManifestSha256 ||
-        !selectedEntries[0]?.manifestPath ||
+        selectedEntries[0]?.manifestPath !==
+          `characters/${input.characterId}/v${snapshot.version}/character.json` ||
         input.entries.some(
           (entry) =>
             !hash.test(entry.manifestSha256) ||
@@ -1298,6 +1372,23 @@ export class WorkflowRepository {
       )
         return denied('Release does not preserve the active catalog');
 
+      for (const entry of inherited) {
+        const inheritedVersion = this.connection.db
+          .select()
+          .from(characterVersions)
+          .where(eq(characterVersions.id, entry.characterVersionId))
+          .get();
+        if (
+          !inheritedVersion ||
+          inheritedVersion.characterId !== entry.characterId ||
+          inheritedVersion.version !== entry.characterVersion ||
+          inheritedVersion.status !== 'published' ||
+          inheritedVersion.manifestSha256 !== entry.manifestSha256 ||
+          entry.manifestPath !==
+            `characters/${entry.characterId}/v${entry.characterVersion}/character.json`
+        )
+          return denied('Inherited release entry identity is invalid');
+      }
       const selectedVersion = this.connection.db
         .select()
         .from(characterVersions)

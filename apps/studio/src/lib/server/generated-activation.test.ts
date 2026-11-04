@@ -160,6 +160,25 @@ it('atomically activates staged release and completes publish attempt, child and
   ).toEqual({ outcome: 'succeeded' });
 });
 
+it('does not accept another succeeded publication job and this job’s step as replay evidence', () => {
+  const otherJobId = repo.enqueueGeneratedPublication({
+    characterId: input.characterId,
+    versionId: input.versionId,
+    expectedManifestSha256: input.expectedManifestSha256,
+    expectedSourceSha256: input.expectedSourceSha256,
+    expectedDecisionOrder: input.expectedDecisionOrder,
+    idempotencyKey: `generated-publish:${randomUUID()}`,
+  });
+  expect(repo.activateGeneratedPublication(input).status).toBe('activated');
+  db.sqlite
+    .prepare("UPDATE generation_jobs SET status='succeeded' WHERE id=?")
+    .run(otherJobId);
+  expect(
+    repo.activateGeneratedPublication({ ...input, publishJobId: otherJobId })
+      .status,
+  ).not.toBe('replay');
+});
+
 it('rejects an expired lease without changing any publication state', () => {
   db.sqlite
     .prepare('UPDATE generation_steps SET lease_expires_at=? WHERE id=?')
