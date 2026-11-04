@@ -367,6 +367,12 @@ This increment does not register the stage, claim a lease, read or stage bytes, 
 
 The generic scheduler refuses to claim `publish-generated` steps, even if explicitly requested, until an independently reviewed activation protocol exists. Malformed or non-array dependency JSON is excluded safely without rewriting retained requests, hashes or other audit evidence; unrelated eligible work remains claimable. An earlier proposed claim-time fence and quarantine were not integrated: a claim is not activation authority, and rewriting corrupt request bytes would destroy evidence. This does not stage bytes, publish, or complete jobs. The direct-publisher guard and false Studio capability remain in force.
 
+### ADR-069 — Disconnected generated-publication handler contract (accepted prerequisite only)
+
+Add a worker handler factory with explicit injected source-resolution/byte-verification, release/index preparation, exact-byte staging/reverification, and transactional activation interfaces. The handler validates persisted request/job/step identity, copies the resolver's manifest and asset buffers before later asynchronous boundaries, checks cancellation and lease ownership between phases, and delegates all visible release activation and linked workflow completion to one transactional activation implementation. Only an activated or idempotent-replay result is success; stale/denied results fail closed. The handler must never call ordinary checkpoint completion after activation.
+
+The implementation remains disconnected: do not register it in the worker runtime, expose a route/UI capability, alter the generic scheduler's `publish-generated` exclusion, or change the direct publisher guard until staging and activation interfaces are implemented and independently reviewed. Injected lifecycle tests prove call ordering, byte ownership and fail-closed branching only; they do not prove filesystem safety, SQLite atomicity, retry/restart correctness or publication. Integration must add those real fault/race tests and a same-origin explicit request boundary before any enablement. Same-root filesystem TOCTOU limitations remain subject to ADR-005/019 and local trust assumptions.
+
 ## Dependencies
 Plans 01–11 contain detailed consequences. Roadmap orders implementations; progress records evidence. External source availability affects research, not local test status.
 
