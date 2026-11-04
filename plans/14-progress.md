@@ -1,5 +1,11 @@
 # 14 — Persistent implementation progress
 
+## Phase 6 — browser review and parallel prerequisite integration
+
+- Integrated the three isolated agent increments: logical regeneration planning without cross-version checkpoint reuse (ADR-063), idempotent publication-request persistence without executable publication (ADR-064), and enabled-decision browser coverage using a browser-response-only capability simulation (ADR-065). Production continues to report the capability as false; no environment variable changes that behavior. Generated publication and the direct publisher guard remain unchanged. An unrecorded alternate-idempotency-key replay and archived-owner replay were corrected before final integration.
+- `mise exec -- pnpm exec playwright test tools/browser-tests/generated-review.spec.ts tools/browser-tests/z-review-actions.spec.ts`: PASS, 4 Chromium tests, covering simulated enabled generated UI against the actual server, stale and uncertain responses, approved preview, corrupted art and publication denial. `mise exec -- pnpm exec vitest run --maxWorkers=1 --testTimeout=60000 --hookTimeout=120000`: PASS, 457 tests / 41 files. The browser simulation is not production capability activation. Earlier targeted integration checks passed 29 tests / 3 files, `mise exec -- pnpm check`, `mise exec -- pnpm lint`, and `git diff --check`.
+- Phase 6 remains incomplete: production capability requires independent activation review; generated publication requires exact-byte staging and atomic lease/cancellation/approval/release/gate fencing, and selective regeneration requires a verified cross-version lineage protocol. No Godot, manual accessibility/child-usability or upload-to-game E2E ran; Phase 5 manual acceptance remains deferred.
+
 ## Phase 6 — regeneration and publication prerequisites integration
 
 - Integrated selective-regeneration planning and publication request reservation on the isolated integration branch. Publication request replay now requires an active owner; each distinct idempotency key is recorded separately, and exact-key replay after revocation reconciles only the prior request, not publication authority. Renumbered the parallel publication decision ADR-064. No generated publish worker, exact-byte staging or fenced release activation is enabled; selective checkpoint reuse remains disabled.
