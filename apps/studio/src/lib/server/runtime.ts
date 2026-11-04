@@ -60,6 +60,7 @@ export function characterService() {
   return new CharacterService(
     new CharacterRepository(connection),
     new SnapshotRepository(connection),
+    process.env.DOODLEFORGE_BROWSER_TEST_MODE === 'generated-review-decisions',
   );
 }
 

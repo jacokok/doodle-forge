@@ -1,11 +1,17 @@
 // Test-only real generated review; never run by normal startup.
+import { chmodSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { loadConfig } from '@doodleforge/shared/server';
 import {
   openDatabase,
   WorkflowRepository,
   CharacterRepository,
+  SnapshotRepository,
 } from '@doodleforge/database';
-import { enqueueMockGeneration } from '@doodleforge/workflow';
+import {
+  enqueueMockGeneration,
+  generatedReviewSourceSchema,
+} from '@doodleforge/workflow';
 import { mockReviewFixture } from './mock-review-fixture.js';
 const config = loadConfig();
 const connection = openDatabase(config.databasePath);
@@ -43,7 +49,29 @@ try {
   enqueue('browser-running');
   workflows.claim('browser-private-worker');
   enqueue('browser-queued');
-  console.log(JSON.stringify(fixture));
+  const corruptFixture = await mockReviewFixture(
+    connection,
+    config.storageRoot,
+    'Generated corrupt fixture',
+  );
+  const snapshot = new SnapshotRepository(connection).get(
+    corruptFixture.versionId,
+  )!;
+  const source = generatedReviewSourceSchema.parse(
+    JSON.parse(snapshot.sourceSnapshotJson),
+  );
+  const corrupt = source.assets.idle_sheet!;
+  const filename = join(
+    config.storageRoot,
+    'generated',
+    'attempts',
+    corrupt.stepId,
+    corrupt.attemptId,
+    `${corrupt.artifactId}.png`,
+  );
+  chmodSync(filename, 0o600);
+  writeFileSync(filename, Buffer.alloc(corrupt.bytes));
+  console.log(JSON.stringify({ fixture, corruptFixture }));
 } finally {
   connection.close();
 }
