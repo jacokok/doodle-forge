@@ -606,6 +606,8 @@ export class WorkflowRepository {
         input.expectedDecisionOrder < 1
       )
         throw new Error('Invalid generated publication request');
+      if (!new CharacterRepository(this.connection).get(input.characterId))
+        throw new Error('Generated publication owner unavailable');
       const request = {
         protocol: 'generated-publication@1',
         characterId: input.characterId,
@@ -632,20 +634,6 @@ export class WorkflowRepository {
           throw new Error('Publication idempotency conflict');
         return existing.id;
       }
-      const sameApproval = this.connection.db
-        .select()
-        .from(generationJobs)
-        .where(
-          and(
-            eq(generationJobs.kind, 'publish'),
-            eq(generationJobs.requestJson, requestJson),
-          ),
-        )
-        .get();
-      if (sameApproval) return sameApproval.id;
-      const character = new CharacterRepository(this.connection).get(
-        input.characterId,
-      );
       const snapshot = new SnapshotRepository(this.connection).get(
         input.versionId,
       );
@@ -660,7 +648,6 @@ export class WorkflowRepository {
         snapshot &&
         new SnapshotRepository(this.connection).latestDecision(snapshot.id);
       if (
-        !character ||
         !snapshot ||
         snapshot.characterId !== input.characterId ||
         !parent ||

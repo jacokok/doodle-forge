@@ -165,11 +165,22 @@ it('durably reserves one idempotent publication request only behind the current 
   expect(() =>
     repo.enqueueGeneratedPublication({ ...request, expectedDecisionOrder: 2 }),
   ).toThrow('Publication idempotency conflict');
-  const changedKey = repo.enqueueGeneratedPublication({
+  const secondKey = `generated-publish:${randomUUID()}`;
+  const secondId = repo.enqueueGeneratedPublication({
     ...request,
-    idempotencyKey: `generated-publish:${randomUUID()}`,
+    idempotencyKey: secondKey,
   });
-  expect(changedKey).toBe(id);
+  expect(secondId).not.toBe(id);
+  expect(
+    repo.enqueueGeneratedPublication({ ...request, idempotencyKey: secondKey }),
+  ).toBe(secondId);
+  expect(() =>
+    repo.enqueueGeneratedPublication({
+      ...request,
+      idempotencyKey: secondKey,
+      expectedDecisionOrder: 2,
+    }),
+  ).toThrow('Publication idempotency conflict');
   expect(repo.job(id)).toMatchObject({
     kind: 'publish',
     status: 'queued',
@@ -193,19 +204,21 @@ it('durably reserves one idempotent publication request only behind the current 
     expectedDecisionOrder: 1,
     decision: 'revoked',
   });
-  expect(
-    repo.enqueueGeneratedPublication({
-      ...request,
-      idempotencyKey: `generated-publish:${randomUUID()}`,
-    }),
-  ).toBe(id);
+  expect(repo.enqueueGeneratedPublication(request)).toBe(id);
   expect(() =>
     repo.enqueueGeneratedPublication({
       ...request,
       idempotencyKey: `generated-publish:${randomUUID()}`,
-      expectedDecisionOrder: 2,
     }),
   ).toThrow('Generated publication gate unavailable');
+  const archived = new CharacterRepository(db).get(fixture.characterId)!;
+  new CharacterRepository(db).archive(
+    fixture.characterId,
+    archived.editRevision,
+  );
+  expect(() => repo.enqueueGeneratedPublication(request)).toThrow(
+    'Generated publication owner unavailable',
+  );
 });
 
 it('serializes competing decision and cancellation attempts across connections', () => {
