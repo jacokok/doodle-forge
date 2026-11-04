@@ -1,11 +1,17 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
-import { canonicalJson } from '@doodleforge/contracts';
+import { canonicalJson, releaseIndexSchema } from '@doodleforge/contracts';
 import { and, eq, lte } from 'drizzle-orm';
 import type { DatabaseConnection } from './index.js';
 import { SnapshotRepository, type FrozenSnapshotInput } from './snapshots.js';
 import { CharacterRepository } from './repositories.js';
 import { AssetRepository } from './assets.js';
+import {
+  contentReleaseEntries,
+  contentReleases,
+  contentState,
+  characterVersions,
+} from './schema.js';
 import {
   generationJobs,
   generationSteps,
@@ -60,6 +66,41 @@ export interface GenerationReservation {
   original: NonNullable<ReturnType<AssetRepository['get']>>;
   version: number;
 }
+
+export interface GeneratedPublicationActivationInput {
+  publishJobId: string;
+  publishStepId: string;
+  workerId: string;
+  attemptNo: number;
+  leaseToken: number;
+  parentJobId: string;
+  characterId: string;
+  versionId: string;
+  expectedRequestHash: string;
+  expectedSourceSha256: string;
+  expectedManifestSha256: string;
+  expectedDecisionOrder: number;
+  release: {
+    id: string;
+    indexKey: string;
+    indexSha256: string;
+    indexJson: string;
+    previousReleaseId: string | null;
+    expectedGeneration: number;
+  };
+  entries: {
+    characterId: string;
+    characterVersionId: string;
+    characterVersion: number;
+    manifestPath: string;
+    manifestSha256: string;
+  }[];
+}
+
+export type GeneratedPublicationActivationResult =
+  | { status: 'activated'; releaseId: string }
+  | { status: 'replay'; releaseId: string }
+  | { status: 'stale' | 'denied'; reason: string };
 
 /** Persistence only: no stage handlers, filesystem writes or provider calls in transactions. */
 export class GenerationEnqueueError extends Error {
@@ -1009,6 +1050,345 @@ export class WorkflowRepository {
         })
         .run();
       return jobId;
+    });
+  }
+
+  /**
+   * Sole database visibility boundary for a generated publication. Files and the
+   * release index must already be durably staged and independently reverified by
+   * the caller; this transaction only binds that evidence to current authority.
+   * SQLite cannot attest filesystem bytes or protect against privileged writes.
+   */
+  activateGeneratedPublication(
+    input: GeneratedPublicationActivationInput,
+  ): GeneratedPublicationActivationResult {
+    return this.transaction((now) => {
+      const stale = (reason: string): GeneratedPublicationActivationResult => ({
+        status: 'stale',
+        reason,
+      });
+      const denied = (
+        reason: string,
+      ): GeneratedPublicationActivationResult => ({
+        status: 'denied',
+        reason,
+      });
+      const hash = /^[a-f0-9]{64}$/;
+      if (
+        !hash.test(input.expectedRequestHash) ||
+        !hash.test(input.expectedSourceSha256) ||
+        !hash.test(input.expectedManifestSha256) ||
+        !hash.test(input.release.indexSha256) ||
+        !Number.isSafeInteger(input.attemptNo) ||
+        input.attemptNo < 1 ||
+        !Number.isSafeInteger(input.leaseToken) ||
+        input.leaseToken < 1 ||
+        !Number.isSafeInteger(input.expectedDecisionOrder) ||
+        input.expectedDecisionOrder < 1 ||
+        !Number.isSafeInteger(input.release.expectedGeneration) ||
+        input.release.expectedGeneration < 0 ||
+        !input.entries.length ||
+        input.entries.length > 100
+      )
+        return denied('Invalid activation evidence');
+
+      const publishJob = this.job(input.publishJobId);
+      const publishStep = this.step(input.publishStepId);
+      const existingRelease = this.connection.db
+        .select()
+        .from(contentReleases)
+        .where(eq(contentReleases.id, input.release.id))
+        .get();
+      if (
+        publishJob?.status === 'succeeded' &&
+        publishStep?.status === 'succeeded' &&
+        publishJob.requestHash === input.expectedRequestHash &&
+        existingRelease?.status === 'ready' &&
+        existingRelease.indexSha256 === input.release.indexSha256 &&
+        this.connection.db
+          .select()
+          .from(contentState)
+          .where(eq(contentState.id, 1))
+          .get()?.activeReleaseId === input.release.id
+      )
+        return { status: 'replay', releaseId: input.release.id };
+      const parent = this.job(input.parentJobId);
+      const owner = new CharacterRepository(this.connection).get(
+        input.characterId,
+      );
+      const snapshots = new SnapshotRepository(this.connection);
+      const snapshot = snapshots.get(input.versionId);
+      const latest = snapshot && snapshots.latestDecision(snapshot.id);
+      const releaseState = this.connection.db
+        .select()
+        .from(contentState)
+        .where(eq(contentState.id, 1))
+        .get();
+      if (
+        !publishJob ||
+        publishJob.kind !== 'publish' ||
+        publishJob.characterId !== input.characterId ||
+        publishJob.characterVersionId !== input.versionId ||
+        publishJob.status !== 'running' ||
+        publishJob.cancelRequestedAt !== null ||
+        publishJob.requestHash !== input.expectedRequestHash ||
+        createHash('sha256').update(publishJob.requestJson).digest('hex') !==
+          publishJob.requestHash ||
+        !publishStep ||
+        publishStep.jobId !== publishJob.id ||
+        publishStep.stageKey !== 'publish-generated' ||
+        publishStep.stageVersion !== '1' ||
+        publishStep.status !== 'running' ||
+        publishStep.attemptCount !== input.attemptNo ||
+        publishStep.leaseOwner !== input.workerId ||
+        publishStep.leaseToken !== input.leaseToken ||
+        publishStep.leaseExpiresAt === null ||
+        publishStep.leaseExpiresAt <= now
+      )
+        return stale('Publication attempt is no longer current');
+
+      const attempt = this.connection.db
+        .select()
+        .from(generationAttempts)
+        .where(
+          and(
+            eq(generationAttempts.stepId, publishStep.id),
+            eq(generationAttempts.attemptNo, input.attemptNo),
+            eq(generationAttempts.leaseToken, input.leaseToken),
+          ),
+        )
+        .get();
+      if (
+        !attempt ||
+        attempt.workerId !== input.workerId ||
+        attempt.outcome !== 'running' ||
+        attempt.endedAt !== null
+      )
+        return stale('Publication attempt fence is no longer current');
+      if (
+        !owner ||
+        owner.archivedAt !== null ||
+        !parent ||
+        parent.kind !== 'generate' ||
+        parent.characterId !== input.characterId ||
+        parent.characterVersionId !== input.versionId ||
+        parent.status !== 'waiting_publish' ||
+        parent.cancelRequestedAt !== null ||
+        !snapshot ||
+        snapshot.characterId !== input.characterId ||
+        snapshot.status !== 'approved' ||
+        !snapshot.manifestJson ||
+        snapshot.manifestSha256 !== input.expectedManifestSha256 ||
+        createHash('sha256').update(snapshot.manifestJson).digest('hex') !==
+          input.expectedManifestSha256 ||
+        createHash('sha256')
+          .update(snapshot.sourceSnapshotJson)
+          .digest('hex') !== input.expectedSourceSha256 ||
+        latest?.decision !== 'approved' ||
+        latest.decisionOrder !== input.expectedDecisionOrder ||
+        latest.manifestSha256 !== input.expectedManifestSha256
+      )
+        return denied('Current generated approval gate is unavailable');
+
+      let request: Record<string, unknown>;
+      let stepInput: Record<string, unknown>;
+      try {
+        request = JSON.parse(publishJob.requestJson);
+        stepInput = JSON.parse(publishStep.inputJson);
+      } catch {
+        return denied('Publication request identity is invalid');
+      }
+      if (
+        request.protocol !== 'generated-publication@1' ||
+        request.characterId !== input.characterId ||
+        request.versionId !== input.versionId ||
+        request.manifestSha256 !== input.expectedManifestSha256 ||
+        request.sourceSha256 !== input.expectedSourceSha256 ||
+        request.decisionOrder !== input.expectedDecisionOrder ||
+        stepInput.parentJobId !== parent.id ||
+        !releaseState
+      )
+        return denied('Publication request does not match approval');
+
+      let index: ReturnType<typeof releaseIndexSchema.parse>;
+      try {
+        index = releaseIndexSchema.parse(JSON.parse(input.release.indexJson));
+      } catch {
+        return denied('Staged release index is invalid');
+      }
+      if (
+        index.releaseId !== input.release.id ||
+        !input.release.indexKey ||
+        input.release.indexKey.length > 500 ||
+        createHash('sha256').update(input.release.indexJson).digest('hex') !==
+          input.release.indexSha256 ||
+        index.characters.length !== input.entries.length ||
+        input.entries.some(
+          (entry) =>
+            !index.characters.some(
+              (indexed) =>
+                indexed.characterId === entry.characterId &&
+                indexed.characterVersion === entry.characterVersion &&
+                indexed.manifestPath === entry.manifestPath &&
+                indexed.manifestSha256 === entry.manifestSha256,
+            ),
+        )
+      )
+        return denied('Staged release index identity is invalid');
+      if (
+        releaseState.generation !== input.release.expectedGeneration ||
+        releaseState.activeReleaseId !== input.release.previousReleaseId
+      )
+        return stale('Active release changed during staging');
+      if (
+        this.connection.db
+          .select()
+          .from(contentReleases)
+          .where(eq(contentReleases.id, input.release.id))
+          .get()
+      )
+        return denied('Release identity already exists');
+
+      const selectedEntries = input.entries.filter(
+        (entry) => entry.characterVersionId === input.versionId,
+      );
+      if (
+        selectedEntries.length !== 1 ||
+        selectedEntries[0]?.characterId !== input.characterId ||
+        selectedEntries[0]?.manifestSha256 !== input.expectedManifestSha256 ||
+        !selectedEntries[0]?.manifestPath ||
+        input.entries.some(
+          (entry) =>
+            !hash.test(entry.manifestSha256) ||
+            !entry.manifestPath ||
+            entry.manifestPath.length > 500,
+        ) ||
+        new Set(input.entries.map((entry) => entry.characterId)).size !==
+          input.entries.length
+      )
+        return denied('Release entries do not select the approved revision');
+
+      const activeEntries = releaseState.activeReleaseId
+        ? this.connection.db
+            .select()
+            .from(contentReleaseEntries)
+            .where(
+              eq(contentReleaseEntries.releaseId, releaseState.activeReleaseId),
+            )
+            .all()
+        : [];
+      const inherited = input.entries.filter(
+        (entry) => entry.characterId !== input.characterId,
+      );
+      if (
+        inherited.length !==
+          activeEntries.filter(
+            (entry) => entry.characterId !== input.characterId,
+          ).length ||
+        inherited.some(
+          (entry) =>
+            !activeEntries.some(
+              (active) =>
+                active.characterId === entry.characterId &&
+                active.characterVersionId === entry.characterVersionId &&
+                active.manifestPath === entry.manifestPath &&
+                active.manifestSha256 === entry.manifestSha256,
+            ),
+        )
+      )
+        return denied('Release does not preserve the active catalog');
+
+      const selectedVersion = this.connection.db
+        .select()
+        .from(characterVersions)
+        .where(eq(characterVersions.id, input.versionId))
+        .get();
+      if (
+        !selectedVersion ||
+        selectedEntries[0]?.characterVersion !== selectedVersion.version
+      )
+        return denied('Approved version is unavailable');
+      const release = {
+        id: input.release.id,
+        status: 'preparing' as const,
+        indexKey: input.release.indexKey,
+        indexSha256: input.release.indexSha256,
+        indexJson: input.release.indexJson,
+        previousReleaseId: input.release.previousReleaseId,
+        expectedGeneration: input.release.expectedGeneration,
+        publishedAt: now,
+      };
+      this.connection.db.insert(contentReleases).values(release).run();
+      this.connection.db
+        .insert(contentReleaseEntries)
+        .values(
+          input.entries.map((entry) => ({
+            releaseId: input.release.id,
+            characterId: entry.characterId,
+            characterVersionId: entry.characterVersionId,
+            manifestPath: entry.manifestPath,
+            manifestSha256: entry.manifestSha256,
+          })),
+        )
+        .run();
+      this.connection.db
+        .update(contentReleases)
+        .set({ status: 'ready', publishedAt: now })
+        .where(eq(contentReleases.id, input.release.id))
+        .run();
+      this.connection.db
+        .update(characterVersions)
+        .set({ status: 'published', updatedAt: now })
+        .where(eq(characterVersions.id, input.versionId))
+        .run();
+      const pointer = this.connection.db
+        .update(contentState)
+        .set({
+          activeReleaseId: input.release.id,
+          generation: releaseState.generation + 1,
+        })
+        .where(eq(contentState.generation, input.release.expectedGeneration))
+        .run();
+      if (pointer.changes !== 1)
+        throw new Error('Release activation CAS failed');
+
+      this.connection.db
+        .update(generationAttempts)
+        .set({ outcome: 'succeeded', endedAt: now })
+        .where(eq(generationAttempts.id, attempt.id))
+        .run();
+      const completedStep = this.connection.db
+        .update(generationSteps)
+        .set({
+          status: 'succeeded',
+          leaseOwner: null,
+          leaseExpiresAt: null,
+          outputJson: canonicalJson({
+            releaseId: input.release.id,
+            indexSha256: input.release.indexSha256,
+          }),
+        })
+        .where(
+          and(
+            eq(generationSteps.id, publishStep.id),
+            eq(generationSteps.status, 'running'),
+            eq(generationSteps.leaseToken, input.leaseToken),
+          ),
+        )
+        .run();
+      if (completedStep.changes !== 1)
+        throw new Error('Publication step completion fence failed');
+      this.connection.db
+        .update(generationJobs)
+        .set({ status: 'succeeded', updatedAt: now })
+        .where(eq(generationJobs.id, publishJob.id))
+        .run();
+      this.connection.db
+        .update(generationJobs)
+        .set({ status: 'succeeded', updatedAt: now })
+        .where(eq(generationJobs.id, parent.id))
+        .run();
+      return { status: 'activated', releaseId: input.release.id };
     });
   }
 

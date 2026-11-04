@@ -66,6 +66,8 @@ export {
   type NewWorkflowJob,
   type WorkflowClaim,
   type NewCheckpointLineageClaim,
+  type GeneratedPublicationActivationInput,
+  type GeneratedPublicationActivationResult,
 } from './workflow.js';
 export { AssetRepository, type NewAsset } from './assets.js';
 export { ReleaseRepository, type ReleaseEntry } from './releases.js';
